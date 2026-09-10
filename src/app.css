@@ -80,3 +80,10 @@
 .daeun .gz{display:block;font-size:1.15rem;margin:3px 0 1px}
 .daeun small{display:block;font-size:.72rem;color:#8b7750}
 .daeun em{display:block;font-style:normal;font-size:.66rem;color:var(--teal);margin-top:4px}
+
+/* Openings for a first record, so the field is never faced blank. */
+.presets{border:0;padding:0;margin:0 0 18px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.presets legend{font-size:.85rem;font-weight:600;margin-bottom:8px;color:var(--teal)}
+.presets button{min-height:52px;border:1px solid var(--line);border-radius:11px;background:var(--card);color:var(--ink);font-size:.85rem;line-height:1.5;padding:8px 10px;cursor:pointer;text-align:center}
+.presets button:hover{border-color:var(--teal)}
+@media(max-width:360px){.presets{grid-template-columns:1fr}}
