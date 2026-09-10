@@ -42,8 +42,41 @@ export function topicReading(r,t){const a=TOPIC[t]||TOPIC.진로;return {title:a
 export function reading(r,p){const e=r.strong[0],w=r.weak[0];return {summary:`${p.name}님은 ${TRAITS[e][1]}으로 읽힙니다. 다만 ${TRAITS[e][2]}은 돌아볼 필요가 있어요.`,strength:TRAITS[e][0],caution:TRAITS[e][2],environment:TRAITS[e][3],balance:`${ELEMENTS[w]}은 ${r.cnt[w]}개로 상대적으로 적게 나타납니다. ${TRAITS[w][0]}을 일상의 습관으로 보완해보는 관점입니다. 없는 기운이 곧 결핍이나 불운이라는 뜻은 아니에요.`,action:topicReading(r,p.topics?.[0]||'진로').action};}
 export function flow(r,iso){const dt=DateTime.fromISO(iso,{zone:'Asia/Seoul'}).set({hour:12});const a=at({clock:'civil'},dt);return ['year','month','day'].map((key,i)=>{const p=a.pillars[i],rel=mod(SE[p.s]-r.element,5);const notes=[['내 기준 돌아보기','내 방식과 주변의 방식을 비교하며 우선순위를 정리해 보세요.'],['생각을 표현하기','아직 정리되지 않은 생각을 글이나 대화로 꺼내보세요.'],['자원 점검하기','시간과 비용을 어디에 쓰는지 돌아보세요.'],['책임과 경계 정하기','주어진 역할과 내가 감당할 범위를 구분해 보세요.'],['배움과 회복 챙기기','새로운 정보를 살피고 도움을 요청해 보세요.']][rel];return {key,p,rel,...{title:notes[0],body:notes[1]},god:tenGod(r.day,p.s)};});}
 export function safety(text){if(/자살|죽고\s*싶|죽을|자해|목숨|살기\s*싫|해치고\s*싶/.test(text))return '지금은 사주보다 안전이 먼저예요. 혼자 견디지 말고 믿을 수 있는 사람에게 지금의 상황을 알려주세요. 즉시 위험하다면 한국에서는 119 또는 112에 연락하거나 가까운 응급실로 가세요. 자살예방상담전화 109는 24시간 연결됩니다. 해외라면 현지 긴급전화나 위기상담 서비스를 이용해 주세요. 지금 혼자 계신가요?';if(/건강|증상|병원|진단|통증|약|임신|암|의료/.test(text))return '사주로 질환·임신·치료 결과를 판단할 수 없어요. 증상과 복용 중인 약, 지속된 기간을 정리해 의료 전문가와 상의하세요. 심한 흉통·호흡곤란 등 긴급한 증상은 즉시 응급 도움을 받으세요. 오늘은 몸 상태를 한 줄로 남기고 필요한 진료를 확인해보세요.';if(/투자|주식|코인|매수|매도|대출|재무|수익/.test(text))return '사주로 투자 수익이나 매매 시점을 예측하지 않습니다. 손실을 감당할 수 있는 범위, 수수료와 부채를 먼저 확인하세요. 구체적인 투자·대출 결정은 자격 있는 금융 전문가와 상의하고, 오늘은 자산과 지출을 정리하는 데 집중해보세요.';if(/법률|소송|고소|이혼|계약|재판|변호사/.test(text))return '사주는 법률 판단이나 사건 결과를 예측하는 근거가 아닙니다. 계약서·관련 자료와 기한을 정리하고 변호사 또는 공인된 법률상담기관에 확인하세요. 오늘은 놓치면 안 되는 기한 하나를 확인해보세요.';return null;}
+// Conditions people actually weigh, each with the checks that turn a feeling
+// into something comparable. A factor is claimed only when the user's own
+// words name it, so a reply never invents a concern they did not raise.
+const FACTOR=[
+ ['보상',/연봉|급여|월급|보상|인센티브|스톡|지분|페이|수입/,'기본급과 변동급의 비율','사이닝 보너스·스톡의 반환과 베스팅 조건'],
+ ['안정성',/안정|불안|리스크|위험|망하|폐업|버틸|해고|짤리/,'수습 기간 중 계약이 끝나는 조건','최근 1년 자발적 퇴사율'],
+ ['조직 규모',/규모|스타트업|대기업|중소|인원|직원 ?수|초기 ?기업|작은 ?(?:회사|곳|기업|팀)|(?:회사|기업|조직|팀)가? ?작/,'지금 현금으로 버틸 수 있는 개월 수','최근 매출과 투자 추이'],
+ ['성장',/성장|커리어|배울|배우|기회|경력|스킬/,'1년 뒤 맡게 될 역할의 범위','옆에서 배울 사람이 있는지'],
+ ['시간',/워라밸|야근|근무 ?시간|주말|휴가|퇴근/,'실제 퇴근 시각과 주말 근무 빈도','휴가 사용률'],
+ ['함께 일할 사람',/상사|팀|동료|대표|문화|사람들/,'함께 일할 팀의 최근 이직','결정이 내려지는 방식'],
+ ['거리',/출퇴근|통근|이사|재택|원격/,'편도 통근 시간','재택이 가능한 일수'],
+ ['관계 거리',/연락|만남|고백|헤어|사귀|썸/,'서로 표현한 의사와 경계','다음에 만나기로 한 시점'],
+ ['지출 구조',/지출|저축|대출|생활비|비상금?/,'고정 지출과 비상 자금의 개월 수','줄일 수 있는 항목 한 가지']];
+const figures=t=>[...t.matchAll(/(\d+(?:\.\d+)?)\s*(%|퍼센트|배|만 ?원|억|개월|달|년|주|시간)/g)].map(m=>m[1]+m[2].replace(/\s/g,'').replace('퍼센트','%'));
+const batchim=w=>{const c=w.charCodeAt(w.length-1);return c>=0xAC00&&c<=0xD7A3&&(c-0xAC00)%28!==0;};
+const yeyo=w=>w+(batchim(w)?'이에요':'예요');
+function readFactors(latest,earlier){const out=[];for(const [label,re,a,b] of FACTOR){const fresh=re.test(latest);if(fresh||re.test(earlier))out.push({label,checks:[a,b],fresh:fresh&&!re.test(earlier)});}return out;}
+
 export function coach(r,p,conversation,text){const safe=safety(text);if(safe)return {text:safe,phase:'safety'};const user=conversation.messages.filter(m=>m.role==='user');let topic=conversation.topic||p.topics?.[0]||'진로';if(/연애|사랑|상대|고백/.test(text))topic='연애';else if(/이직|퇴사|직장|진로|회사/.test(text))topic='진로';else if(/돈|재물|지출/.test(text))topic='재물';else if(/가족|부모|아이/.test(text))topic='가족';
  if(!conversation.context||topic!==conversation.topic)return {text:`${topic} 이야기를 함께 정리해볼게요. 지금 생각하는 선택지는 무엇이고, 가장 걱정되는 조건 하나는 무엇인가요?\n이미 마음이 기울었다면 그 이유도 알려주세요.`,topic,context:text,phase:'question'};
- const t=topicReading(r,topic),previous=user.slice(-2,-1)[0]?.text;return {text:`사주 관점\n${t.body}\n\n현실적인 체크포인트\n처음 남긴 고민 “${conversation.context.slice(0,100)}”에 이번에 말씀하신 “${text.slice(0,140)}”를 함께 놓고 보세요. ${previous&&user.length>2?'앞서 말한 조건이 지금도 중요한지 다시 확인해 보세요.':'바꿀 수 있는 조건과 당장 바꿀 수 없는 조건을 나누어 보세요.'}\n\n오늘 할 일\n${user.length>3?'앞서 정리한 행동을 해봤다면 결과 한 가지와 달라진 생각 한 가지를 기록해보세요.':t.action}\n\n이 중 먼저 정리하고 싶은 조건은 무엇인가요?`,topic,context:conversation.context,phase:'advice'};
+ const t=topicReading(r,topic),earlier=user.slice(0,-1).map(m=>m.text).join(' '),found=readFactors(text,earlier),nums=figures([earlier,text].join(' '));
+ // Nothing named yet: ask for the options themselves instead of restating the
+ // question back, which is what made earlier replies feel like an echo.
+ if(!found.length)return {text:`사주 관점\n${t.body}\n\n현실 확인\n아직 비교할 조건이 잡히지 않았어요. 놓고 고민 중인 선택지를 두 개로 적어주시고, 각각에서 얻는 것과 잃는 것을 한 줄씩 붙여주세요.\n\n오늘 할 일\n${t.action}`,topic,context:conversation.context,phase:'advice'};
+ const nth=user.length,fresh=found.filter(f=>f.fresh),labels=found.map(f=>f.label);
+ // Newest concerns first, and never more than three at once: a list that grows
+ // every turn stops being a comparison and becomes a wall.
+ const shown=[...fresh,...found.filter(f=>!f.fresh)].slice(0,3);
+ const focus=fresh[0]||found[0],action=focus.checks[nth%2];
+ const lead=fresh.length?`이번에 더해주신 조건은 ${yeyo(fresh.map(f=>f.label).join('·'))}. `:'새로 더해진 조건은 없어요. ';
+ // The reading itself does not change between turns, so state it once and refer
+ // back to it after that instead of reprinting the same paragraph.
+ const view=nth<=2?t.body:`앞서 본 ${topic} 해석은 그대로예요. 이번에는 조건 쪽만 보겠습니다.`;
+ const rank=labels.length>1?`\n\n${shown.map(f=>f.label).join(' · ')} 중 지금 가장 포기하기 어려운 순서로 알려주시면, 그 기준으로 좁혀드릴게요.`:`\n\n${labels[0]} 말고 지금 함께 걸리는 조건이 하나 더 있다면 알려주세요.`;
+ return {text:`사주 관점\n${view}\n\n현실 확인\n${lead}지금 비교할 조건은 ${shown.map(f=>f.label).join('·')}${found.length>shown.length?` 외 ${found.length-shown.length}가지`:''}${nums.length?` (${[...new Set(nums)].join(', ')})`:''}입니다. 아래를 확인하면 느낌이 아니라 숫자로 비교할 수 있어요.\n${shown.map(f=>`· ${f.label} — ${f.checks[0]} / ${f.checks[1]}`).join('\n')}\n\n오늘 할 일\n${action} 하나만 오늘 확인해서 답을 적어두세요. 나머지는 그다음에 봐도 늦지 않아요.${rank}`,topic,context:conversation.context,phase:'advice'};
 }
+
 export function monthly(records,month){const list=records.filter(r=>r.date?.startsWith(month)),done=list.filter(r=>r.result==='good'||r.result==='rethink'),low=done.filter(r=>r.confidence<50),high=done.filter(r=>r.confidence>=50),avg=a=>a.length?Math.round(a.filter(r=>r.result==='good').length/a.length*100):null;return {list,done,low,high,lowRate:avg(low),highRate:avg(high),moods:list.reduce((a,r)=>{if(r.mood)a[r.mood]=(a[r.mood]||0)+1;return a;},{}),insight:low.length>=3&&high.length>=3?`완료한 기록에서 확신 50 미만 ${low.length}건의 만족 비율은 ${avg(low)}%, 50 이상 ${high.length}건은 ${avg(high)}%였어요. 스스로 남긴 소수 기록의 관찰이며 인과관계나 미래 예측은 아닙니다.`:'확신 수준별 비교는 두 그룹에 완료 기록이 각각 3개 이상 쌓이면 보여드려요. 지금은 선택과 실제 결과를 차근차근 남겨보세요.'};}
