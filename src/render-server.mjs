@@ -151,7 +151,7 @@ async function handleJournal(req, res) {
     const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
     await writeFile(tmp, JSON.stringify(next));
     await rename(tmp, file);
-    return sendJson(res, { ok: true, revision: next.revision });
+    return sendJson(res, { ok: true, revision: next.revision }, 200, headers);
   } catch (error) {
     console.error('Journal request failed', error?.message);
     return sendJson(res, { error: '저장소에 연결하지 못했어요. 입력 내용은 현재 화면에 유지됩니다. 잠시 후 다시 시도해 주세요.' }, 503);
