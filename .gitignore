@@ -3,3 +3,4 @@ node_modules/
 .wrangler/
 .env*
 src/generated-assets.js
+.data/

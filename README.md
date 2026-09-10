@@ -31,10 +31,21 @@ Render Dashboard에서 GitHub 저장소를 연결한 뒤 다음 값으로 생성
 - Build Command: `npm ci && npm run build`
 - Start Command: `npm start`
 - Environment Variable: `NODE_VERSION=22`
-- Environment Variable: `DALBIT_DATA_DIR=/var/data/dalbit-saju`
-- Persistent Disk: mount path `/var/data`, size `1GB`
 
-저장 기능은 Render의 persistent disk에 세션별 JSON 파일로 보관됩니다. 디스크 없이 배포하면 재시작이나 재배포 때 상담·기록 저장 데이터가 사라질 수 있습니다.
+`render.yaml`이 위 값을 그대로 담고 있으므로 Blueprint로 연결하면 수동 입력이 필요 없습니다.
+
+저장 기능은 세션별 JSON 파일로 보관됩니다. 현재 설정은 free 플랜이라 디스크가 없고, 파일은 인스턴스의 임시 저장소(`DALBIT_DATA_DIR` 미지정 시 `.data/`)에 쌓입니다. **재배포·재시작·유휴 슬립 때 상담과 기록이 사라집니다.** 시연용으로는 충분하지만 실제 사용자를 받을 때는 유료 플랜으로 올리고 persistent disk를 붙여야 합니다.
+
+```yaml
+    plan: starter
+    envVars:
+      - key: DALBIT_DATA_DIR
+        value: /var/data/dalbit-saju
+    disk:
+      name: dalbit-saju-data
+      mountPath: /var/data
+      sizeGB: 1
+```
 
 ```sh
 npm test
