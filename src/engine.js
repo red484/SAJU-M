@@ -1,14 +1,9 @@
 import {Solar} from 'lunar-javascript';
 import KoreanLunarCalendar from 'korean-lunar-calendar';
 import {DateTime} from 'luxon';
-export const STEM='甲乙丙丁戊己庚辛壬癸'.split(''), BRANCH='子丑寅卯辰巳午未申酉戌亥'.split('');
-export const SK=['갑','을','병','정','무','기','경','신','임','계'], BK=['자','축','인','묘','진','사','오','미','신','유','술','해'];
-export const ELEMENTS=['목','화','토','금','수'], ECHAR=['木','火','土','金','水'], COLORS=['#4c7a60','#ba6555','#bb933f','#8b9299','#517d9b'];
+import {STEM,BRANCH,SK,BK,ELEMENTS,TOPIC,topics} from './constants.js';
 const SE=[0,0,1,1,2,2,3,3,4,4],BE=[4,2,0,0,2,1,1,2,3,3,2,4];
-export const CITIES=[['서울','Asia/Seoul',126.978],['부산','Asia/Seoul',129.076],['대구','Asia/Seoul',128.601],['인천','Asia/Seoul',126.705],['광주','Asia/Seoul',126.852],['대전','Asia/Seoul',127.385],['제주','Asia/Seoul',126.531],['도쿄','Asia/Tokyo',139.692],['뉴욕','America/New_York',-74.006],['로스앤젤레스','America/Los_Angeles',-118.244],['런던','Europe/London',-.128]];
 const mod=(a,b)=>(a%b+b)%b;
-export const now=()=>DateTime.now().setZone('Asia/Seoul');
-export const dateLabel=d=>DateTime.fromISO(d).setLocale('ko').toFormat('M월 d일');
 function solar(dt){return Solar.fromYmdHms(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second);}
 function parts(gz,k){const s=STEM.indexOf(gz[0]),b=BRANCH.indexOf(gz[1]);return {k,s,b,gz,label:SK[s]+BK[b]};}
 export function tenGod(day,other){const r=mod(SE[other]-SE[day],5),same=day%2===other%2;return [['비견','겁재'],['식신','상관'],['편재','정재'],['편관','정관'],['편인','정인']][r][same?0:1];}
@@ -43,13 +38,6 @@ const TRAITS=[
  ['흐름을 안정시키고 책임지는 힘','한번 맡은 일을 차근차근 정리하는 편','다른 사람의 책임까지 혼자 안는 패턴','역할과 약속이 분명하고 신뢰가 쌓이는 환경','내가 맡을 일과 함께 나눌 일을 한 가지씩 구분해보세요.'],
  ['기준을 세우고 결론을 내리는 힘','모호한 상황에서 핵심을 분별하는 편','완벽한 답을 찾느라 자신에게 엄격해지는 패턴','기준과 피드백이 명확한 환경','꼭 지킬 기준 하나와 양보할 조건 하나를 적어보세요.'],
  ['깊이 살피고 유연하게 적응하는 힘','바로 반응하기보다 맥락을 이해하는 편','생각이 길어져 첫 행동을 미루는 패턴','혼자 생각할 시간과 유연한 선택권이 있는 환경','생각 중인 일을 10분 안에 할 수 있는 행동으로 줄여보세요.']];
-const TOPIC={
- '진로':['일의 방향','업무 내용·함께 일할 사람·보상 중 바꿀 수 있는 조건을 나누어 보세요.','현재 자리와 다음 선택지의 장단점을 각각 세 줄로 적어보세요.'],
- '연애':['관계의 거리','상대의 마음을 예측하기보다 서로 표현한 의사와 경계를 확인해 보세요.','상대에게 바라는 점 하나를 비난 없이 내 감정으로 표현해 보세요.'],
- '재물':['돈을 대하는 기준','수입·고정 지출·비상 자금을 먼저 확인하세요. 사주로 수익이나 매수 시점을 판단하지 않습니다.','이번 달 고정 지출 중 줄일 수 있는 항목 하나를 확인해 보세요.'],
- '건강':['일상과 회복','오행의 많고 적음은 건강 진단이 아닙니다. 증상이 있다면 의료 전문가와 상의하세요.','오늘의 수면·식사·휴식 시간을 기록하고 무리한 일정 하나를 조정해 보세요.'],
- '가족':['함께 나누는 책임','가족이라는 이유로 내 여력과 상대의 요구를 같은 것으로 여기지 않아도 됩니다.','다음 대화에서 내가 도울 수 있는 범위를 한 문장으로 정해 보세요.']};
-export const topics=Object.keys(TOPIC);
 export function topicReading(r,t){const a=TOPIC[t]||TOPIC.진로;return {title:a[0],body:`${ELEMENTS[r.strong[0]]} 기운을 ${TRAITS[r.strong[0]][0]}으로 읽으면, ${t}에서도 ${TRAITS[r.strong[0]][3]}이 맞는지 살펴볼 수 있어요. ${a[1]}`,action:a[2]};}
 export function reading(r,p){const e=r.strong[0],w=r.weak[0];return {summary:`${p.name}님은 ${TRAITS[e][1]}으로 읽힙니다. 다만 ${TRAITS[e][2]}은 돌아볼 필요가 있어요.`,strength:TRAITS[e][0],caution:TRAITS[e][2],environment:TRAITS[e][3],balance:`${ELEMENTS[w]}은 ${r.cnt[w]}개로 상대적으로 적게 나타납니다. ${TRAITS[w][0]}을 일상의 습관으로 보완해보는 관점입니다. 없는 기운이 곧 결핍이나 불운이라는 뜻은 아니에요.`,action:topicReading(r,p.topics?.[0]||'진로').action};}
 export function flow(r,iso){const dt=DateTime.fromISO(iso,{zone:'Asia/Seoul'}).set({hour:12});const a=at({clock:'civil'},dt);return ['year','month','day'].map((key,i)=>{const p=a.pillars[i],rel=mod(SE[p.s]-r.element,5);const notes=[['내 기준 돌아보기','내 방식과 주변의 방식을 비교하며 우선순위를 정리해 보세요.'],['생각을 표현하기','아직 정리되지 않은 생각을 글이나 대화로 꺼내보세요.'],['자원 점검하기','시간과 비용을 어디에 쓰는지 돌아보세요.'],['책임과 경계 정하기','주어진 역할과 내가 감당할 범위를 구분해 보세요.'],['배움과 회복 챙기기','새로운 정보를 살피고 도움을 요청해 보세요.']][rel];return {key,p,rel,...{title:notes[0],body:notes[1]},god:tenGod(r.day,p.s)};});}

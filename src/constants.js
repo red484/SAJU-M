@@ -1,0 +1,14 @@
+// Pure lookup tables shared by the engine and the UI. No 만세력 or luxon
+// dependency, so the splash and birth screens can import these without
+// pulling in the calendar bundle.
+export const STEM='甲乙丙丁戊己庚辛壬癸'.split(''), BRANCH='子丑寅卯辰巳午未申酉戌亥'.split('');
+export const SK=['갑','을','병','정','무','기','경','신','임','계'], BK=['자','축','인','묘','진','사','오','미','신','유','술','해'];
+export const ELEMENTS=['목','화','토','금','수'], ECHAR=['木','火','土','金','水'], COLORS=['#4c7a60','#ba6555','#bb933f','#8b9299','#517d9b'];
+export const CITIES=[['서울','Asia/Seoul',126.978],['부산','Asia/Seoul',129.076],['대구','Asia/Seoul',128.601],['인천','Asia/Seoul',126.705],['광주','Asia/Seoul',126.852],['대전','Asia/Seoul',127.385],['제주','Asia/Seoul',126.531],['도쿄','Asia/Tokyo',139.692],['뉴욕','America/New_York',-74.006],['로스앤젤레스','America/Los_Angeles',-118.244],['런던','Europe/London',-.128]];
+export const TOPIC={
+ '진로':['일의 방향','업무 내용·함께 일할 사람·보상 중 바꿀 수 있는 조건을 나누어 보세요.','현재 자리와 다음 선택지의 장단점을 각각 세 줄로 적어보세요.'],
+ '연애':['관계의 거리','상대의 마음을 예측하기보다 서로 표현한 의사와 경계를 확인해 보세요.','상대에게 바라는 점 하나를 비난 없이 내 감정으로 표현해 보세요.'],
+ '재물':['돈을 대하는 기준','수입·고정 지출·비상 자금을 먼저 확인하세요. 사주로 수익이나 매수 시점을 판단하지 않습니다.','이번 달 고정 지출 중 줄일 수 있는 항목 하나를 확인해 보세요.'],
+ '건강':['일상과 회복','오행의 많고 적음은 건강 진단이 아닙니다. 증상이 있다면 의료 전문가와 상의하세요.','오늘의 수면·식사·휴식 시간을 기록하고 무리한 일정 하나를 조정해 보세요.'],
+ '가족':['함께 나누는 책임','가족이라는 이유로 내 여력과 상대의 요구를 같은 것으로 여기지 않아도 됩니다.','다음 대화에서 내가 도울 수 있는 범위를 한 문장으로 정해 보세요.']};
+export const topics=Object.keys(TOPIC);
