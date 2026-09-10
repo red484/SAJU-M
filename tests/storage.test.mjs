@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+const origin='http://127.0.0.1:8766';
+const initial=await fetch(origin+'/api/journal');assert.equal(initial.status,200);const cookie=initial.headers.get('set-cookie').split(';')[0];assert.match(initial.headers.get('set-cookie'),/HttpOnly/);
+const payload={profile:null,records:[{id:'disposable-test',title:'storage test'}],conversations:[],savedAnswers:[]};
+const req=(method,body,extra={})=>fetch(origin+'/api/journal',{method,headers:{Cookie:cookie,Origin:origin,'Content-Type':'application/json',...extra},body:body?JSON.stringify(body):undefined});
+let r=await req('PUT',{data:payload,revision:0});assert.equal(r.status,200);assert.equal((await r.json()).revision,1);
+r=await req('GET');assert.deepEqual((await r.json()).data,payload);
+r=await fetch(origin+'/api/journal');assert.equal((await r.json()).data,null);
+assert.equal((await req('PUT',{data:payload,revision:0})).status,409);
+assert.equal((await req('PUT',{data:payload,revision:1},{Origin:'https://evil.example'})).status,403);
+assert.equal((await req('PUT',{data:payload,revision:1})).status,200);
+assert.equal((await req('DELETE')).status,200);assert.equal((await req('GET')).status,200);assert.equal((await (await req('GET')).json()).data,null);
+console.log('PASS: server persistence, session isolation, revision conflict, cross-origin rejection and deletion.');
