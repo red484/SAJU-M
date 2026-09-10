@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {calculate,coach,monthly,topicReading,flow,safety} from '../src/engine.js';
+import {calculate,coach,monthly,topicReading,flow,safety,manse,fortune} from '../src/engine.js';
 const base={name:'테스트',birth:'1995-05-17',time:'15:30',zone:'Asia/Seoul',longitude:126.978,clock:'civil',calendar:'solar',topics:['진로']};
 const a=calculate(base);assert.equal(a.total,8);assert.equal(a.pillars.map(p=>p.gz).join(' '),'乙亥 辛巳 戊申 庚申');
 const lunar=calculate({...base,birth:'1956-01-21',calendar:'lunar'});assert.equal(lunar.solarDate,'1956-03-03');
@@ -19,4 +19,25 @@ assert.ok(!adv.text.includes('회사가 작은 게 걱정돼요'),'coach echoed 
 // 이에요/예요 follows the final consonant.
 assert.ok(!/규모이에요/.test(adv.text),'wrong particle after an open syllable');assert.match(safety('죽고 싶어요'),/109/);assert.match(safety('코인 투자'),/예측하지/);
 assert.equal(flow(a,'2026-09-10').length,3);assert.equal(monthly([],'2026-09').list.length,0);
-console.log('PASS: lunar/leap conversion, term boundary, unknown time, invalid/DST dates, contextual coaching and safety.');
+
+// ── 만세력 · 대운 ──────────────────────────────────────────────
+// 1995-05-17 15:30 서울 → 乙亥 辛巳 戊申 庚申. 표준 만세력과 대조한 값.
+const ms=manse(calculate(base));
+assert.deepEqual(ms.rows.map(r=>r.gz),['乙亥','辛巳','戊申','庚申']);
+assert.deepEqual(ms.empty,['인','묘']);                       // 戊申은 甲辰순 → 공망 寅卯
+assert.deepEqual(ms.rows.map(r=>r.stage),['절','건록','병','병']); // 戊 일간 기준 십이운성
+assert.deepEqual(ms.rows.map(r=>r.stem),['정관','상관','일간','식신']);
+assert.deepEqual(ms.rows[0].hidden.map(h=>h.k),['무','갑','임']);  // 亥의 지장간
+assert.ok(ms.rows[1].marks.includes('역마'));                  // 년지 亥(해묘미) → 巳가 역마
+
+// 양남·음녀는 순행, 음남·양녀는 역행. 년간 乙은 음간.
+const fw=fortune(calculate({...base,gender:'female'}),{...base,gender:'female'});
+const bw=fortune(calculate({...base,gender:'male'}),{...base,gender:'male'});
+assert.equal(fw.forward,true);assert.equal(bw.forward,false);
+assert.equal(fw.list[0].gz,'壬午');   // 월주 辛巳에서 순행
+assert.equal(bw.list[0].gz,'庚辰');   // 월주 辛巳에서 역행
+assert.equal(fw.start,7);             // 망종까지 20일 ÷ 3
+assert.equal(bw.start,4);             // 입하부터 11일 ÷ 3
+assert.equal(fortune(calculate(base),base),null,'성별이 없으면 방향을 정할 수 없다');
+
+console.log('PASS: lunar/leap conversion, term boundary, unknown time, invalid/DST dates, manse pillars, 십이운성, 공망, 신살, 대운 direction, contextual coaching and safety.');

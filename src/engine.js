@@ -1,7 +1,7 @@
 import {Solar} from 'lunar-javascript';
 import KoreanLunarCalendar from 'korean-lunar-calendar';
 import {DateTime} from 'luxon';
-import {STEM,BRANCH,SK,BK,ELEMENTS,COLORNAME,COLORS,HOURS,HARMONY,TOPIC,topics} from './constants.js';
+import {STEM,BRANCH,SK,BK,ELEMENTS,COLORNAME,COLORS,HOURS,HARMONY,HIDDEN,STAGE,BIRTHPLACE,TRIAD,PEACH,HORSE,CANOPY,NOBLE,TOPIC,topics} from './constants.js';
 const SE=[0,0,1,1,2,2,3,3,4,4],BE=[4,2,0,0,2,1,1,2,3,3,2,4];
 const mod=(a,b)=>(a%b+b)%b;
 function solar(dt){return Solar.fromYmdHms(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second);}
@@ -100,6 +100,54 @@ export function daySignals(r,iso){
  const pair=HARMONY[dayGz.b],[label,from,to]=HOURS[pair];
  const support=(SE[r.day]+4)%5;
  return {
-  hour:{label:label+'시',from,to,basis:`오늘 일지 ${BK[dayGz.b]}와 육합하는 ${label}시`},
+  // 육합이 밤 시진을 가리키는 날이 있습니다. 값을 비틀지 않고, 깨어 있는
+  // 시간에 어떻게 쓰라는 것인지만 덧붙입니다.
+  hour:{label:label+'시',from,to,night:Number(from.slice(0,2))>=22||Number(from.slice(0,2))<6,basis:`오늘 일지 ${BK[dayGz.b]}와 육합하는 ${label}시`,note:Number(from.slice(0,2))>=22||Number(from.slice(0,2))<6?'잠든 시간이라면 굳이 깨어 있을 것 없어요. 잠들기 전이나 일어난 직후에 오늘 할 일을 정해두면 같은 결을 탑니다.':null},
   color:{name:COLORNAME[support],hex:COLORS[support],element:ELEMENTS[support],basis:`일간 ${SK[r.day]}(${ELEMENTS[SE[r.day]]})${batchim(ELEMENTS[SE[r.day]])?"을":"를"} 생하는 ${ELEMENTS[support]}의 빛깔`}};
+}
+
+// ── 만세력 상세 ────────────────────────────────────────────────
+// 지장간(여기·중기·본기), 십이운성, 공망, 신살. 어느 것도 길흉 등급이
+// 아니라 명식에서 바로 읽히는 자리 이름입니다.
+export function manse(r){
+ const day=r.day,pillars=r.pillars;
+ // 공망: 일주가 속한 순(旬)의 시작에서 열한째·열두째 지지.
+ const idx=mod((pillars[2].s-pillars[2].b)*6+pillars[2].b,60);
+ const head=mod(idx-idx%10,60),hb=mod(head,12);
+ const empty=[mod(hb+10,12),mod(hb+11,12)];
+ // 십이운성: 양간은 장생부터 순행, 음간은 역행.
+ const stage=b=>STAGE[mod((day%2===0?b-BIRTHPLACE[day]:BIRTHPLACE[day]-b),12)];
+ const g=TRIAD[pillars[0].b],dg=TRIAD[pillars[2].b];
+ const marks=b=>{const out=[];
+  if(b===PEACH[g]||b===PEACH[dg])out.push('도화');
+  if(b===HORSE[g]||b===HORSE[dg])out.push('역마');
+  if(b===CANOPY[g]||b===CANOPY[dg])out.push('화개');
+  if(NOBLE[day].includes(b))out.push('천을귀인');
+  if(empty.includes(b))out.push('공망');
+  return out;};
+ return {empty:empty.map(b=>BK[b]),
+  rows:pillars.map(v=>({key:v.k,gz:v.gz,label:v.label,
+   stem:v.k==='일주'?'일간':tenGod(day,v.s),
+   hidden:HIDDEN[v.b].map(h=>({k:SK[h],ten:tenGod(day,h)})),
+   branch:tenGod(day,HIDDEN[v.b].at(-1)),
+   stage:stage(v.b),marks:marks(v.b)}))};
+}
+
+// ── 대운 ──────────────────────────────────────────────────────
+// 순행·역행은 년간의 음양과 성별로 갈립니다. 양남·음녀는 순행,
+// 음남·양녀는 역행. 대운수는 절기까지의 일수를 3으로 나눈 값이고,
+// 성별을 받지 못하면 방향이 정해지지 않으므로 계산하지 않습니다.
+export function fortune(r,p){
+ if(p.gender!=='female'&&p.gender!=='male')return null;
+ const yang=r.pillars[0].s%2===0,forward=yang===(p.gender==='male');
+ const dt=DateTime.fromISO(r.solarDate,{zone:p.zone||'Asia/Seoul'}).set({hour:12});
+ const lunar=solar(dt.setZone('UTC+8')).getLunar();
+ const edge=(forward?lunar.getNextJie():lunar.getPrevJie()).getSolar();
+ const days=Math.abs(DateTime.fromObject({year:edge.getYear(),month:edge.getMonth(),day:edge.getDay()},{zone:'UTC+8'}).diff(dt.setZone('UTC+8'),'days').days);
+ const start=Math.max(1,Math.round(days/3));
+ const mi=STEM.indexOf(r.pillars[1].gz[0]),mb=BRANCH.indexOf(r.pillars[1].gz[1]);
+ const birthYear=Number(r.solarDate.slice(0,4));
+ return {forward,start,list:Array.from({length:8},(_,i)=>{const n=i+1;
+  const s2=mod(forward?mi+n:mi-n,10),b2=mod(forward?mb+n:mb-n,12);
+  return {age:start+i*10,year:birthYear+start+i*10,gz:STEM[s2]+BRANCH[b2],label:SK[s2]+BK[b2],ten:tenGod(r.day,s2),stage:STAGE[mod((r.day%2===0?b2-BIRTHPLACE[r.day]:BIRTHPLACE[r.day]-b2),12)]};})};
 }
