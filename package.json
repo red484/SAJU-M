@@ -6,6 +6,7 @@
   "scripts": {
     "build": "node build.mjs",
     "dev": "wrangler dev --port 8766",
+    "start": "node src/render-server.mjs",
     "test": "node tests/engine.test.mjs"
   },
   "dependencies": {

@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: dalbit-saju
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: DALBIT_DATA_DIR
+        value: /var/data/dalbit-saju
+    disk:
+      name: dalbit-saju-data
+      mountPath: /var/data
+      sizeGB: 1

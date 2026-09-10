@@ -15,6 +15,27 @@ npm run dev
 
 미리보기: http://localhost:8766
 
+Render 배포는 저장 API가 필요하므로 Static Site가 아니라 Web Service로 만듭니다.
+
+```sh
+npm ci
+npm run build
+npm start
+```
+
+Render Dashboard에서 GitHub 저장소를 연결한 뒤 다음 값으로 생성합니다.
+
+- Service Type: Web Service
+- Branch: main
+- Runtime: Node
+- Build Command: `npm ci && npm run build`
+- Start Command: `npm start`
+- Environment Variable: `NODE_VERSION=22`
+- Environment Variable: `DALBIT_DATA_DIR=/var/data/dalbit-saju`
+- Persistent Disk: mount path `/var/data`, size `1GB`
+
+저장 기능은 Render의 persistent disk에 세션별 JSON 파일로 보관됩니다. 디스크 없이 배포하면 재시작이나 재배포 때 상담·기록 저장 데이터가 사라질 수 있습니다.
+
 ```sh
 npm test
 node tests/storage.test.mjs
