@@ -1,7 +1,7 @@
 import {Solar} from 'lunar-javascript';
 import KoreanLunarCalendar from 'korean-lunar-calendar';
 import {DateTime} from 'luxon';
-import {STEM,BRANCH,SK,BK,ELEMENTS,TOPIC,topics} from './constants.js';
+import {STEM,BRANCH,SK,BK,ELEMENTS,COLORNAME,COLORS,HOURS,HARMONY,TOPIC,topics} from './constants.js';
 const SE=[0,0,1,1,2,2,3,3,4,4],BE=[4,2,0,0,2,1,1,2,3,3,2,4];
 const mod=(a,b)=>(a%b+b)%b;
 function solar(dt){return Solar.fromYmdHms(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second);}
@@ -80,3 +80,26 @@ export function coach(r,p,conversation,text){const safe=safety(text);if(safe)ret
 }
 
 export function monthly(records,month){const list=records.filter(r=>r.date?.startsWith(month)),done=list.filter(r=>r.result==='good'||r.result==='rethink'),low=done.filter(r=>r.confidence<50),high=done.filter(r=>r.confidence>=50),avg=a=>a.length?Math.round(a.filter(r=>r.result==='good').length/a.length*100):null;return {list,done,low,high,lowRate:avg(low),highRate:avg(high),moods:list.reduce((a,r)=>{if(r.mood)a[r.mood]=(a[r.mood]||0)+1;return a;},{}),insight:low.length>=3&&high.length>=3?`완료한 기록에서 확신 50 미만 ${low.length}건의 만족 비율은 ${avg(low)}%, 50 이상 ${high.length}건은 ${avg(high)}%였어요. 스스로 남긴 소수 기록의 관찰이며 인과관계나 미래 예측은 아닙니다.`:'확신 수준별 비교는 두 그룹에 완료 기록이 각각 3개 이상 쌓이면 보여드려요. 지금은 선택과 실제 결과를 차근차근 남겨보세요.'};}
+
+// 음력 날짜가 곧 달의 위상이라, 별도 천문 계산 없이 유도됩니다. frac은 밝은
+// 부분의 비율(0 삭 · 1 보름), waxing은 차오르는 중인지입니다.
+const PHASE_NAME=['삭','초승달','상현달','상현 지나','보름달','보름 지나','하현달','그믐달'];
+export function moonPhase(iso){
+ const dt=DateTime.fromISO(iso,{zone:'Asia/Seoul'}).set({hour:12});
+ const day=solar(dt).getLunar().getDay();
+ const angle=2*Math.PI*((day-1)/29.53);
+ const frac=(1-Math.cos(angle))/2;
+ return {day,frac,waxing:angle<Math.PI,name:PHASE_NAME[Math.round(angle/(2*Math.PI)*8)%8]};
+}
+
+// 오늘 하루의 신호 두 가지. 어느 쪽도 점수가 아니라 근거를 가진 값입니다.
+// 시간은 일지와 육합하는 지지의 시진, 색은 일간을 생하는 오행(인성)입니다.
+export function daySignals(r,iso){
+ const dt=DateTime.fromISO(iso,{zone:'Asia/Seoul'}).set({hour:12});
+ const a=at({clock:'civil'},dt),dayGz=a.pillars[2];
+ const pair=HARMONY[dayGz.b],[label,from,to]=HOURS[pair];
+ const support=(SE[r.day]+4)%5;
+ return {
+  hour:{label:label+'시',from,to,basis:`오늘 일지 ${BK[dayGz.b]}와 육합하는 ${label}시`},
+  color:{name:COLORNAME[support],hex:COLORS[support],element:ELEMENTS[support],basis:`일간 ${SK[r.day]}(${ELEMENTS[SE[r.day]]})${batchim(ELEMENTS[SE[r.day]])?"을":"를"} 생하는 ${ELEMENTS[support]}의 빛깔`}};
+}

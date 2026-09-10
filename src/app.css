@@ -11,3 +11,47 @@
 .fold>section,.fold>:not(summary){margin-top:0}
 .fold[open]>:not(summary){border-top-left-radius:0;border-top-right-radius:0}
 .pill.quiet{border-style:dashed;opacity:.85}
+/* Step indicator for the two-part intake. */
+.steps{display:flex;align-items:center;gap:6px;margin:0 0 14px}
+.steps i{width:26px;height:3px;border-radius:2px;background:var(--line)}
+.steps i.on{background:var(--teal)}
+.steps span{font-size:.7rem;color:#8b7750;margin-left:4px}
+
+/* Element balance: chart beside its own numbers. */
+.balance{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:16px 0}
+.radar{flex:0 0 156px}
+.element-legend{list-style:none;margin:0;padding:0;flex:1;min-width:126px}
+.element-legend li{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:.85rem}
+.element-legend i{width:9px;height:9px;border-radius:2px;flex:none}
+.element-legend b{font-weight:600;min-width:22px}
+.element-legend span{color:#8b7750;font-size:.8rem}
+
+.moon{vertical-align:-3px}
+.moon-inline{display:inline-flex;align-items:center;gap:4px}
+
+/* The two daily signals. Each states its basis, so neither reads as a score. */
+.signals{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+.signals>div{border:1px solid var(--line);border-radius:12px;padding:13px 14px;background:var(--card)}
+.signals b{display:flex;align-items:center;gap:7px;font-size:1.05rem;margin:5px 0 6px}
+.signals small{font-weight:400;font-size:.8rem;color:#8b7750}
+.signals p{margin:0;font-size:.74rem;color:#8b7750;line-height:1.65}
+.swatch{width:14px;height:14px;border-radius:50%;flex:none;border:1px solid #0002}
+@media(max-width:420px){.signals{grid-template-columns:1fr}}
+
+/* Compass dial on the choice screen. */
+.compass{margin:0 0 22px;text-align:center}
+.dial{position:relative;width:250px;height:250px;margin:0 auto}
+.dial .tick{position:absolute;transform:translate(-50%,-50%);color:#8b7750;line-height:0}
+.dial .tick.now{color:var(--teal)}
+.dial-core{position:absolute;inset:24%;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;box-shadow:0 2px 14px #0b18202e}
+.dial-core img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.dial-core:after{content:'';position:absolute;inset:0;background:radial-gradient(circle,#0b1820b3 38%,#0b182066)}
+.dial-core b{position:relative;font-size:.95rem;color:#f4ecd8}
+.dial-core small{position:relative;font-size:.72rem;color:#cbbf9e}
+
+/* Traditional imagery is concentrated on the two screens that carry the
+   product's meaning — the reading and the compass — rather than spread thin
+   across every page, where it starts to read as a template. */
+.core{position:relative;background-image:url('/assets/hanji.webp');background-size:cover;background-blend-mode:multiply}
+.compass:before{content:'';position:absolute;right:-10px;top:-8px;width:104px;height:104px;background:url('/assets/branchPine.webp') right top/contain no-repeat;opacity:.42;pointer-events:none}
+.compass{position:relative}

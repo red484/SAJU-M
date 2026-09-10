@@ -11,7 +11,7 @@ await rm('dist',{recursive:true,force:true});await mkdir('dist/client/assets',{r
 await build({entryPoints:['src/app.js','src/engine.js'],bundle:true,minify:true,format:'esm',splitting:true,outdir:'dist/client',chunkNames:'chunk-[hash]',target:['es2022']});
 await copyFile('THIRD_PARTY_NOTICES.txt','dist/client/THIRD_PARTY_NOTICES.txt');
 await copyFile('src/app.css','dist/client/app.css');await copyFile('index.html','dist/client/index.html');
-for(const name of ['splash','mark','mentorAvatar','mentorHeader','todayRest','todayTalk','todayDeal','todayDuty','todayStart'])await copyFile(`assets/${name}.webp`,`dist/client/assets/${name}.webp`);
+for(const name of ['splash','mark','mentorAvatar','mentorHeader','todayRest','todayTalk','todayDeal','todayDuty','todayStart','hanji','compassCore','branchPine'])await copyFile(`assets/${name}.webp`,`dist/client/assets/${name}.webp`);
 // Same-origin asset fallback keeps the Worker portable when an ASSETS binding is absent.
 const TYPES={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.txt':'text/plain; charset=utf-8','.webp':'image/webp'};
 // Walk the whole tree so code-split chunks are picked up as they are emitted,
