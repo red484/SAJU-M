@@ -4,7 +4,7 @@ await rm('dist',{recursive:true,force:true});await mkdir('dist/client/assets',{r
 await build({entryPoints:['src/app.js'],bundle:true,minify:true,format:'esm',outfile:'dist/client/app.js',target:['es2022']});
 await copyFile('THIRD_PARTY_NOTICES.txt','dist/client/THIRD_PARTY_NOTICES.txt');
 await copyFile('src/app.css','dist/client/app.css');await copyFile('index.html','dist/client/index.html');
-for(const name of ['splash','mark','mentorAvatar','mentorHeader','todayRest'])await copyFile(`assets/${name}.webp`,`dist/client/assets/${name}.webp`);
+for(const name of ['splash','mark','mentorAvatar','mentorHeader','todayRest','todayTalk','todayDeal','todayDuty','todayStart'])await copyFile(`assets/${name}.webp`,`dist/client/assets/${name}.webp`);
 // Same-origin asset fallback keeps the Worker portable when an ASSETS binding is absent.
 const assets={};for(const f of ['index.html','app.js','app.css','THIRD_PARTY_NOTICES.txt',...(await readdir('dist/client/assets')).map(f=>'assets/'+f)]){const bytes=await readFile('dist/client/'+f);assets['/'+f]={body:bytes.toString('base64'),type:f.endsWith('.html')?'text/html; charset=utf-8':f.endsWith('.js')?'text/javascript; charset=utf-8':f.endsWith('.css')?'text/css; charset=utf-8':f.endsWith('.txt')?'text/plain; charset=utf-8':'image/webp'};}
 await writeFile('src/generated-assets.js','export default '+JSON.stringify(assets));
