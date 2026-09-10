@@ -398,23 +398,22 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:3px solid var(
     <!-- 1. 스플래시 -->
     <section class="screen on" id="s-splash">
       <div class="splash-art" id="splash-art"></div>
-      <div class="vtext">당신의 시간에, 지혜를 더하다</div>
+      <div class="vtext">언제나, 당신의 곁에</div>
       <div class="splash-in">
-        <div class="eyebrow"><span></span> 나를 위한 사주 컨설팅</div>
-        <h1>내 안의 흐름을 읽고,<br>나만의 길을 찾다.</h1>
-        <p>타고난 나의 기질부터 지금 마주한 고민까지.<br>당신의 이야기에 귀 기울이는 달빛 사주.</p>
-        <div class="splash-actions"><button class="btn gold" onclick="go('s-birth')">나의 사주 펼쳐보기 <span>↗</span></button><span class="intro-note">생년월일로 시작하는 나만의 이야기</span></div>
-        <div class="intro-bottom"><span>四柱 · 나를 이해하는 네 개의 기둥</span><span>01 — 05</span></div>
-        <div class="mark" id="splash-mark" hidden></div>
+        <div class="mark" id="splash-mark"><img src="assets/mark.webp" alt="달빛 사주"></div>
+        <h1>나를 읽고,<br>내일을 묻다</h1>
+        <p>천년의 지혜가 오늘의 당신과 만납니다.</p>
+        <button class="btn gold" onclick="go('s-birth')">사주 시작하기</button>
+        <button class="linkbtn" onclick="resumeConsultation()">이미 상담 중이신가요?</button>
+        <span class="splash-signature">나를 위한, 달빛 사주</span>
       </div>
-      <div class="art-caption"><span>月光</span> 달빛이 머무는 자리, 나의 시작</div>
     </section>
 
     <!-- 2. 생년월일 입력 -->
     <section class="screen" id="s-birth">
       <div class="branch tr" data-branch></div>
       <div class="scenery" data-scenery></div>
-      <div class="section-kicker">01 / 나의 시작</div><h1 class="title">모든 이야기는<br>태어난 순간에서 시작해요.</h1>
+      <div class="section-kicker">첫 번째 이야기 · 나의 시작</div><h1 class="title">모든 이야기는<br>태어난 순간에서 시작해요.</h1>
       <p class="sub center">당신만의 사주를 펼칠 수 있도록 알려주세요.</p>
 
       <p class="label">이름</p>
@@ -478,7 +477,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:3px solid var(
         <span class="step">2/3</span>
       </div>
 
-      <div class="section-kicker">02 / 마음의 방향</div><h1 class="title">지금, 어떤 마음으로<br>찾아오셨나요?</h1>
+      <div class="section-kicker">두 번째 이야기 · 마음의 방향</div><h1 class="title">지금, 어떤 마음으로<br>찾아오셨나요?</h1>
       <p class="sub center">지금, 당신의 마음을 가장 많이 차지하는<br>주제를 선택해주세요.</p>
 
       <div class="chips" id="topic-chips"></div>
