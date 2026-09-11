@@ -157,3 +157,33 @@
 @keyframes blink{0%,60%,100%{opacity:.28}30%{opacity:.9}}
 @media(prefers-reduced-motion:reduce){.message.pending i{animation:none}}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* 확신도 단계. 슬라이더 대신 다섯 개의 표적을 두어 손가락으로 한 번에
+   고르게 합니다. 가운데가 가장 작고 양 끝으로 갈수록 커지는 배치라
+   어느 쪽으로 기울었는지가 크기로도 읽힙니다. */
+.scale{border:0;padding:0;margin:18px 0 4px;min-inline-size:0}
+.scale legend{padding:0;font-size:.88rem;color:var(--teal);font-weight:600;margin-bottom:12px}
+.scale-row{display:flex;align-items:center;justify-content:space-between}
+/* 양 끝 문구는 윗줄로. 점이 가로 폭을 다 쓰게 해야 좁은 화면에서 안 밀립니다. */
+.scale-poles{display:flex;justify-content:space-between;font-size:.72rem;color:#8b7750;margin-bottom:7px;padding:0 2px}
+.dot{flex:none;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;min-height:44px;min-width:44px;justify-content:center}
+.dot input{position:absolute;opacity:0;width:0;height:0}
+.dot i{display:block;border:2px solid var(--line);border-radius:50%;background:var(--card);transition:background .12s,border-color .12s}
+.dot.d0 i,.dot.d4 i{width:38px;height:38px}
+.dot.d1 i,.dot.d3 i{width:31px;height:31px}
+.dot.d2 i{width:25px;height:25px}
+.dot.d0 i,.dot.d1 i{border-color:#8b929955}
+.dot.d3 i,.dot.d4 i{border-color:#4c7a6055}
+.dot span{font-size:0;color:transparent}
+.dot input:checked+i{background:var(--teal);border-color:var(--teal);box-shadow:0 0 0 3px #0f3d3620}
+.dot.d0 input:checked+i,.dot.d1 input:checked+i{background:#8b9299;border-color:#8b9299;box-shadow:0 0 0 3px #8b929926}
+.dot.d2 input:checked+i{background:#bb933f;border-color:#bb933f;box-shadow:0 0 0 3px #bb933f26}
+.dot input:focus-visible+i{outline:2px solid #a9863e;outline-offset:3px}
+/* 고른 단계의 이름은 표 아래에 한 줄로 나타납니다. */
+.dot{position:relative}
+.dot input:checked~span{font-size:.7rem;color:var(--teal);position:absolute;top:52px;left:50%;transform:translateX(-50%);white-space:nowrap}
+/* 양 끝은 화면 밖으로 나가므로 안쪽으로 붙입니다. left/right 중 하나만
+   지정해야 박스가 눌리지 않습니다. */
+.dot.d0 input:checked~span{left:0;right:auto;transform:none}
+.dot.d4 input:checked~span{left:auto;right:0;transform:none}
+@media(max-width:360px){.scale-poles{font-size:.66rem}.dot.d0 i,.dot.d4 i{width:34px;height:34px}}
