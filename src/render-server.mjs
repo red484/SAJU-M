@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import { coachReply, enabled as coachEnabled } from './coach-server.mjs';
 import { extname, join, normalize, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -158,6 +159,36 @@ async function handleJournal(req, res) {
   }
 }
 
+// 상담 중계. 키는 서버에만 두고, 없으면 503으로 답해 클라이언트가 규칙
+// 기반 코칭으로 돌아가게 합니다.
+const coachHits = new Map();
+function coachAllowed(id) {
+  const now = Date.now(), win = 60_000, max = 12;
+  const hits = (coachHits.get(id) || []).filter(t => now - t < win);
+  if (hits.length >= max) { coachHits.set(id, hits); return false; }
+  hits.push(now); coachHits.set(id, hits);
+  if (coachHits.size > 5000) for (const [k, v] of coachHits) if (!v.some(t => now - t < win)) coachHits.delete(k);
+  return true;
+}
+
+async function handleCoach(req, res) {
+  if (req.method === 'GET') return sendJson(res, { available: coachEnabled() });
+  if (req.method !== 'POST') return sendJson(res, { error: '허용되지 않은 요청입니다.' }, 405);
+  if (!validateOrigin(req)) return sendJson(res, { error: '이 사이트에서 다시 시도해 주세요.' }, 403);
+  if (!coachEnabled()) return sendJson(res, { error: '실제 상담이 연결되지 않았습니다.' }, 503);
+  const session = getSession(req);
+  if (!coachAllowed(sessionId(session.token))) return sendJson(res, { error: '잠시 뒤에 다시 물어봐 주세요.' }, 429);
+  try {
+    const body = JSON.parse(await readBody(req, 100_000));
+    const out = await coachReply(body);
+    if (out.error) return sendJson(res, { error: out.error }, out.status || 500);
+    return sendJson(res, { text: out.text, source: out.source });
+  } catch (error) {
+    console.error('Coach request failed', error?.message);
+    return sendJson(res, { error: '상담을 불러오지 못했어요. 잠시 뒤에 다시 시도해 주세요.' }, 502);
+  }
+}
+
 async function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const requested = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname);
@@ -192,6 +223,7 @@ async function serveStatic(req, res) {
 createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   if (url.pathname === '/api/journal') return void handleJournal(req, res);
+  if (url.pathname === '/api/coach') return void handleCoach(req, res);
   if (url.pathname.startsWith('/api/')) return sendJson(res, { error: '없는 경로입니다.' }, 404);
   return void serveStatic(req, res).catch(error => {
     console.error('Static request failed', error?.message);
