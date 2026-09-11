@@ -153,4 +153,56 @@ body:not([data-page=chat]):not([data-page=welcome]) main{animation:ink-settle .8
  .motion-toggle{left:10px;bottom:calc(91px + env(safe-area-inset-bottom));font-size:.75rem;min-height:44px;padding:7px 11px}
  nav{bottom:calc(8px + env(safe-area-inset-bottom))}
 }
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.motion-toggle{display:none}}
+/* A separate, quiet sky for conversation; never part of the scrolling log. */
+.chat-stage{position:relative;isolation:isolate;display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;background:#f5f7f4}
+.chat-stage:before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(#f5f7f4b8,#f5f7f485),url('/assets/chat-mountains.png') right bottom/auto 190% no-repeat;opacity:.7}
+.chat-stage .messages{position:relative;z-index:1;background:transparent;padding-top:32px;padding-bottom:32px}
+.chat-stage .bubble{background:#fffdf9;box-shadow:0 3px 15px #26473808}
+.chat-stage .message.user .bubble{background:#20564b}
+.chat-stage .message time{background:#f5f7f4e8;border-radius:4px;padding:2px 5px}
+.chat-stage .answer-tools button{background:#f5f7f4ed}
+.chat-sky{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.chat-bird{position:absolute;left:12%;top:26%;width:100px;opacity:.52;animation:crane-passage 19s linear -5s infinite}
+.chat-bird img{display:block;width:100%;height:auto;animation:crane-bank 3.6s ease-in-out infinite;transform-origin:center}
+.chat-bird-2{left:48%;top:62%;width:65px;opacity:.32;animation:crane-passage-low 27s linear -16s infinite}
+.chat-bird-2 img{animation-delay:-1.8s}
+@keyframes crane-passage{0%{left:-30%;top:35%;opacity:0}10%{opacity:.52}45%{top:19%}80%{opacity:.52}100%{left:115%;top:27%;opacity:0}}
+@keyframes crane-passage-low{0%{left:-25%;top:72%;opacity:0}10%{opacity:.32}55%{top:55%}85%{opacity:.32}100%{left:115%;top:61%;opacity:0}}
+@keyframes crane-bank{0%,100%{transform:translateY(4px) rotate(2deg)}50%{transform:translateY(-5px) rotate(-4deg)}}
+body.motion-paused .chat-bird,body.motion-paused .chat-bird img{animation-play-state:paused!important}
+@media(max-width:850px){.chat-bird{width:88px}.chat-bird-2{width:58px}}
+/* Consolidated controls and a quieter conversation surface. */
+.header-controls{display:flex;align-items:center;gap:12px;min-width:0}
+.header-controls .save-status{position:static;inset:auto;transform:none;max-width:160px;white-space:normal;font-size:.75rem;box-shadow:none;background:transparent;border:0;padding:6px;color:#657469}
+.header-controls .save-status[data-state=error]{color:#9d4d3f;text-decoration:underline}
+.display-menu{position:relative;margin:0;padding:0;border:0}
+.display-menu>summary{padding:10px 13px;min-height:44px;font-size:.875rem;font-weight:400;list-style:none;border-radius:10px}
+.display-menu>summary::-webkit-details-marker{display:none}
+.display-menu[open]>summary{background:#e9eee5}
+.display-menu-items{position:absolute;right:0;top:calc(100% + 8px);width:210px;padding:8px;background:#fffdf7;border:1px solid #dbe1d4;border-radius:12px;box-shadow:0 10px 30px #203b351a}
+.display-menu-items .motion-toggle,.display-menu-items .plain{position:static;inset:auto;display:block;width:100%;text-align:left;min-height:44px;margin:0;padding:12px;font-size:.875rem;background:transparent;border:0;border-radius:7px;box-shadow:none;color:#34554c}
+.display-menu-items button:hover{background:#edf1e8}
+.chat-panel .mentor{padding:16px 18px;gap:12px;background:#193f3b;min-height:82px}
+.chat-panel .mentor img{width:42px;height:42px;flex:none}
+.chat-panel .mentor>div{min-width:0;flex:1}.chat-panel .mentor h2{font-size:1.12rem;margin:0 0 5px}
+.chat-panel .mentor span{font-size:.75rem;color:#cedbd2}.chat-panel .mentor .plain{font-size:.8125rem;white-space:nowrap;min-height:44px}
+.chat-guidance{flex:none;margin:0;padding:0;border:0;border-bottom:1px solid #dfe5db;background:#f5f6ef}
+.chat-guidance>summary{padding:10px 16px;font-size:.75rem;line-height:1.6;color:#627064;font-weight:400}
+.chat-guidance .chat-note{padding:0 16px 13px;background:transparent;font-size:.8125rem;line-height:1.8}
+.chat-stage .messages{padding:30px 20px 24px;scroll-padding-bottom:24px}
+.chat-stage .message{max-width:92%;margin-bottom:28px}
+.chat-stage .bubble{padding:17px 18px;font-size:1rem;line-height:1.9;box-shadow:none;border-color:#dce2d8}
+.chat-stage .message.user{max-width:85%}.chat-stage .message.user .bubble{padding:13px 17px}
+.answer-menu{margin:4px 0 0;padding:0;border:0}
+.answer-menu>summary{font-size:.75rem;color:#68766d;font-weight:400;min-height:36px;padding:8px 2px;width:fit-content}
+.answer-menu .answer-tools{margin:0 0 5px;gap:6px;flex-wrap:wrap}
+.answer-menu .answer-tools button{min-height:44px;padding:7px 13px;border:1px solid #dbe2d5;border-radius:8px;font-size:.8125rem}
+.chat-stage .message time{font-size:.6875rem;color:#7b857e;background:transparent;padding:0}
+.chat-panel .quick-topics{padding:9px 14px 4px;border-top:1px solid #dce3d8;background:#fbfcf8;gap:7px}
+.chat-panel .quick-topics button{min-height:36px;font-size:.8125rem;padding:7px 12px;border-color:#dce4d6;background:transparent}
+.chat-panel #chat-form{padding:10px 14px;gap:9px;align-items:flex-end;background:#fbfcf8;border:0}
+.chat-panel #chat-input{background:#fff;border:1px solid #d5dfd0;border-radius:12px;min-height:64px;max-height:150px;padding:12px;line-height:1.6;margin:0}
+.chat-panel .send{min-width:58px;min-height:48px;border-radius:12px;font-size:.875rem}
+.chat-panel .chat-foot{margin:0;padding:0 14px 12px;background:#fbfcf8;font-size:.6875rem;line-height:1.5;text-align:center}
+@media(max-width:850px){.header-controls{gap:3px}.header-controls .save-status{max-width:100px;font-size:.6875rem;padding:4px}.chat-panel .mentor{padding:13px 16px;min-height:76px}.chat-stage .messages{padding-inline:16px}.chat-stage .bubble{padding:15px 16px}.chat-panel #chat-form{padding-bottom:8px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.display-menu-items .motion-toggle{display:none}}

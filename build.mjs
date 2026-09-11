@@ -14,6 +14,7 @@ await writeFile('dist/client/app.css',(await readFile('src/app.css','utf8'))+'\n
 for(const name of ['splash','mark','mentorAvatar','mentorHeader','todayRest','todayTalk','todayDeal','todayDuty','todayStart','hanji','compassCore','branchPine'])await copyFile(`assets/${name}.webp`,`dist/client/assets/${name}.webp`);
 // Same-origin asset fallback keeps the Worker portable when an ASSETS binding is absent.
 await copyFile('assets/ink-waterfall.png','dist/client/assets/ink-waterfall.png');
+for(const name of ['chat-mountains','chat-crane'])await copyFile(`assets/${name}.png`,`dist/client/assets/${name}.png`);
 // 마루 부리는 직접 호스팅합니다. 구글 폰트를 쓰지 않으므로 외부 요청이 없습니다.
 await mkdir('dist/client/assets/fonts',{recursive:true});
 for(const w of ['Regular','SemiBold','Bold'])await copyFile(`assets/fonts/MaruBuri-${w}.woff2`,`dist/client/assets/fonts/MaruBuri-${w}.woff2`);

@@ -11,6 +11,27 @@ let motionPaused = false;
 
 export function dressPage({page, result, profile}) {
   document.body.classList.add('moonbook');
+  // Keep scenery outside the live log and behind opaque, selectable messages.
+  const log = document.querySelector('.chat-panel .messages');
+  if (log && !log.closest('.chat-stage')) {
+    const stage = document.createElement('div');
+    stage.className = 'chat-stage';
+    const sky = document.createElement('div');
+    sky.className = 'chat-sky';
+    sky.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < 2; i++) {
+      const bird = document.createElement('span');
+      bird.className = `chat-bird chat-bird-${i + 1}`;
+      const art = document.createElement('img');
+      art.src = '/assets/chat-crane.png';
+      art.alt = '';
+      art.draggable = false;
+      bird.append(art);
+      sky.append(bird);
+    }
+    log.before(stage);
+    stage.append(sky, log);
+  }
   document.querySelectorAll('.ink-branches,.motion-toggle').forEach(el => el.remove());
   if (page !== 'welcome') {
     const branches = document.createElement('div');
@@ -26,7 +47,49 @@ export function dressPage({page, result, profile}) {
     };
     toggle.addEventListener('click', () => { motionPaused = !motionPaused; syncMotion(); });
     syncMotion();
-    document.body.append(branches, toggle);
+    document.body.append(branches);
+    const header = document.querySelector('header');
+    if (header) {
+      const settings = header.querySelector('[data-nav="settings"]');
+      const save = document.querySelector('.save-status');
+      const controls = document.createElement('div');
+      controls.className = 'header-controls';
+      const menu = document.createElement('details');
+      menu.className = 'display-menu';
+      const summary = document.createElement('summary');
+      summary.textContent = '설정';
+      const items = document.createElement('div');
+      items.className = 'display-menu-items';
+      items.append(toggle);
+      if (settings) items.append(settings);
+      menu.append(summary, items);
+      if (save) controls.append(save);
+      controls.append(menu);
+      header.append(controls);
+      menu.addEventListener('keydown', event => {
+        if (event.key === 'Escape') { menu.open = false; summary.focus(); }
+      });
+      menu.addEventListener('focusout', event => {
+        if (!menu.contains(event.relatedTarget)) menu.open = false;
+      });
+    }
+  }
+  document.querySelectorAll('.answer-tools').forEach(tools => {
+    const menu = document.createElement('details');
+    menu.className = 'answer-menu';
+    const label = document.createElement('summary');
+    label.textContent = '답변 메뉴';
+    tools.before(menu);
+    menu.append(label, tools);
+  });
+  const note = document.querySelector('.chat-note');
+  if (note) {
+    const disclosure = document.createElement('details');
+    disclosure.className = 'chat-guidance';
+    const label = document.createElement('summary');
+    label.textContent = '상담 안내 · 전문적 판단을 대신하지 않습니다';
+    note.before(disclosure);
+    disclosure.append(label, note);
   }
   document.querySelectorAll('.topic-choice').forEach(label => {
     const input = label.querySelector('input');
