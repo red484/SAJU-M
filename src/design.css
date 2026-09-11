@@ -193,10 +193,8 @@ body.motion-paused .chat-bird,body.motion-paused .chat-bird img{animation-play-s
 .chat-stage .message{max-width:92%;margin-bottom:28px}
 .chat-stage .bubble{padding:17px 18px;font-size:1rem;line-height:1.9;box-shadow:none;border-color:#dce2d8}
 .chat-stage .message.user{max-width:85%}.chat-stage .message.user .bubble{padding:13px 17px}
-.answer-menu{margin:4px 0 0;padding:0;border:0}
-.answer-menu>summary{font-size:.75rem;color:#68766d;font-weight:400;min-height:36px;padding:8px 2px;width:fit-content}
-.answer-menu .answer-tools{margin:0 0 5px;gap:6px;flex-wrap:wrap}
-.answer-menu .answer-tools button{min-height:44px;padding:7px 13px;border:1px solid #dbe2d5;border-radius:8px;font-size:.8125rem}
+.chat-stage .answer-tools{margin:7px 0 0;gap:6px;flex-wrap:wrap}
+.chat-stage .answer-tools button{min-height:44px;padding:7px 13px;border:1px solid #dbe2d5;border-radius:8px;font-size:.8125rem}
 .chat-stage .message time{font-size:.6875rem;color:#7b857e;background:transparent;padding:0}
 .chat-panel .quick-topics{padding:9px 14px 4px;border-top:1px solid #dce3d8;background:#fbfcf8;gap:7px}
 .chat-panel .quick-topics button{min-height:36px;font-size:.8125rem;padding:7px 12px;border-color:#dce4d6;background:transparent}

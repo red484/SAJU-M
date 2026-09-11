@@ -74,14 +74,8 @@ export function dressPage({page, result, profile}) {
       });
     }
   }
-  document.querySelectorAll('.answer-tools').forEach(tools => {
-    const menu = document.createElement('details');
-    menu.className = 'answer-menu';
-    const label = document.createElement('summary');
-    label.textContent = '답변 메뉴';
-    tools.before(menu);
-    menu.append(label, tools);
-  });
+  // 복사·저장·공유는 접어두지 않습니다. 공유가 대화 캡처의 입구라
+  // 한 번 더 펼치게 만들면 기능이 사실상 숨습니다. 모양은 아래 CSS가 잡아요.
   const note = document.querySelector('.chat-note');
   if (note) {
     const disclosure = document.createElement('details');
