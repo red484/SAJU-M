@@ -75,6 +75,13 @@ function systemPrompt(chart) {
 - 사용자가 방금 동의했거나 거절했다면 다시 제안하지 마세요.`;
 }
 
+export const SECTIONS = ['사주 관점', '현실 확인', '오늘 할 일'];
+// 제목은 줄 맨 앞에 그대로 서 있어야 합니다. 본문 속에 우연히 같은 말이
+// 섞인 경우를 제목으로 세지 않도록 줄 시작만 봅니다.
+export const hasSections = text =>
+  SECTIONS.every(h => new RegExp('^\\s*' + h + '\\s*$', 'm').test(String(text)));
+const RESHAPE = '방금 답이 정해진 형식을 벗어났습니다. 같은 내용을 다시 쓰되, "사주 관점", "현실 확인", "오늘 할 일" 세 제목을 각각 한 줄에 그대로 놓고 그 아래에 본문을 쓰세요. 세 제목을 모두 포함해야 합니다.';
+
 export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   const chart = readChart(rawChart);
   if (!chart) return { error: '명식 정보가 없습니다.', status: 400 };
@@ -90,12 +97,27 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   const safe = safety(turns.at(-1).content);
   if (safe) return { text: safe, source: 'safety' };
 
-  const res = await chatCompletion({
-    messages: [{ role: 'system', content: systemPrompt(chart) }, ...turns],
+  const base = [{ role: 'system', content: systemPrompt(chart) }, ...turns];
+  let res = await chatCompletion({
+    messages: base,
     maxTokens: 2000,
     temperature: 0.7,
-    metadata: { feature: 'coach' }
+    metadata: { feature: 'coach' },
+    continueOnLength: true
   });
+  // 제목 세 개가 다 오지 않으면 화면의 구조가 무너집니다. 한 번만 더,
+  // 형식을 못박아 다시 받아 보고 그래도 어긋나면 규칙 코칭으로 넘깁니다.
+  if (!hasSections(res.text)) {
+    res = await chatCompletion({
+      messages: [...base, { role: 'user', content: RESHAPE }],
+      maxTokens: 2000,
+      temperature: 0.4,
+      metadata: { feature: 'coach', retry: 'sections' },
+      continueOnLength: true
+    });
+  }
+  const shape = { finishReason: res.finishReason, truncated: res.truncated, continuations: res.continuations, sections: hasSections(res.text) };
+  if (!shape.sections) return { error: '답변 형식이 어긋났습니다.', status: 502, shape };
 
   let text = res.text;
   // 모델이 붙인 기록 제안 블록을 본문에서 떼어내 구조화합니다. 형식이
@@ -109,6 +131,6 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
     } catch { /* 형식이 어긋나면 제안 없이 넘어갑니다 */ }
     return '';
   }).trim();
-  if (!text) return { error: '빈 응답을 받았습니다.', status: 502 };
-  return { text, offer, source: 'cafe24', usage: res.usage };
+  if (!text) return { error: '빈 응답을 받았습니다.', status: 502, shape };
+  return { text, offer, source: 'cafe24', usage: res.usage, shape };
 }

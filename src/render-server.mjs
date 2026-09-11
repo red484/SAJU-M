@@ -163,6 +163,14 @@ async function handleJournal(req, res) {
 
 // 상담 중계. 키는 서버에만 두고, 없으면 503으로 답해 클라이언트가 규칙
 // 기반 코칭으로 돌아가게 합니다.
+// 잘림·이어받기·형식 어긋남을 로그에 남깁니다. Render 로그에서 바로 보입니다.
+function logShape(feature, shape) {
+  if (!shape) return;
+  const flag = shape.truncated ? ' TRUNCATED' : '';
+  const sec = shape.sections === false ? ' NO-SECTIONS' : '';
+  console.log(`LLM ${feature} finish=${shape.finishReason} continuations=${shape.continuations}${flag}${sec}`);
+}
+
 const coachHits = new Map();
 function coachAllowed(id) {
   const now = Date.now(), win = 60_000, max = 12;
@@ -183,8 +191,9 @@ async function handleCoach(req, res) {
   try {
     const body = JSON.parse(await readBody(req, 100_000));
     const out = await coachReply(body);
-    if (out.error) return sendJson(res, { error: out.error }, out.status || 500);
-    return sendJson(res, { text: out.text, offer: out.offer || null, source: out.source });
+    logShape('coach', out.shape);
+    if (out.error) return sendJson(res, { error: out.error, shape: out.shape }, out.status || 500);
+    return sendJson(res, { text: out.text, offer: out.offer || null, source: out.source, shape: out.shape });
   } catch (error) {
     console.error('Coach request failed', error?.message);
     if (error?.status === 429) return sendJson(res, { error: 'AI 상담 사용량이 많습니다. 잠시 뒤에 다시 시도해 주세요.' }, 429);
@@ -212,8 +221,9 @@ async function handleEpic(req, res) {
   if (!epicAllowed(sessionId(session.token))) return sendJson(res, { error: '판독은 10분에 네 번까지 열 수 있어요.' }, 429);
   try {
     const out = await epicReading(JSON.parse(await readBody(req, 100_000)));
-    if (out.error) return sendJson(res, { error: out.error }, out.status || 500);
-    return sendJson(res, { reading: out.reading });
+    logShape('epic', out.shape);
+    if (out.error) return sendJson(res, { error: out.error, shape: out.shape }, out.status || 500);
+    return sendJson(res, { reading: out.reading, shape: out.shape });
   } catch (error) {
     console.error('Epic request failed', error?.message);
     if (error?.status === 429) return sendJson(res, { error: 'AI 판독 사용량이 많습니다. 잠시 뒤에 다시 시도해 주세요.' }, 429);

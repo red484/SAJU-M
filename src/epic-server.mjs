@@ -97,13 +97,16 @@ export async function epicReading(raw) {
     messages: [{ role: 'user', content: prompt(d) }],
     maxTokens: 4000,
     temperature: 1,
-    metadata: { feature: 'epic' }
+    metadata: { feature: 'epic' },
+    continueOnLength: true,
+    json: true
   });
+  const shape = { finishReason: res.finishReason, truncated: res.truncated, continuations: res.continuations };
   try {
     const out = readOutput(parseJsonReply(res.text));
     if (!out) throw new Error('invalid reading');
-    return { reading: out };
+    return { reading: out, shape };
   } catch {
-    return { error: '판독 결과를 읽지 못했어요. 잠시 뒤에 다시 시도해 주세요.', status: 502 };
+    return { error: '판독 결과를 읽지 못했어요. 잠시 뒤에 다시 시도해 주세요.', status: 502, shape };
   }
 }
