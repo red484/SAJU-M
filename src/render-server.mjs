@@ -168,7 +168,7 @@ function logShape(feature, shape) {
   if (!shape) return;
   const flag = shape.truncated ? ' TRUNCATED' : '';
   const sec = shape.sections === false ? ' NO-SECTIONS' : '';
-  console.log(`LLM ${feature} finish=${shape.finishReason} continuations=${shape.continuations}${flag}${sec}`);
+  console.log(`LLM ${feature} model=${shape.model || '?'} finish=${shape.finishReason} continuations=${shape.continuations}${flag}${sec}`);
 }
 
 const coachHits = new Map();

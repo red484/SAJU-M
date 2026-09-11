@@ -152,7 +152,7 @@ Cloudflare Worker 설정(`wrangler.jsonc`, D1)도 함께 들어 있지만 Render
 - **겹침 제거.** 이어쓰기가 앞말을 되풀이하는 모델이 있어, 가장 긴 겹침(여섯 글자 이상)을 찾아 잘라내고 붙입니다.
 - **제목 검사.** 세 제목이 각각 한 줄에 그대로 서 있는지 봅니다(본문에 우연히 섞인 같은 말은 세지 않습니다). 빠졌으면 형식을 못박아 한 번만 다시 받고, 그래도 어긋나면 502로 돌려 규칙 코칭이 답하게 합니다.
 - **대운 판독**도 같은 이어받기를 씁니다. JSON은 한 글자만 잘려도 통째로 못 읽기 때문에 오히려 더 필요합니다.
-- **관측.** 응답에 `shape: {finishReason, truncated, continuations, sections}`가 실리고, 서버는 `LLM coach finish=… continuations=…` 형태로 로그를 남깁니다. Render 로그에서 바로 보입니다.
+- **관측.** 응답에 `shape: {model, finishReason, truncated, continuations, sections}`가 실리고, 서버는 `LLM coach model=… finish=… continuations=…` 형태로 로그를 남깁니다. Render 로그에서 바로 보입니다. `model`은 라우터가 **실제로 고른** 모델이라, `cafe24/auto`가 무엇으로 풀렸는지 여기서 확인합니다.
 
 이어쓰기 조각은 앞 공백을 지우지 않고 붙입니다. 다듬기를 조각마다 하면 `여기서` + ` 끊겼다가`가 `여기서끊겼다가`로 붙어버리기 때문입니다.
 

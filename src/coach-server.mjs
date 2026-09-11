@@ -116,7 +116,7 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
       continueOnLength: true
     });
   }
-  const shape = { finishReason: res.finishReason, truncated: res.truncated, continuations: res.continuations, sections: hasSections(res.text) };
+  const shape = { model: res.model, finishReason: res.finishReason, truncated: res.truncated, continuations: res.continuations, sections: hasSections(res.text) };
   if (!shape.sections) return { error: '답변 형식이 어긋났습니다.', status: 502, shape };
 
   let text = res.text;

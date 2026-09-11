@@ -101,7 +101,7 @@ export async function epicReading(raw) {
     continueOnLength: true,
     json: true
   });
-  const shape = { finishReason: res.finishReason, truncated: res.truncated, continuations: res.continuations };
+  const shape = { model: res.model, finishReason: res.finishReason, truncated: res.truncated, continuations: res.continuations };
   try {
     const out = readOutput(parseJsonReply(res.text));
     if (!out) throw new Error('invalid reading');
