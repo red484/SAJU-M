@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {dayReading,daySelect,goodDays,dayName,dayIndex,monthIndex,calculate,coach,monthly,topicReading,flow,safety,manse,fortune} from '../src/engine.js';
+import {clashes,shinsal,dayReading,daySelect,goodDays,dayName,dayIndex,monthIndex,calculate,coach,monthly,topicReading,flow,safety,manse,fortune} from '../src/engine.js';
 const base={name:'테스트',birth:'1995-05-17',time:'15:30',zone:'Asia/Seoul',longitude:126.978,clock:'civil',calendar:'solar',topics:['진로']};
 const a=calculate(base);assert.equal(a.total,8);assert.equal(a.pillars.map(p=>p.gz).join(' '),'乙亥 辛巳 戊申 庚申');
 const lunar=calculate({...base,birth:'1956-01-21',calendar:'lunar'});assert.equal(lunar.solarDate,'1956-03-03');
@@ -37,6 +37,23 @@ assert.ok(dr.hour.label&&dr.color.name&&dr.moon.name&&dr.select.officer);
 // 십성이 다르면 헤드라인도 달라야 합니다 — 모든 날이 같은 말이면 의미가 없습니다.
 const heads=new Set(monthIndex(a,'2026-09').map((_,i)=>dayReading(a,'2026-09-'+String(i+1).padStart(2,'0')).headline));
 assert.ok(heads.size>=4,'한 달 안에 헤드라인이 최소 4종은 나와야 합니다');
+// 충: 원국 지지 亥巳申申에는 寅일이 일주와 인신충이어야 합니다.
+const cl=clashes(a,'2026-09-01');
+assert.equal(cl.branches.length,1,'같은 지지가 둘이어도 같은 충은 한 번만');
+assert.equal(cl.branches[0].name,'인신충');
+// 천간충은 여섯 칸 차이, 무·기는 제외됩니다.
+assert.ok(clashes(a,'2026-09-14').stems.some(v=>v.key==='관성'));
+for(let d=1;d<=30;d++){
+ const iso='2026-09-'+String(d).padStart(2,'0');
+ for(const v of clashes(a,iso).stems) assert.ok(v.say&&v.title,'충 해설이 비면 안 됩니다');
+ for(const v of clashes(a,iso).branches) assert.ok(v.say,'지지충 해설이 비면 안 됩니다');
+}
+// 십이신살: 60일이면 열둘이 모두 나와야 합니다.
+const shins=new Set();
+for(let i=0;i<60;i++)shins.add(shinsal(a,new Date(Date.UTC(2026,0,1+i)).toISOString().slice(0,10)).name);
+assert.equal(shins.size,12,'십이신살 열둘이 모두 나와야 합니다');
+assert.ok(dayReading(a,'2026-09-01').stageDay.length>10);
+
 
 // 택일: 建은 월건과 같은 지지의 날. 사람과 무관하게 정해집니다.
 assert.equal(daySelect('2026-03-06').officer,'건');
@@ -74,4 +91,4 @@ assert.equal(fw.start,7);             // 망종까지 20일 ÷ 3
 assert.equal(bw.start,4);             // 입하부터 11일 ÷ 3
 assert.equal(fortune(calculate(base),base),null,'성별이 없으면 방향을 정할 수 없다');
 
-console.log('PASS: lunar/leap conversion, term boundary, unknown time, invalid/DST dates, manse pillars, 십이운성, 공망, 신살, 대운 direction, 일진 이름·점수 합·월 길이, 택일 건제십이신·점수 합, 하루 판독, contextual coaching and safety.');
+console.log('PASS: lunar/leap conversion, term boundary, unknown time, invalid/DST dates, manse pillars, 십이운성, 공망, 신살, 대운 direction, 일진 이름·점수 합·월 길이, 택일 건제십이신·점수 합, 하루 판독·합충·십이신살, contextual coaching and safety.');

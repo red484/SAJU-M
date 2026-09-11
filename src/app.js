@@ -83,6 +83,18 @@ function dayDetail(iso){
     <dt>이날의 결</dt><dd><b>${d.select.officer}일 · ${d.select.god}${d.select.yellow?' (황도)':''}</b><span>${esc(d.select.say)}</span>${d.select.sonless?'<span>손 없는 날입니다.</span>':''}</dd>
    </dl></section>
 
+  ${(d.clash.stems.length||d.clash.branches.length)?`<section class="day-sec"><h3>합과 충으로 인한 변화</h3>
+   ${d.clash.stems.map(v=>`<h4>${esc(v.title)}</h4><p class="day-where">${v.at}의 천간과 부딪힙니다 · ${esc(v.gz)}</p><p>${esc(v.say)}</p>`).join('')}
+   ${d.clash.branches.map(v=>`<h4>${esc(v.name)}이 있습니다</h4><p class="day-where">${v.at}의 지지와 마주 봅니다</p><p>${esc(v.say)}</p>`).join('')}
+   </section>`:`<section class="day-sec"><h3>합과 충으로 인한 변화</h3><p>오늘의 일진이 원국의 어느 자리와도 정면으로 부딪히지 않습니다. 흔들림이 적은 만큼 미뤄둔 일을 꺼내기에 무리가 없습니다.</p></section>`}
+
+  <section class="day-sec"><h3>12신살과 운성으로 보는 하루</h3>
+   <h4>이날의 12운성은 "${d.stage}"</h4>
+   <p class="day-where">하루 동안 나에게 작용하는 기질</p><p>${esc(d.stageDay)}</p>
+   <h4>이날의 12신살은 "${d.shin.name}"</h4>
+   <p class="day-where">하루 동안 나에게 영향을 줄 수 있는 기운</p><p>${esc(d.shin.say)}</p>
+  </section>
+
   <section class="day-sec"><h3>이 점수는 이렇게 나왔어요</h3>
    <table class="daytable"><tbody>
     <tr><th>기본</th><td>—</td><td>${d.base}</td></tr>
@@ -91,6 +103,7 @@ function dayDetail(iso){
    </tbody></table>
    <p class="hint">일진이 내 일간에 걸리는 방식을 수치로 옮긴 값입니다. 좋고 나쁨의 등급이 아니며, 배점은 이 서비스가 정한 것이라 다른 곳의 점수와 같을 수 없습니다.</p>
    <button class="text-link" data-nav-day="${iso}">이 날로 선택 기록 남기기</button>
+   <p class="day-foot">일간 운세는 그날의 흐름을 읽어 드리는 것이지 앞일을 맞히는 것이 아닙니다. 읽고 준비하는 데까지가 이 화면의 몫이에요.</p>
   </section>
  </div>`);}
 

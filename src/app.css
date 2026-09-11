@@ -237,3 +237,7 @@ dialog[open]:has(.daysheet) .modal-close{position:absolute;top:10px;right:12px;z
 .daysheet .daytable{margin-top:0}
 .daysheet .hint{padding-bottom:6px}
 .daysheet .text-link{margin-bottom:26px}
+.day-sec h4{margin:22px 0 4px;font-size:1rem;line-height:1.6}
+.day-sec h4:first-of-type{margin-top:0}
+.day-where{margin:0 0 8px!important;font-size:.74rem;color:#8b7750}
+.day-foot{margin:18px 0 26px;font-size:.8rem;line-height:1.85;color:#8b7750}
