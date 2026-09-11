@@ -153,4 +153,22 @@ body:not([data-page=chat]):not([data-page=welcome]) main{animation:ink-settle .8
  .motion-toggle{left:10px;bottom:calc(91px + env(safe-area-inset-bottom));font-size:.75rem;min-height:44px;padding:7px 11px}
  nav{bottom:calc(8px + env(safe-area-inset-bottom))}
 }
+/* A separate, quiet sky for conversation; never part of the scrolling log. */
+.chat-stage{position:relative;isolation:isolate;display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;background:#f5f7f4}
+.chat-stage:before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(#f5f7f4b8,#f5f7f485),url('/assets/chat-mountains.png') right bottom/auto 190% no-repeat;opacity:.7}
+.chat-stage .messages{position:relative;z-index:1;background:transparent;padding-top:32px;padding-bottom:32px}
+.chat-stage .bubble{background:#fffdf9;box-shadow:0 3px 15px #26473808}
+.chat-stage .message.user .bubble{background:#20564b}
+.chat-stage .message time{background:#f5f7f4e8;border-radius:4px;padding:2px 5px}
+.chat-stage .answer-tools button{background:#f5f7f4ed}
+.chat-sky{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.chat-bird{position:absolute;left:12%;top:26%;width:100px;opacity:.52;animation:crane-passage 19s linear -5s infinite}
+.chat-bird img{display:block;width:100%;height:auto;animation:crane-bank 3.6s ease-in-out infinite;transform-origin:center}
+.chat-bird-2{left:48%;top:62%;width:65px;opacity:.32;animation:crane-passage-low 27s linear -16s infinite}
+.chat-bird-2 img{animation-delay:-1.8s}
+@keyframes crane-passage{0%{left:-30%;top:35%;opacity:0}10%{opacity:.52}45%{top:19%}80%{opacity:.52}100%{left:115%;top:27%;opacity:0}}
+@keyframes crane-passage-low{0%{left:-25%;top:72%;opacity:0}10%{opacity:.32}55%{top:55%}85%{opacity:.32}100%{left:115%;top:61%;opacity:0}}
+@keyframes crane-bank{0%,100%{transform:translateY(4px) rotate(2deg)}50%{transform:translateY(-5px) rotate(-4deg)}}
+body.motion-paused .chat-bird,body.motion-paused .chat-bird img{animation-play-state:paused!important}
+@media(max-width:850px){.chat-bird{width:88px}.chat-bird-2{width:58px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.motion-toggle{display:none}}

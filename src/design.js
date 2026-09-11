@@ -11,6 +11,27 @@ let motionPaused = false;
 
 export function dressPage({page, result, profile}) {
   document.body.classList.add('moonbook');
+  // Keep scenery outside the live log and behind opaque, selectable messages.
+  const log = document.querySelector('.chat-panel .messages');
+  if (log && !log.closest('.chat-stage')) {
+    const stage = document.createElement('div');
+    stage.className = 'chat-stage';
+    const sky = document.createElement('div');
+    sky.className = 'chat-sky';
+    sky.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < 2; i++) {
+      const bird = document.createElement('span');
+      bird.className = `chat-bird chat-bird-${i + 1}`;
+      const art = document.createElement('img');
+      art.src = '/assets/chat-crane.png';
+      art.alt = '';
+      art.draggable = false;
+      bird.append(art);
+      sky.append(bird);
+    }
+    log.before(stage);
+    stage.append(sky, log);
+  }
   document.querySelectorAll('.ink-branches,.motion-toggle').forEach(el => el.remove());
   if (page !== 'welcome') {
     const branches = document.createElement('div');

@@ -14,6 +14,7 @@ await writeFile('dist/client/app.css',(await readFile('src/app.css','utf8'))+'\n
 for(const name of ['splash','mark','mentorAvatar','mentorHeader','todayRest','todayTalk','todayDeal','todayDuty','todayStart','hanji','compassCore','branchPine'])await copyFile(`assets/${name}.webp`,`dist/client/assets/${name}.webp`);
 // Same-origin asset fallback keeps the Worker portable when an ASSETS binding is absent.
 await copyFile('assets/ink-waterfall.png','dist/client/assets/ink-waterfall.png');
+for(const name of ['chat-mountains','chat-crane'])await copyFile(`assets/${name}.png`,`dist/client/assets/${name}.png`);
 for(const name of ['branchPlum','branchMaple','scenery'])await copyFile(`assets/${name}.webp`,`dist/client/assets/${name}.webp`);
 const TYPES={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.txt':'text/plain; charset=utf-8','.webp':'image/webp','.png':'image/png'};
 // Walk the whole tree so code-split chunks are picked up as they are emitted,
