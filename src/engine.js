@@ -84,8 +84,39 @@ const batchim=w=>{const c=w.charCodeAt(w.length-1);return c>=0xAC00&&c<=0xD7A3&&
 const yeyo=w=>w+(batchim(w)?'이에요':'예요');
 function readFactors(latest,earlier){const out=[];for(const [label,re,a,b] of FACTOR){const fresh=re.test(latest);if(fresh||re.test(earlier))out.push({label,checks:[a,b],fresh:fresh&&!re.test(earlier)});}return out;}
 
-export function coach(r,p,conversation,text){const safe=safety(text);if(safe)return {text:safe,phase:'safety'};const user=conversation.messages.filter(m=>m.role==='user');let topic=conversation.topic||p.topics?.[0]||'진로';if(/연애|사랑|상대|고백/.test(text))topic='연애';else if(/이직|퇴사|직장|진로|회사/.test(text))topic='진로';else if(/돈|재물|지출/.test(text))topic='재물';else if(/가족|부모|아이/.test(text))topic='가족';
- if(!conversation.context||topic!==conversation.topic)return {text:`${topic} 이야기를 함께 정리해볼게요. 지금 생각하는 선택지는 무엇이고, 가장 걱정되는 조건 하나는 무엇인가요?\n이미 마음이 기울었다면 그 이유도 알려주세요.`,topic,context:text,phase:'question'};
+// 첫 마디가 늘 결정을 들고 오지는 않습니다. 잠이 안 온다는 말에
+// "선택지를 두 개 적어주세요"라고 답하면 듣지 않은 것이 됩니다.
+const FEEL=[
+ [/불면|잠\s*을?\s*못|잠이\s*안|못\s*자|잠자리|뒤척|설쳤|설치고|잠들|새벽에\s*깨/,'잠이 잘 오지 않는 날이 이어지면 판단도 같이 흐려집니다. 오래 이어진다면 수면은 사주가 아니라 진료로 푸는 쪽이 맞습니다.'],
+ [/피곤|지쳐|지침|기운\s*이?\s*없|무기력|번아웃|쉬고\s*싶/,'기운이 바닥에 닿아 있을 때는 무엇을 더 하기보다 덜어낼 것을 먼저 찾는 편이 낫습니다.'],
+ [/불안|초조|두렵|무섭|겁이/,'앞이 보이지 않을 때 불안이 가장 커집니다. 무엇이 불확실한지 이름을 붙이는 것만으로도 조금 줄어듭니다.'],
+ [/우울|눈물|슬프|공허|가라앉/,'마음이 가라앉아 있을 때는 큰 결정을 잠시 미뤄도 괜찮습니다.'],
+ [/외롭|쓸쓸|혼자\s*인|혼자\s*같/,'혼자 버티고 있다는 느낌이 들 때가 가장 지칩니다.'],
+ [/힘들|버겁|답답|스트레스|짜증|화가\s*나|속상/,'감당할 것이 한꺼번에 몰려 있을 때 그렇게 느껴집니다.']];
+const GREET=/^\s*(안녕|하이|헬로|여보세요|반가|ㅎㅇ|안뇽)\S*/;
+// 같은 결의 말을 두 번 하면 같은 문장을 되돌려주지 않게 뒷말을 바꿉니다.
+const ASK=['지금 마음에 제일 크게 걸려 있는 일이 무엇인지, 떠오르는 대로 한두 가지만 들려주세요.',
+ '그 마음이 언제부터였는지, 그 무렵에 달라진 일이 있었는지 알려주세요.'];
+export function smallTalk(text,nth=0){
+ for(const [re,line] of FEEL)if(re.test(text))return line+'\n'+ASK[nth%2];
+ // 인사만 있을 때. 인사 뒤에 사연이 붙어 있으면 그쪽을 먼저 봅니다.
+ if(GREET.test(text)&&text.replace(GREET,'').trim().length<6)
+  return '반갑습니다. 오늘은 어떤 이야기부터 꺼내볼까요?\n요즘 마음에 걸리는 일이나 정해야 하는 일이 있다면 편하게 적어주세요.';
+ return null;
+}
+export function coach(r,p,conversation,text){const safe=safety(text);if(safe)return {text:safe,phase:'safety'};const user=conversation.messages.filter(m=>m.role==='user');let topic=conversation.topic||p.topics?.[0]||'진로',named=false;
+ // 사용자가 직접 꺼낸 주제인지 구분합니다. 프로필에 적어둔 관심사를
+ // "진로 이야기를 정리해볼게요"처럼 단정해 버리면 안 한 말을 지어낸 셈입니다.
+ if(/연애|짝사랑|(?<![가-힣])사랑|(?<![가-힣])상대|고백/.test(text)){topic='연애';named=true;}
+ else if(/이직|퇴사|직장|진로|회사/.test(text)){topic='진로';named=true;}
+ else if(/돈|재물|지출/.test(text)){topic='재물';named=true;}
+ else if(/가족|부모|자녀|(?<![가-힣])아이(?![디폰스티콘])/.test(text)){topic='가족';named=true;}
+ if(!conversation.context||topic!==conversation.topic){
+  // 아직 견줄 거리가 안 나왔으면 문맥을 비워 둔 채 한 번 더 듣습니다.
+  const open=named?null:smallTalk(text,user.length);
+  if(open)return {text:open,topic,context:null,phase:'listen'};
+  return {text:`${named?topic+' 이야기를 함께 정리해볼게요. ':''}지금 생각하는 선택지는 무엇이고, 가장 걱정되는 조건 하나는 무엇인가요?\n이미 마음이 기울었다면 그 이유도 알려주세요.`,topic,context:text,phase:'question'};
+ }
  const t=topicReading(r,topic),earlier=user.slice(0,-1).map(m=>m.text).join(' '),found=readFactors(text,earlier),nums=figures([earlier,text].join(' '));
  // Nothing named yet: ask for the options themselves instead of restating the
  // question back, which is what made earlier replies feel like an echo.
