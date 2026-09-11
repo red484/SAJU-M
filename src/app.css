@@ -205,3 +205,35 @@
 .epic-essay{margin:0;font-size:.85rem;line-height:1.95;color:#6f6a5c}
 .epic-close{border-top:1px solid var(--line);margin:22px 0 14px;padding-top:20px;font-family:'Nanum Myeongjo',serif;font-size:.98rem;line-height:1.9;text-align:center;color:var(--teal)}
 .block.epic .block-title{margin-bottom:0}
+
+/* 일간 운세 전면 시트. 히어로가 가장자리까지 차야 하므로 이 모달에서만
+   패딩을 걷고, 닫기 버튼을 히어로 위로 띄웁니다. 스크롤은 dialog가 이미
+   max-height + overflow-y로 처리합니다. */
+/* [open]을 반드시 붙입니다. 없으면 display:flex가 브라우저 기본
+   dialog:not([open]){display:none}을 덮어써서, 닫힌 모달이 화면을
+   계속 가립니다. */
+dialog[open]:has(.daysheet){padding:0;max-height:92dvh;overflow:hidden;display:flex;flex-direction:column}
+dialog[open]:has(.daysheet) .modal-close{position:absolute;top:10px;right:12px;z-index:2;color:#f4ecd8;background:#0b182055;border-radius:18px;padding:7px 13px;backdrop-filter:blur(3px)}
+.daysheet{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+
+.day-hero{position:relative;padding:34px 24px 26px;color:#f4ecd8;background:linear-gradient(160deg,#2f5b52,#16332e)}
+.day-hero.high{background:linear-gradient(160deg,#3a6f5e,#17352c)}
+.day-hero.low{background:linear-gradient(160deg,#5a5f66,#23282c)}
+.day-date{margin:0;font-size:.8rem;opacity:.75}
+.day-score{display:block;font-size:3.4rem;line-height:1.1;font-weight:700;margin:2px 0 10px;letter-spacing:-2px}
+.day-score small{font-size:1.1rem;font-weight:400;margin-left:3px;letter-spacing:0}
+.day-headline{font-family:'Nanum Myeongjo',serif;margin:0 0 14px;font-size:1.24rem;line-height:1.6}
+.day-gz{margin:0;font-size:.78rem;opacity:.78;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+
+.day-sec{padding:24px 24px 4px;border-top:1px solid var(--line)}
+.day-sec:first-of-type{border-top:0}
+.day-sec h3{margin:0 0 14px;font-size:1.05rem}
+.day-sec p{margin:0 0 13px;line-height:1.95;font-size:.92rem}
+.day-dl{margin:0}
+.day-dl dt{font-size:.74rem;color:#8b7750;margin-bottom:4px}
+.day-dl dd{margin:0 0 18px}
+.day-dl dd b{display:flex;align-items:center;gap:7px;font-size:1.02rem;margin-bottom:5px}
+.day-dl dd span{display:block;font-size:.76rem;color:#8b7750;line-height:1.7}
+.daysheet .daytable{margin-top:0}
+.daysheet .hint{padding-bottom:6px}
+.daysheet .text-link{margin-bottom:26px}

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {daySelect,goodDays,dayName,dayIndex,monthIndex,calculate,coach,monthly,topicReading,flow,safety,manse,fortune} from '../src/engine.js';
+import {dayReading,daySelect,goodDays,dayName,dayIndex,monthIndex,calculate,coach,monthly,topicReading,flow,safety,manse,fortune} from '../src/engine.js';
 const base={name:'테스트',birth:'1995-05-17',time:'15:30',zone:'Asia/Seoul',longitude:126.978,clock:'civil',calendar:'solar',topics:['진로']};
 const a=calculate(base);assert.equal(a.total,8);assert.equal(a.pillars.map(p=>p.gz).join(' '),'乙亥 辛巳 戊申 庚申');
 const lunar=calculate({...base,birth:'1956-01-21',calendar:'lunar'});assert.equal(lunar.solarDate,'1956-03-03');
@@ -29,6 +29,15 @@ assert.ok(di.parts.some(p=>p.key==='십이운성'));
 assert.equal(dayIndex(a,'2026-09-09').score,dayIndex(a,'2026-09-09').score);
 assert.equal(monthIndex(a,'2026-09').length,30);
 assert.equal(monthIndex(a,'2026-02').length,28);
+// 하루 판독: 헤드라인과 본문이 모두 채워져야 합니다.
+const dr=dayReading(a,'2026-09-11');
+assert.ok(dr.headline.length>3);
+assert.ok(dr.paragraphs.length>=2&&dr.paragraphs.every(p=>p.length>10));
+assert.ok(dr.hour.label&&dr.color.name&&dr.moon.name&&dr.select.officer);
+// 십성이 다르면 헤드라인도 달라야 합니다 — 모든 날이 같은 말이면 의미가 없습니다.
+const heads=new Set(monthIndex(a,'2026-09').map((_,i)=>dayReading(a,'2026-09-'+String(i+1).padStart(2,'0')).headline));
+assert.ok(heads.size>=4,'한 달 안에 헤드라인이 최소 4종은 나와야 합니다');
+
 // 택일: 建은 월건과 같은 지지의 날. 사람과 무관하게 정해집니다.
 assert.equal(daySelect('2026-03-06').officer,'건');
 assert.ok(['황도','흑도'].includes(daySelect('2026-03-06').yellow?'황도':'흑도'));
@@ -65,4 +74,4 @@ assert.equal(fw.start,7);             // 망종까지 20일 ÷ 3
 assert.equal(bw.start,4);             // 입하부터 11일 ÷ 3
 assert.equal(fortune(calculate(base),base),null,'성별이 없으면 방향을 정할 수 없다');
 
-console.log('PASS: lunar/leap conversion, term boundary, unknown time, invalid/DST dates, manse pillars, 십이운성, 공망, 신살, 대운 direction, 일진 이름·점수 합·월 길이, 택일 건제십이신·점수 합, contextual coaching and safety.');
+console.log('PASS: lunar/leap conversion, term boundary, unknown time, invalid/DST dates, manse pillars, 십이운성, 공망, 신살, 대운 direction, 일진 이름·점수 합·월 길이, 택일 건제십이신·점수 합, 하루 판독, contextual coaching and safety.');

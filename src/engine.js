@@ -1,7 +1,7 @@
 import {Solar} from 'lunar-javascript';
 import KoreanLunarCalendar from 'korean-lunar-calendar';
 import {DateTime} from 'luxon';
-import {STEM,BRANCH,SK,BK,ELEMENTS,COLORNAME,COLORS,HOURS,HARMONY,HIDDEN,STAGE,BIRTHPLACE,TRIAD,PEACH,HORSE,CANOPY,NOBLE,STEMHUE,ZODIAC,TENSCORE,STAGESCORE,OFFICER,OFFICERSAY,YELLOWGOD,ISYELLOW,DRAGONSTART,PURPOSE,TOPIC,topics} from './constants.js';
+import {STEM,BRANCH,SK,BK,ELEMENTS,COLORNAME,COLORS,HOURS,HARMONY,HIDDEN,STAGE,BIRTHPLACE,TRIAD,PEACH,HORSE,CANOPY,NOBLE,STEMHUE,ZODIAC,TENSCORE,STAGESCORE,OFFICER,OFFICERSAY,YELLOWGOD,ISYELLOW,DRAGONSTART,PURPOSE,TENSAY,STAGESAY,MARKSAY,TOPIC,topics} from './constants.js';
 const SE=[0,0,1,1,2,2,3,3,4,4],BE=[4,2,0,0,2,1,1,2,3,3,2,4];
 const mod=(a,b)=>(a%b+b)%b;
 function solar(dt){return Solar.fromYmdHms(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second);}
@@ -213,4 +213,16 @@ export function goodDays(month,purpose){
   if(P.sonless&&d.sonless)parts.push({key:'손 없는 날',value:'음력 '+d.lunarDay+'일',score:1});
   return {iso,...d,parts,score:parts.reduce((t,p)=>t+p.score,0)};
  });
+}
+
+// 하루치 전체 판독. 점수·근거·본문·시간·색·달·택일을 한 번에 모아 돌려줍니다.
+// 모두 이미 계산된 값에서 나오므로 날짜를 눌러도 외부 호출이 없습니다.
+export function dayReading(r,iso){
+ const d=dayIndex(r,iso),[headline,lead]=TENSAY[d.ten];
+ const paragraphs=[lead,STAGESAY[d.stage]];
+ const marks=d.marks.map(m=>MARKSAY[m]).filter(Boolean);
+ if(marks.length)paragraphs.push(marks.join(' '));
+ return {...d,headline,paragraphs,
+  hour:daySignals(r,iso).hour,color:daySignals(r,iso).color,
+  moon:moonPhase(iso),select:daySelect(iso)};
 }
