@@ -107,7 +107,7 @@ function dayDetail(iso){
   </section>
  </div>`);}
 
-const jumpNav=fo=>`<nav class="jump" aria-label="이 페이지 안에서 이동">${[['topics','주제'],['chart','명식'],['manse','만세력'],['daeun','대운'],['flow','흐름']].map(([id,t])=>`<a href="#${id}">${t}</a>`).join('')}</nav>`;
+const jumpNav=fo=>`<div class="jump" role="navigation" aria-label="이 페이지 안에서 이동">${[['topics','주제'],['chart','명식'],['manse','만세력'],['daeun','대운'],['flow','흐름']].map(([id,t])=>`<a href="#${id}">${t}</a>`).join('')}</div>`;
 // 값은 0~100을 유지합니다. engine의 월간 비교가 50을 기준으로 나눕니다.
 const CONFIDENCE=[[10,'많이 망설여요'],[30,'조금 망설여요'],[50,'반반이에요'],[70,'조금 확신해요'],[90,'확신이 있어요']];
 const steps=(n,of=2)=>`<p class="steps" aria-label="${of}단계 중 ${n}단계">${Array.from({length:of},(_,i)=>`<i${i<n?' class="on"':''}></i>`).join('')}<span>${n}/${of}</span></p>`;
