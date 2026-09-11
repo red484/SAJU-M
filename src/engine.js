@@ -1,7 +1,7 @@
 import {Solar} from 'lunar-javascript';
 import KoreanLunarCalendar from 'korean-lunar-calendar';
 import {DateTime} from 'luxon';
-import {STEM,BRANCH,SK,BK,ELEMENTS,COLORNAME,COLORS,HOURS,HARMONY,HIDDEN,STAGE,BIRTHPLACE,TRIAD,PEACH,HORSE,CANOPY,NOBLE,TOPIC,topics} from './constants.js';
+import {STEM,BRANCH,SK,BK,ELEMENTS,COLORNAME,COLORS,HOURS,HARMONY,HIDDEN,STAGE,BIRTHPLACE,TRIAD,PEACH,HORSE,CANOPY,NOBLE,STEMHUE,ZODIAC,TENSCORE,STAGESCORE,TOPIC,topics} from './constants.js';
 const SE=[0,0,1,1,2,2,3,3,4,4],BE=[4,2,0,0,2,1,1,2,3,3,2,4];
 const mod=(a,b)=>(a%b+b)%b;
 function solar(dt){return Solar.fromYmdHms(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second);}
@@ -109,28 +109,32 @@ export function daySignals(r,iso){
 // ── 만세력 상세 ────────────────────────────────────────────────
 // 지장간(여기·중기·본기), 십이운성, 공망, 신살. 어느 것도 길흉 등급이
 // 아니라 명식에서 바로 읽히는 자리 이름입니다.
+// 공망·십이운성·신살은 원국 밖에서도 쓰입니다(그날의 일진 판정). 원국에
+// 매인 계산이므로 r을 받아 그 사람 기준의 판정자를 돌려줍니다.
+export function emptyOf(r){
+ const p=r.pillars[2],idx=mod((p.s-p.b)*6+p.b,60),hb=mod(mod(idx-idx%10,60),12);
+ return [mod(hb+10,12),mod(hb+11,12)];
+}
+// 십이운성: 양간은 장생부터 순행, 음간은 역행.
+export const stageOf=(day,b)=>STAGE[mod((day%2===0?b-BIRTHPLACE[day]:BIRTHPLACE[day]-b),12)];
+export function marksOf(r,b){
+ const day=r.day,g=TRIAD[r.pillars[0].b],dg=TRIAD[r.pillars[2].b],empty=emptyOf(r),out=[];
+ if(b===PEACH[g]||b===PEACH[dg])out.push('도화');
+ if(b===HORSE[g]||b===HORSE[dg])out.push('역마');
+ if(b===CANOPY[g]||b===CANOPY[dg])out.push('화개');
+ if(NOBLE[day].includes(b))out.push('천을귀인');
+ if(empty.includes(b))out.push('공망');
+ return out;
+}
+
 export function manse(r){
- const day=r.day,pillars=r.pillars;
- // 공망: 일주가 속한 순(旬)의 시작에서 열한째·열두째 지지.
- const idx=mod((pillars[2].s-pillars[2].b)*6+pillars[2].b,60);
- const head=mod(idx-idx%10,60),hb=mod(head,12);
- const empty=[mod(hb+10,12),mod(hb+11,12)];
- // 십이운성: 양간은 장생부터 순행, 음간은 역행.
- const stage=b=>STAGE[mod((day%2===0?b-BIRTHPLACE[day]:BIRTHPLACE[day]-b),12)];
- const g=TRIAD[pillars[0].b],dg=TRIAD[pillars[2].b];
- const marks=b=>{const out=[];
-  if(b===PEACH[g]||b===PEACH[dg])out.push('도화');
-  if(b===HORSE[g]||b===HORSE[dg])out.push('역마');
-  if(b===CANOPY[g]||b===CANOPY[dg])out.push('화개');
-  if(NOBLE[day].includes(b))out.push('천을귀인');
-  if(empty.includes(b))out.push('공망');
-  return out;};
- return {empty:empty.map(b=>BK[b]),
-  rows:pillars.map(v=>({key:v.k,gz:v.gz,label:v.label,
+ const day=r.day;
+ return {empty:emptyOf(r).map(b=>BK[b]),
+  rows:r.pillars.map(v=>({key:v.k,gz:v.gz,label:v.label,
    stem:v.k==='일주'?'일간':tenGod(day,v.s),
    hidden:HIDDEN[v.b].map(h=>({k:SK[h],ten:tenGod(day,h)})),
    branch:tenGod(day,HIDDEN[v.b].at(-1)),
-   stage:stage(v.b),marks:marks(v.b)}))};
+   stage:stageOf(day,v.b),marks:marksOf(r,v.b)}))};
 }
 
 // ── 대운 ──────────────────────────────────────────────────────
@@ -150,4 +154,35 @@ export function fortune(r,p){
  return {forward,start,list:Array.from({length:8},(_,i)=>{const n=i+1;
   const s2=mod(forward?mi+n:mi-n,10),b2=mod(forward?mb+n:mb-n,12);
   return {age:start+i*10,year:birthYear+start+i*10,gz:STEM[s2]+BRANCH[b2],label:SK[s2]+BK[b2],ten:tenGod(r.day,s2),stage:STAGE[mod((r.day%2===0?b2-BIRTHPLACE[r.day]:BIRTHPLACE[r.day]-b2),12)]};})};
+}
+
+// ── 그날의 일진 ────────────────────────────────────────────────
+// 일진을 부르는 이름. 만세력에서 바로 나오는 값이라 사람마다 같습니다.
+export function dayName(iso){
+ const dt=DateTime.fromISO(iso,{zone:'Asia/Seoul'}).set({hour:12});
+ const gz=at({clock:'civil'},dt).pillars[2];
+ return {gz:gz.gz,label:gz.label,name:`${STEMHUE[gz.s]} ${ZODIAC[gz.b]}의 날`,s:gz.s,b:gz.b};
+}
+
+// 그날이 이 사람에게 어떻게 걸리는지. 총점은 아래 항목들의 합일 뿐이고,
+// 항목과 배점을 그대로 함께 돌려주므로 숫자 뒤에 숨은 계산이 없습니다.
+export function dayIndex(r,iso){
+ const d=dayName(iso),parts=[];
+ const ten=tenGod(r.day,d.s),stage=stageOf(r.day,d.b),marks=marksOf(r,d.b);
+ parts.push({key:'일간과의 관계',value:ten,score:TENSCORE[ten]});
+ parts.push({key:'십이운성',value:stage,score:STAGESCORE[stage]});
+ for(const m of marks){
+  if(m==='천을귀인')parts.push({key:'신살',value:m,score:12});
+  else if(m==='공망')parts.push({key:'신살',value:m,score:-10});
+ }
+ const flavor=marks.filter(m=>m!=='천을귀인'&&m!=='공망');
+ const score=Math.max(0,Math.min(100,20+parts.reduce((a,p)=>a+p.score,0)));
+ return {...d,ten,stage,marks,flavor,parts,score,base:20};
+}
+
+// 한 달치를 한 번에. 달력이 하루씩 호출하며 만세력을 다시 여는 것을 막습니다.
+export function monthIndex(r,month){
+ const first=DateTime.fromISO(month+'-01',{zone:'Asia/Seoul'});
+ if(!first.isValid)return [];
+ return Array.from({length:first.daysInMonth},(_,i)=>dayIndex(r,first.plus({days:i}).toISODate()));
 }

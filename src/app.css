@@ -107,3 +107,27 @@
 .basis-open h3,.basis-open h4{margin:0 0 7px;font-size:.85rem;color:var(--teal)}
 .basis-open p{margin:0 0 7px;font-size:.82rem;line-height:1.75;color:#6f6a5c}
 .basis-open p:last-child{margin-bottom:0}
+
+/* 운세 캘린더. The band colours carry the same meaning as the number beside
+   them, so the grid is readable at a glance without being read as a verdict. */
+.cal-head{display:flex;align-items:center;justify-content:center;gap:14px;margin:16px 0 10px}
+.cal-head b{font-size:1rem;min-width:106px;text-align:center}
+.cal-head button{font-size:1.25rem;line-height:1;padding:4px 12px;color:var(--teal)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-dow{text-align:center;font-size:.7rem;color:#8b7750;padding-bottom:4px}
+.cal-day{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;aspect-ratio:1;border:1px solid var(--line);border-radius:9px;background:var(--card);padding:0;cursor:pointer}
+.cal-day b{font-size:.78rem;font-weight:600}
+.cal-day i{font-style:normal;font-size:.66rem;color:#8b7750}
+.cal-day.high{background:#4c7a601f;border-color:#4c7a6047}
+.cal-day.mid{background:#bb933f14}
+.cal-day.today{outline:2px solid var(--teal);outline-offset:-2px}
+.cal-day:focus-visible{outline:2px solid #a9863e;outline-offset:2px}
+.dayname{margin:2px 0 0;font-size:.88rem;color:#6f6a5c}
+.dayname b{color:var(--teal)}
+
+/* The arithmetic behind a day's number, shown in full. */
+.daytable{width:100%;border-collapse:collapse;margin:14px 0}
+.daytable th{text-align:left;font-weight:400;color:#8b7750;font-size:.82rem;padding:7px 0;border-bottom:1px solid var(--line)}
+.daytable td{padding:7px 0;border-bottom:1px solid var(--line);font-size:.86rem}
+.daytable td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.daytable .sum th,.daytable .sum td{font-weight:700;color:var(--ink);border-bottom:0;padding-top:10px}

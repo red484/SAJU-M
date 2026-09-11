@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {calculate,coach,monthly,topicReading,flow,safety,manse,fortune} from '../src/engine.js';
+import {dayName,dayIndex,monthIndex,calculate,coach,monthly,topicReading,flow,safety,manse,fortune} from '../src/engine.js';
 const base={name:'테스트',birth:'1995-05-17',time:'15:30',zone:'Asia/Seoul',longitude:126.978,clock:'civil',calendar:'solar',topics:['진로']};
 const a=calculate(base);assert.equal(a.total,8);assert.equal(a.pillars.map(p=>p.gz).join(' '),'乙亥 辛巳 戊申 庚申');
 const lunar=calculate({...base,birth:'1956-01-21',calendar:'lunar'});assert.equal(lunar.solarDate,'1956-03-03');
@@ -17,7 +17,19 @@ assert.match(adv.text,/조직 규모/);assert.match(adv.text,/보상/);assert.ma
 // The reply must not parrot the user's sentence back at them.
 assert.ok(!adv.text.includes('회사가 작은 게 걱정돼요'),'coach echoed the user verbatim');
 // 이에요/예요 follows the final consonant.
-assert.ok(!/규모이에요/.test(adv.text),'wrong particle after an open syllable');assert.match(safety('죽고 싶어요'),/109/);assert.match(safety('코인 투자'),/예측하지/);
+assert.ok(!/규모이에요/.test(adv.text),'wrong particle after an open syllable');// 일진 이름은 만세력에서 바로 나오는 값이라 사람과 무관하게 같습니다.
+assert.equal(dayName('2026-09-09').label,'병술');
+assert.equal(dayName('2026-09-09').name,'붉은 개의 날');
+// 그날의 점수는 항목의 합일 뿐이어야 합니다 — 숨은 항이 있으면 실패합니다.
+const di=dayIndex(a,'2026-09-09');
+assert.equal(di.score,di.base+di.parts.reduce((t,p)=>t+p.score,0));
+assert.ok(di.parts.some(p=>p.key==='일간과의 관계'));
+assert.ok(di.parts.some(p=>p.key==='십이운성'));
+// 같은 입력은 같은 값 — 무작위가 섞이지 않았는지.
+assert.equal(dayIndex(a,'2026-09-09').score,dayIndex(a,'2026-09-09').score);
+assert.equal(monthIndex(a,'2026-09').length,30);
+assert.equal(monthIndex(a,'2026-02').length,28);
+assert.match(safety('죽고 싶어요'),/109/);assert.match(safety('코인 투자'),/예측하지/);
 assert.equal(flow(a,'2026-09-10').length,3);assert.equal(monthly([],'2026-09').list.length,0);
 
 // ── 만세력 · 대운 ──────────────────────────────────────────────
@@ -40,4 +52,4 @@ assert.equal(fw.start,7);             // 망종까지 20일 ÷ 3
 assert.equal(bw.start,4);             // 입하부터 11일 ÷ 3
 assert.equal(fortune(calculate(base),base),null,'성별이 없으면 방향을 정할 수 없다');
 
-console.log('PASS: lunar/leap conversion, term boundary, unknown time, invalid/DST dates, manse pillars, 십이운성, 공망, 신살, 대운 direction, contextual coaching and safety.');
+console.log('PASS: lunar/leap conversion, term boundary, unknown time, invalid/DST dates, manse pillars, 십이운성, 공망, 신살, 대운 direction, 일진 이름·점수 합·월 길이, contextual coaching and safety.');
