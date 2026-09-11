@@ -11,6 +11,7 @@ export const enabled = () => Boolean(apiKey());
 let client = null;
 const getClient = () => (client ??= new GoogleGenAI({ apiKey: apiKey() }));
 
+const TOPICS = ['진로', '연애', '재물', '건강', '가족'];
 const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
 const list = (v, max, f) => (Array.isArray(v) ? v.slice(0, max).map(f).filter(Boolean) : []);
 
@@ -51,7 +52,16 @@ function systemPrompt(chart) {
 4. 미래를 단정하거나 확률을 말하지 마세요. 사주는 판단의 재료이지 예언이 아닙니다.
 5. 사주로 질병·투자·법률의 답을 정하지 마세요. 그런 질문은 전문가와 상의하라고 안내하세요.
 6. 존댓말로, 400자 안팎으로 씁니다. 목록 기호 대신 문장으로 쓰세요.
-7. 마지막에 사용자가 답할 수 있는 질문 하나를 남기세요.`;
+7. 마지막에 사용자가 답할 수 있는 질문 하나를 남기세요.
+
+기록 제안:
+사용자가 구체적인 선택 하나를 앞에 두고 있고 조건이 어느 정도 나왔다면, 마지막 질문 대신 "이 선택, 기록해둘까요?"처럼 자연스럽게 물으세요. 그리고 답변 맨 끝에 아래 블록을 붙이세요. 이 블록은 사용자에게 보이지 않습니다.
+
+<기록>{"title":"이직 제안에 답하기","topic":"진로","expectation":"연봉 20% 상승과 조직 규모 리스크를 비교 중"}</기록>
+
+- title은 선택을 한 줄로 (30자 이내), topic은 진로·연애·재물·건강·가족 중 하나, expectation은 지금 무엇을 저울질하는지 한두 문장.
+- 아직 선택이 뚜렷하지 않거나 이미 기록을 제안한 뒤라면 블록을 붙이지 마세요.
+- 사용자가 방금 기록에 동의했거나 거절했다면 다시 제안하지 마세요.`;
 }
 
 export async function coachReply({ chart: rawChart, messages: rawMessages }) {
@@ -62,6 +72,7 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
     m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string'
       ? { role: m.role, content: m.text.slice(0, 1500) }
       : null);
+  while (turns.length && turns[0].role !== 'user') turns.shift();
   if (!turns.length || turns.at(-1).role !== 'user') return { error: '보낼 메시지가 없습니다.', status: 400 };
 
   // 위기·의료·재무 질문은 모델에 보내지 않고 기존 안전 응답을 그대로 씁니다.
@@ -84,8 +95,19 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
 
   const blocked = res.promptFeedback?.blockReason;
   if (blocked) return { text: '지금은 답하기 어려운 질문이에요. 다르게 물어봐 주세요.', source: 'blocked' };
-  const text = (res.text || '').trim();
+  let text = (res.text || '').trim();
+  // 모델이 붙인 기록 제안 블록을 본문에서 떼어내 구조화합니다. 형식이
+  // 어긋나면 조용히 버립니다 — 본문은 그대로 읽히므로 손해가 없습니다.
+  let offer = null;
+  text = text.replace(/<기록>([\s\S]*?)<\/기록>/g, (_, body) => {
+    try {
+      const o = JSON.parse(body);
+      const title = str(o.title, 60).trim();
+      if (title && TOPICS.includes(o.topic)) offer = { title, topic: o.topic, expectation: str(o.expectation, 300).trim() };
+    } catch { /* 형식이 어긋나면 제안 없이 넘어갑니다 */ }
+    return '';
+  }).trim();
   if (!text) return { error: '빈 응답을 받았습니다.', status: 502 };
   const u = res.usageMetadata || {};
-  return { text, source: 'gemini', usage: { in: u.promptTokenCount, out: u.candidatesTokenCount } };
+  return { text, offer, source: 'gemini', usage: { in: u.promptTokenCount, out: u.candidatesTokenCount } };
 }

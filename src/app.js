@@ -134,7 +134,38 @@ const chartFor=c=>({name:p().name,pillars:result.pillars.map(v=>v.gz),dayStem:SK
  element:ELEMENTS[result.element],strong:result.strong.map(i=>ELEMENTS[i]),weak:result.weak.map(i=>ELEMENTS[i]),
  topics:p().topics,today:E.dayName(today()).name+' '+E.dayName(today()).label+'일'});
 
+// 짧은 수긍 한 마디로 기록이 남습니다. 판정은 클라이언트에서 합니다 —
+// 모델을 한 번 더 부르지 않아 즉시 반응하고, 같은 말에 늘 같게 동작합니다.
+const batchim=w=>{const c=(w||'').charCodeAt((w||'').length-1);return c>=0xAC00&&c<=0xD7A3&&(c-0xAC00)%28!==0;};
+const YES=/^(응+|웅+|엉+|어+|네+|넹+|예+|ㅇ+|ㅇㅋ|오케이|오키|그래+|그러자|좋아요?|해줘|해주세요|부탁(해|해요|드려요)?|기록(해|해줘|해주세요)?|남겨(줘|주세요)?|등록(해|해줘)?|ok|okay|yes)[.!~\s]*$/i;
+const NO=/(아니|아뇨|아니요|괜찮|나중|싫|됐어|하지\s*마|no)/i;
+const affirmative=t=>{const v=t.trim();return v.length<=14&&YES.test(v);};
+
+// 상담 중 남기는 기록. 선택 화면에서 만드는 것과 같은 모양이어야 회고·월간
+// 집계가 그대로 동작합니다.
+function recordFromOffer(o){
+ const date=today();
+ const r={id:uid(),title:o.title,date,topic:o.topic,confidence:50,expectation:o.expectation||'',
+  due:DateTime.fromISO(date).plus({days:7}).toISODate(),result:'pending',mood:'',actual:'',
+  advice:E.topicReading(result,o.topic).action,created:new Date().toISOString()};
+ data.records.push(r);return r;}
+
 async function sendMessage(text){text=text.trim();if(!text)return;if(text.length>1500){notice('메시지는 1,500자 이내로 입력해 주세요.');return;}const c=currentConversation();if(c.profileKey!==profileKey()){notice('이전 사주의 상담입니다. 새 상담을 시작해 주세요.');return;}if(!await engineReady())return;c.messages.push({id:uid(),role:'user',text,at:new Date().toISOString()});
+ // 직전 답변이 기록을 제안했다면, 수긍 한 마디로 바로 남깁니다.
+ if(c.offer){
+  const o=c.offer;c.offer=null;
+  if(affirmative(text)){
+   const r=recordFromOffer(o);
+   c.messages.push({id:uid(),role:'assistant',source:'record',at:new Date().toISOString(),
+    text:`남겨두었어요. “${o.title}”${batchim(o.title)?'을':'를'} ${dateLabel(r.due)}에 다시 꺼내 드릴게요.\n그때 어떻게 됐는지 알려주시면 기록이 이어집니다.`});
+   persist();render();notice('선택 기록에 남겼어요.');return;
+  }
+  if(NO.test(text)){
+   c.messages.push({id:uid(),role:'assistant',source:'record',at:new Date().toISOString(),
+    text:'알겠어요, 남기지 않을게요. 계속 이야기해요.'});
+   persist();render();return;
+  }
+ }
  // 규칙 기반 답을 먼저 만들어 둡니다. 실제 상담이 없거나 실패해도 이 답이
  // 나가므로 사용자는 빈 화면을 보지 않습니다.
  const fallback=E.coach(result,p(),c,text);
@@ -146,7 +177,7 @@ async function sendMessage(text){text=text.trim();if(!text)return;if(text.length
    const r=await fetch('/api/coach',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({chart:chartFor(c),messages:c.messages.filter(m=>m.role!=='system').slice(-12).map(m=>({role:m.role,text:m.text}))})});
    const j=await r.json();
-   if(r.ok&&j.text){reply=j.text;source=j.source;}
+   if(r.ok&&j.text){reply=j.text;source=j.source;if(j.offer)c.offer=j.offer;}
    else if(r.status===429)notice('잠시 뒤에 다시 물어봐 주세요.');
   }catch{/* 폴백 답을 그대로 씁니다 */}
   c.pending=false;
