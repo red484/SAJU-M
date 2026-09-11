@@ -10,10 +10,12 @@ await rm('dist',{recursive:true,force:true});await mkdir('dist/client/assets',{r
 // splitting still hoists luxon and the lookup tables into a shared chunk.
 await build({entryPoints:['src/app.js','src/engine.js'],bundle:true,minify:true,format:'esm',splitting:true,outdir:'dist/client',chunkNames:'chunk-[hash]',target:['es2022']});
 await copyFile('THIRD_PARTY_NOTICES.txt','dist/client/THIRD_PARTY_NOTICES.txt');
-await copyFile('src/app.css','dist/client/app.css');await copyFile('index.html','dist/client/index.html');
+await writeFile('dist/client/app.css',(await readFile('src/app.css','utf8'))+'\n'+(await readFile('src/design.css','utf8')));await copyFile('index.html','dist/client/index.html');
 for(const name of ['splash','mark','mentorAvatar','mentorHeader','todayRest','todayTalk','todayDeal','todayDuty','todayStart','hanji','compassCore','branchPine'])await copyFile(`assets/${name}.webp`,`dist/client/assets/${name}.webp`);
 // Same-origin asset fallback keeps the Worker portable when an ASSETS binding is absent.
-const TYPES={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.txt':'text/plain; charset=utf-8','.webp':'image/webp'};
+await copyFile('assets/ink-waterfall.png','dist/client/assets/ink-waterfall.png');
+for(const name of ['branchPlum','branchMaple','scenery'])await copyFile(`assets/${name}.webp`,`dist/client/assets/${name}.webp`);
+const TYPES={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.txt':'text/plain; charset=utf-8','.webp':'image/webp','.png':'image/png'};
 // Walk the whole tree so code-split chunks are picked up as they are emitted,
 // instead of listing entry filenames by hand.
 async function walk(dir,prefix=''){const out=[];for(const e of await readdir(dir,{withFileTypes:true}))out.push(...e.isDirectory()?await walk(`${dir}/${e.name}`,`${prefix}${e.name}/`):[prefix+e.name]);return out;}
