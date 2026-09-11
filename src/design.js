@@ -7,9 +7,27 @@ const elements = [
   ['水', '수', '깊이 흐르는 힘', '#436e9d']
 ];
 const topicArt = {진로:['todayStart','나아갈 방향'],연애:['todayTalk','마음의 거리'],재물:['todayDeal','나의 기준'],건강:['todayRest','쉬어갈 시간'],가족:['todayDuty','함께하는 마음']};
+let motionPaused = false;
 
 export function dressPage({page, result, profile}) {
   document.body.classList.add('moonbook');
+  document.querySelectorAll('.ink-branches,.motion-toggle').forEach(el => el.remove());
+  if (page !== 'welcome') {
+    const branches = document.createElement('div');
+    branches.className = 'ink-branches';
+    branches.setAttribute('aria-hidden', 'true');
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'motion-toggle';
+    const syncMotion = () => {
+      document.body.classList.toggle('motion-paused', motionPaused);
+      toggle.textContent = motionPaused ? '배경 재생' : '배경 멈춤';
+      toggle.setAttribute('aria-label', motionPaused ? '배경 애니메이션 재생' : '배경 애니메이션 일시 정지');
+    };
+    toggle.addEventListener('click', () => { motionPaused = !motionPaused; syncMotion(); });
+    syncMotion();
+    document.body.append(branches, toggle);
+  }
   document.querySelectorAll('.topic-choice').forEach(label => {
     const input = label.querySelector('input');
     const [art, caption] = topicArt[input.value] || topicArt.진로;
@@ -46,10 +64,6 @@ export function dressPage({page, result, profile}) {
       card.style.setProperty('--topic-art',`url('/assets/${art}.webp')`);
     });
   }
-  document.querySelectorAll('.presets button').forEach((button,i) => {
-    const number = document.createElement('span');number.className='preset-number';
-    number.textContent=String(i+1).padStart(2,'0');button.prepend(number);
-  });
   if (page === 'records') {
     const stats = document.querySelector('.stats');
     stats?.closest('.card')?.classList.add('journal-summary');
