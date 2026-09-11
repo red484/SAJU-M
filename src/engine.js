@@ -49,7 +49,11 @@ export function flow(r,iso){
  return ['year','month','day'].map((key,i)=>{
   const p=a.pillars[i],god=tenGod(r.day,p.s),[title,body]=FLOWSAY[god];
   const stage=stageOf(r.day,p.b);
-  return {key,p,god,title,body,stage,ground:FLOWGROUND[stage],clash:groundClash(r,p.b)};
+  // 지지 속에 든 천간도 일간 기준으로 읽습니다. 겉의 십성만으로는
+  // 같은 천간이 붙은 해와 달이 계속 같은 말만 하게 됩니다.
+  const hidden=HIDDEN[p.b].map(v=>({stem:STEM[v],read:SK[v],god:tenGod(r.day,v)}));
+  const marks=marksOf(r,p.b).map(name=>({name,say:MARKSAY[name]}));
+  return {key,p,god,title,body,stage,ground:FLOWGROUND[stage],hidden,marks,clash:groundClash(r,p.b)};
  });
 }
 // 흐름의 지지가 원국 지지와 마주 보면(여섯 칸 차이) 그 자리를 알려 줍니다.
