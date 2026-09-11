@@ -1,7 +1,7 @@
 import {Solar} from 'lunar-javascript';
 import KoreanLunarCalendar from 'korean-lunar-calendar';
 import {DateTime} from 'luxon';
-import {STEM,BRANCH,SK,BK,ELEMENTS,COLORNAME,COLORS,HOURS,HARMONY,HIDDEN,STAGE,BIRTHPLACE,TRIAD,PEACH,HORSE,CANOPY,NOBLE,STEMHUE,ZODIAC,TENSCORE,STAGESCORE,OFFICER,OFFICERSAY,YELLOWGOD,ISYELLOW,DRAGONSTART,PURPOSE,TENSAY,STAGESAY,MARKSAY,SHIN12,ROBSTART,SHINSAY,BRANCHCLASH,STEMCLASH,TENGROUP,STAGEDAY,TOPIC,topics} from './constants.js';
+import {STEM,BRANCH,SK,BK,ELEMENTS,COLORNAME,COLORS,HOURS,HARMONY,HIDDEN,STAGE,BIRTHPLACE,TRIAD,PEACH,HORSE,CANOPY,NOBLE,STEMHUE,ZODIAC,TENSCORE,STAGESCORE,OFFICER,OFFICERSAY,YELLOWGOD,ISYELLOW,DRAGONSTART,PURPOSE,TENSAY,STAGESAY,MARKSAY,SHIN12,ROBSTART,SHINSAY,BRANCHCLASH,STEMCLASH,TENGROUP,STAGEDAY,FLOWSAY,FLOWGROUND,TOPIC,topics} from './constants.js';
 const SE=[0,0,1,1,2,2,3,3,4,4],BE=[4,2,0,0,2,1,1,2,3,3,2,4];
 const mod=(a,b)=>(a%b+b)%b;
 function solar(dt){return Solar.fromYmdHms(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second);}
@@ -40,7 +40,27 @@ const TRAITS=[
  ['깊이 살피고 유연하게 적응하는 힘','바로 반응하기보다 맥락을 이해하는 편','생각이 길어져 첫 행동을 미루는 패턴','혼자 생각할 시간과 유연한 선택권이 있는 환경','생각 중인 일을 10분 안에 할 수 있는 행동으로 줄여보세요.']];
 export function topicReading(r,t){const a=TOPIC[t]||TOPIC.진로;return {title:a[0],body:`${ELEMENTS[r.strong[0]]} 기운을 ${TRAITS[r.strong[0]][0]}으로 읽으면, ${t}에서도 ${TRAITS[r.strong[0]][3]}이 맞는지 살펴볼 수 있어요. ${a[1]}`,action:a[2]};}
 export function reading(r,p){const e=r.strong[0],w=r.weak[0];return {summary:`${p.name}님은 ${TRAITS[e][1]}으로 읽힙니다. 다만 ${TRAITS[e][2]}은 돌아볼 필요가 있어요.`,strength:TRAITS[e][0],caution:TRAITS[e][2],environment:TRAITS[e][3],balance:`${ELEMENTS[w]}은 ${r.cnt[w]}개로 상대적으로 적게 나타납니다. ${TRAITS[w][0]}을 일상의 습관으로 보완해보는 관점입니다. 없는 기운이 곧 결핍이나 불운이라는 뜻은 아니에요.`,action:topicReading(r,p.topics?.[0]||'진로').action};}
-export function flow(r,iso){const dt=DateTime.fromISO(iso,{zone:'Asia/Seoul'}).set({hour:12});const a=at({clock:'civil'},dt);return ['year','month','day'].map((key,i)=>{const p=a.pillars[i],rel=mod(SE[p.s]-r.element,5);const notes=[['내 기준 돌아보기','내 방식과 주변의 방식을 비교하며 우선순위를 정리해 보세요.'],['생각을 표현하기','아직 정리되지 않은 생각을 글이나 대화로 꺼내보세요.'],['자원 점검하기','시간과 비용을 어디에 쓰는지 돌아보세요.'],['책임과 경계 정하기','주어진 역할과 내가 감당할 범위를 구분해 보세요.'],['배움과 회복 챙기기','새로운 정보를 살피고 도움을 요청해 보세요.']][rel];return {key,p,rel,...{title:notes[0],body:notes[1]},god:tenGod(r.day,p.s)};});}
+// 흐름 카드. 천간은 십성으로 주제를, 지지는 십이운성으로 세기를 말하고,
+// 원국 지지와 부딪히면 그 자리도 함께 짚습니다. 예전에는 천간을 오행 다섯
+// 관계로만 눌러 써서 편인과 정인이 같은 문장을 받았습니다.
+export function flow(r,iso){
+ const dt=DateTime.fromISO(iso,{zone:'Asia/Seoul'}).set({hour:12});
+ const a=at({clock:'civil'},dt);
+ return ['year','month','day'].map((key,i)=>{
+  const p=a.pillars[i],god=tenGod(r.day,p.s),[title,body]=FLOWSAY[god];
+  const stage=stageOf(r.day,p.b);
+  return {key,p,god,title,body,stage,ground:FLOWGROUND[stage],clash:groundClash(r,p.b)};
+ });
+}
+// 흐름의 지지가 원국 지지와 마주 보면(여섯 칸 차이) 그 자리를 알려 줍니다.
+function groundClash(r,b){
+ for(const p of r.pillars){
+  if(mod(b-p.b,12)!==6)continue;
+  const lo=Math.min(b,p.b),hi=Math.max(b,p.b),pair=BK[lo]+BK[hi];
+  return {name:pair+'충',at:p.k,say:BRANCHCLASH[pair]||''};
+ }
+ return null;
+}
 export function safety(text){if(/자살|죽고\s*싶|죽을|자해|목숨|살기\s*싫|해치고\s*싶/.test(text))return '지금은 사주보다 안전이 먼저예요. 혼자 견디지 말고 믿을 수 있는 사람에게 지금의 상황을 알려주세요. 즉시 위험하다면 한국에서는 119 또는 112에 연락하거나 가까운 응급실로 가세요. 자살예방상담전화 109는 24시간 연결됩니다. 해외라면 현지 긴급전화나 위기상담 서비스를 이용해 주세요. 지금 혼자 계신가요?';if(/건강|증상|병원|진단|통증|약|임신|암|의료/.test(text))return '사주로 질환·임신·치료 결과를 판단할 수 없어요. 증상과 복용 중인 약, 지속된 기간을 정리해 의료 전문가와 상의하세요. 심한 흉통·호흡곤란 등 긴급한 증상은 즉시 응급 도움을 받으세요. 오늘은 몸 상태를 한 줄로 남기고 필요한 진료를 확인해보세요.';if(/투자|주식|코인|매수|매도|대출|재무|수익/.test(text))return '사주로 투자 수익이나 매매 시점을 예측하지 않습니다. 손실을 감당할 수 있는 범위, 수수료와 부채를 먼저 확인하세요. 구체적인 투자·대출 결정은 자격 있는 금융 전문가와 상의하고, 오늘은 자산과 지출을 정리하는 데 집중해보세요.';if(/법률|소송|고소|이혼|계약|재판|변호사/.test(text))return '사주는 법률 판단이나 사건 결과를 예측하는 근거가 아닙니다. 계약서·관련 자료와 기한을 정리하고 변호사 또는 공인된 법률상담기관에 확인하세요. 오늘은 놓치면 안 되는 기한 하나를 확인해보세요.';return null;}
 // Conditions people actually weigh, each with the checks that turn a feeling
 // into something comparable. A factor is claimed only when the user's own
