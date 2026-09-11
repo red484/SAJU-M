@@ -187,3 +187,21 @@
 .dot.d0 input:checked~span{left:0;right:auto;transform:none}
 .dot.d4 input:checked~span{left:auto;right:0;transform:none}
 @media(max-width:360px){.scale-poles{font-size:.66rem}.dot.d0 i,.dot.d4 i{width:34px;height:34px}}
+
+/* 대운 판독. 읽기 위한 화면이라 여백을 넉넉히 두고, 자간을 벌린 큰 글자와
+   작은 본문의 대비로 호흡을 만듭니다. */
+.epic-head{display:flex;flex-direction:column;align-items:center;gap:6px;margin:22px 0 18px;text-align:center}
+.epic-en{font-size:.66rem;letter-spacing:.22em;color:#8b7750;text-transform:uppercase}
+.epic-kr{font-family:'Nanum Myeongjo',serif;font-size:1.9rem;letter-spacing:.3em;text-indent:.3em;color:var(--teal);line-height:1.3}
+.epic-idx{font-size:.7rem;color:#8b7750;letter-spacing:.04em}
+.epic-pull{font-family:'Nanum Myeongjo',serif;font-size:1.12rem;line-height:1.95;text-align:center;color:var(--ink);margin:0 0 26px;padding:0 4px}
+.epic-ch{border-top:1px solid var(--line);padding:22px 0 4px}
+.epic-ch-head{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:8px}
+.epic-ch-head>span:first-child{font-size:.74rem;color:#8b7750;font-variant-numeric:tabular-nums}
+.epic-ch-head b{font-family:'Nanum Myeongjo',serif;font-size:1.18rem;letter-spacing:.18em;color:var(--teal)}
+.epic-pillar{margin:0 0 10px;font-size:.72rem;color:#8b7750;letter-spacing:.06em}
+.epic-gate{margin:0 0 12px;font-family:'Nanum Myeongjo',serif;font-size:.95rem;color:var(--ink);opacity:.82}
+.epic-body{margin:0 0 12px;font-size:.92rem;line-height:1.85}
+.epic-essay{margin:0;font-size:.85rem;line-height:1.95;color:#6f6a5c}
+.epic-close{border-top:1px solid var(--line);margin:22px 0 14px;padding-top:20px;font-family:'Nanum Myeongjo',serif;font-size:.98rem;line-height:1.9;text-align:center;color:var(--teal)}
+.block.epic .block-title{margin-bottom:0}
