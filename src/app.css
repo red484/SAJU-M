@@ -260,12 +260,14 @@ dialog[open]:has(.daysheet) .modal-close{position:absolute;top:10px;right:12px;z
 .message.picked .tick{background:var(--teal);border-color:var(--teal)}
 .message.picked .tick:after{content:'';position:absolute;left:6px;top:2px;width:5px;height:10px;border:2px solid #f4ecd8;border-top:0;border-left:0;transform:rotate(45deg)}
 .message.picked .bubble{outline:2px solid var(--teal);outline-offset:2px}
-.capture-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-top:1px solid var(--line);background:var(--card);flex-wrap:wrap}
-/* 좁은 화면에서는 라벨이 눌려 줄바꿈되느니 버튼 줄이 아래로 내려갑니다. */
-.capture-bar>span{flex:0 1 auto;white-space:nowrap;font-size:.85rem;color:var(--teal);font-weight:600;margin-right:auto}
-/* .primary는 전역에서 width:100%·margin:14px 0을 쓰기 때문에 여기서 되돌립니다.
-   안 그러면 버튼이 줄 전체를 차지하려 들고 바가 위아래로 28px 부풀어요. */
-.capture-bar button{white-space:nowrap;flex:none;width:auto;margin:0;display:inline-flex;align-items:center;justify-content:center}
-.capture-bar .plain{padding:0 12px;min-height:44px}
-.capture-bar .primary{min-height:44px;padding:0 16px;font-size:.85rem;border-radius:24px}
-.capture-bar .primary:disabled{opacity:.45;cursor:default}
+.capture-bar{padding:10px 14px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--card)}
+.capture-guide{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px}
+.capture-guide span{font-size:.85rem;line-height:1.5;color:var(--teal);font-weight:600;flex:1 1 auto;min-width:0}
+/* .primary는 전역에서 width:100%·margin:14px 0을 쓰기 때문에 캡처 바에서는
+   아예 쓰지 않고, 여기서 버튼 모양을 직접 잡습니다. */
+.capture-acts{display:flex;align-items:center;gap:6px;margin-top:4px}
+.capture-acts button{flex:none;width:auto;margin:0;white-space:nowrap;min-height:44px;padding:0 15px;border-radius:22px;border:1px solid var(--line);background:#fbf8ee;color:var(--teal);font-size:.85rem}
+.capture-acts [data-capture=save]{background:var(--teal);border-color:var(--teal);color:#fff9e9}
+.capture-acts [data-capture=cancel]{margin-left:auto;border:0;background:none;padding:0 10px}
+.capture-bar button:disabled{opacity:.4;cursor:default}
+.capture-guide .plain{flex:none;padding:0 10px;min-height:44px;font-size:.8rem}
