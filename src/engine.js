@@ -1,7 +1,7 @@
 import {Solar} from 'lunar-javascript';
 import KoreanLunarCalendar from 'korean-lunar-calendar';
 import {DateTime} from 'luxon';
-import {STEM,BRANCH,SK,BK,ELEMENTS,COLORNAME,COLORS,HOURS,HARMONY,HIDDEN,STAGE,BIRTHPLACE,TRIAD,PEACH,HORSE,CANOPY,NOBLE,STEMHUE,ZODIAC,TENSCORE,STAGESCORE,OFFICER,OFFICERSAY,YELLOWGOD,ISYELLOW,DRAGONSTART,PURPOSE,TOPIC,topics} from './constants.js';
+import {STEM,BRANCH,SK,BK,ELEMENTS,COLORNAME,COLORS,HOURS,HARMONY,HIDDEN,STAGE,BIRTHPLACE,TRIAD,PEACH,HORSE,CANOPY,NOBLE,STEMHUE,ZODIAC,TENSCORE,STAGESCORE,OFFICER,OFFICERSAY,YELLOWGOD,ISYELLOW,DRAGONSTART,PURPOSE,TENSAY,STAGESAY,MARKSAY,SHIN12,ROBSTART,SHINSAY,BRANCHCLASH,STEMCLASH,TENGROUP,STAGEDAY,TOPIC,topics} from './constants.js';
 const SE=[0,0,1,1,2,2,3,3,4,4],BE=[4,2,0,0,2,1,1,2,3,3,2,4];
 const mod=(a,b)=>(a%b+b)%b;
 function solar(dt){return Solar.fromYmdHms(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second);}
@@ -213,4 +213,45 @@ export function goodDays(month,purpose){
   if(P.sonless&&d.sonless)parts.push({key:'손 없는 날',value:'음력 '+d.lunarDay+'일',score:1});
   return {iso,...d,parts,score:parts.reduce((t,p)=>t+p.score,0)};
  });
+}
+
+// 하루치 전체 판독. 점수·근거·본문·시간·색·달·택일을 한 번에 모아 돌려줍니다.
+// 모두 이미 계산된 값에서 나오므로 날짜를 눌러도 외부 호출이 없습니다.
+export function dayReading(r,iso){
+ const d=dayIndex(r,iso),[headline,lead]=TENSAY[d.ten];
+ const paragraphs=[lead,STAGESAY[d.stage]];
+ const marks=d.marks.map(m=>MARKSAY[m]).filter(Boolean);
+ if(marks.length)paragraphs.push(marks.join(' '));
+ const sig=daySignals(r,iso);
+ return {...d,headline,paragraphs,
+  hour:sig.hour,color:sig.color,moon:moonPhase(iso),select:daySelect(iso),
+  clash:clashes(r,iso),shin:shinsal(r,iso),stageDay:STAGEDAY[d.stage]};
+}
+
+// ── 합과 충 ────────────────────────────────────────────────────
+// 그날의 일진이 원국의 어느 자리를 치는지 봅니다. 천간은 여섯 칸 차이가
+// 충이고(무·기는 중앙의 토라 제외), 지지는 마주 보는 자리가 충입니다.
+export function clashes(r,iso){
+ const d=dayName(iso),out={stems:[],branches:[]};
+ const mid=s=>s===4||s===5;
+ for(const p of r.pillars){
+  if(!mid(d.s)&&!mid(p.s)&&mod(d.s-p.s,10)===6){
+   const key=p.k==='일주'?'일간':TENGROUP[tenGod(r.day,p.s)];
+   if(key&&!out.stems.some(v=>v.key===key)){const [title,say]=STEMCLASH[key];out.stems.push({key,title,say,at:p.k,gz:STEM[d.s]+'–'+STEM[p.s]});}
+  }
+  if(mod(d.b-p.b,12)===6){
+   const lo=Math.min(d.b,p.b),hi=Math.max(d.b,p.b),pair=BK[lo]+BK[hi],name=pair+'충';
+   // 이름으로 중복을 거릅니다. 원국에 같은 지지가 둘이면 같은 충이 두 번 잡힙니다.
+   if(!out.branches.some(v=>v.name===name))out.branches.push({name,at:p.k,say:BRANCHCLASH[pair]||''});
+  }
+ }
+ return out;
+}
+
+// 십이신살. 겁살에서 시작해 열둘이 차례로 돌고, 겁살의 자리는 년지의
+// 삼합 국이 정합니다.
+export function shinsal(r,iso){
+ const d=dayName(iso),start=ROBSTART[TRIAD[r.pillars[0].b]];
+ const name=SHIN12[mod(d.b-start,12)];
+ return {name,say:SHINSAY[name]};
 }
