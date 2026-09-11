@@ -1,12 +1,15 @@
 // 실제 상담 연동. 키가 없으면 이 모듈은 스스로 비활성이라고 답하고,
 // 클라이언트는 기존 규칙 기반 코칭으로 돌아갑니다.
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI } from '@google/genai';
 import { safety } from './engine.js';
 
-const MODEL = 'claude-opus-5';
-export const enabled = () => Boolean(process.env.ANTHROPIC_API_KEY);
+// 모델은 환경변수로 바꿀 수 있게 둡니다. 가용 모델이 바뀌어도 코드를 고치지
+// 않고 Render의 환경변수만 바꾸면 됩니다.
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const apiKey = () => process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+export const enabled = () => Boolean(apiKey());
 let client = null;
-const getClient = () => (client ??= new Anthropic());
+const getClient = () => (client ??= new GoogleGenAI({ apiKey: apiKey() }));
 
 const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
 const list = (v, max, f) => (Array.isArray(v) ? v.slice(0, max).map(f).filter(Boolean) : []);
@@ -65,18 +68,24 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   const safe = safety(turns.at(-1).content);
   if (safe) return { text: safe, source: 'safety' };
 
-  const res = await getClient().messages.create({
+  const res = await getClient().models.generateContent({
     model: MODEL,
-    max_tokens: 2000,
-    // 상담은 응답 속도가 곧 체감 품질이라 낮은 effort로 둡니다. 더 깊은
-    // 답이 필요하면 이 값만 올리면 됩니다.
-    output_config: { effort: 'low' },
-    system: systemPrompt(chart),
-    messages: turns
+    // Gemini는 assistant를 'model'이라고 부릅니다.
+    contents: turns.map(t => ({ role: t.role === 'assistant' ? 'model' : 'user', parts: [{ text: t.content }] })),
+    config: {
+      systemInstruction: systemPrompt(chart),
+      maxOutputTokens: 2000,
+      temperature: 0.7,
+      // 상담은 응답 속도가 곧 체감 품질이라 생각 단계를 끕니다. 더 깊은
+      // 답이 필요하면 이 값만 올리면 됩니다.
+      thinkingConfig: { thinkingBudget: 0 }
+    }
   });
 
-  if (res.stop_reason === 'refusal') return { text: safety('') || '지금은 답하기 어려운 질문이에요. 다르게 물어봐 주세요.', source: 'refusal' };
-  const text = res.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+  const blocked = res.promptFeedback?.blockReason;
+  if (blocked) return { text: '지금은 답하기 어려운 질문이에요. 다르게 물어봐 주세요.', source: 'blocked' };
+  const text = (res.text || '').trim();
   if (!text) return { error: '빈 응답을 받았습니다.', status: 502 };
-  return { text, source: 'claude', usage: { in: res.usage.input_tokens, out: res.usage.output_tokens } };
+  const u = res.usageMetadata || {};
+  return { text, source: 'gemini', usage: { in: u.promptTokenCount, out: u.candidatesTokenCount } };
 }

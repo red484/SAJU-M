@@ -10,7 +10,7 @@
     "test": "node tests/engine.test.mjs"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.125.0",
+    "@google/genai": "^2.22.0",
     "drizzle-orm": "^0.45.2",
     "korean-lunar-calendar": "^0.4.0",
     "lunar-javascript": "^1.7.7",
