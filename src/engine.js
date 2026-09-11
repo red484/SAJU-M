@@ -1,7 +1,7 @@
 import {Solar} from 'lunar-javascript';
 import KoreanLunarCalendar from 'korean-lunar-calendar';
 import {DateTime} from 'luxon';
-import {STEM,BRANCH,SK,BK,ELEMENTS,COLORNAME,COLORS,HOURS,HARMONY,HIDDEN,STAGE,BIRTHPLACE,TRIAD,PEACH,HORSE,CANOPY,NOBLE,STEMHUE,ZODIAC,TENSCORE,STAGESCORE,TOPIC,topics} from './constants.js';
+import {STEM,BRANCH,SK,BK,ELEMENTS,COLORNAME,COLORS,HOURS,HARMONY,HIDDEN,STAGE,BIRTHPLACE,TRIAD,PEACH,HORSE,CANOPY,NOBLE,STEMHUE,ZODIAC,TENSCORE,STAGESCORE,OFFICER,OFFICERSAY,YELLOWGOD,ISYELLOW,DRAGONSTART,PURPOSE,TOPIC,topics} from './constants.js';
 const SE=[0,0,1,1,2,2,3,3,4,4],BE=[4,2,0,0,2,1,1,2,3,3,2,4];
 const mod=(a,b)=>(a%b+b)%b;
 function solar(dt){return Solar.fromYmdHms(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second);}
@@ -185,4 +185,32 @@ export function monthIndex(r,month){
  const first=DateTime.fromISO(month+'-01',{zone:'Asia/Seoul'});
  if(!first.isValid)return [];
  return Array.from({length:first.daysInMonth},(_,i)=>dayIndex(r,first.plus({days:i}).toISODate()));
+}
+
+// ── 택일 ──────────────────────────────────────────────────────
+// 그날의 건제십이신과 황도흑도. 월지와 일지만으로 정해지므로 사람과 무관합니다.
+export function daySelect(iso){
+ const dt=DateTime.fromISO(iso,{zone:'Asia/Seoul'}).set({hour:12});
+ const a=at({clock:'civil'},dt),mb=a.pillars[1].b,db=a.pillars[2].b;
+ const oi=mod(db-mb,12);                       // 建은 월건과 같은 지지의 날
+ const yi=mod(db-DRAGONSTART[mb%6],12);        // 청룡이 시작하는 지지에서부터
+ const lunarDay=solar(dt).getLunar().getDay();
+ return {officer:OFFICER[oi],oi,say:OFFICERSAY[oi],
+  god:YELLOWGOD[yi],yi,yellow:!!ISYELLOW[yi],
+  sonless:lunarDay%10===9||lunarDay%10===0,lunarDay};
+}
+
+// 한 달에서 그 일에 맞는 날을 고릅니다. 점수는 아래 항목의 합일 뿐이고,
+// 어떤 항목이 몇 점이었는지 그대로 함께 돌려줍니다.
+export function goodDays(month,purpose){
+ const P=PURPOSE[purpose];if(!P)return [];
+ const first=DateTime.fromISO(month+'-01',{zone:'Asia/Seoul'});
+ if(!first.isValid)return [];
+ return Array.from({length:first.daysInMonth},(_,i)=>{
+  const iso=first.plus({days:i}).toISODate(),d=daySelect(iso),parts=[];
+  parts.push({key:'건제십이신',value:d.officer,score:P.w[d.oi]*2});
+  parts.push({key:'황도흑도',value:d.god,score:d.yellow?1:-1});
+  if(P.sonless&&d.sonless)parts.push({key:'손 없는 날',value:'음력 '+d.lunarDay+'일',score:1});
+  return {iso,...d,parts,score:parts.reduce((t,p)=>t+p.score,0)};
+ });
 }

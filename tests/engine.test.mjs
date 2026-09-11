@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {dayName,dayIndex,monthIndex,calculate,coach,monthly,topicReading,flow,safety,manse,fortune} from '../src/engine.js';
+import {daySelect,goodDays,dayName,dayIndex,monthIndex,calculate,coach,monthly,topicReading,flow,safety,manse,fortune} from '../src/engine.js';
 const base={name:'테스트',birth:'1995-05-17',time:'15:30',zone:'Asia/Seoul',longitude:126.978,clock:'civil',calendar:'solar',topics:['진로']};
 const a=calculate(base);assert.equal(a.total,8);assert.equal(a.pillars.map(p=>p.gz).join(' '),'乙亥 辛巳 戊申 庚申');
 const lunar=calculate({...base,birth:'1956-01-21',calendar:'lunar'});assert.equal(lunar.solarDate,'1956-03-03');
@@ -29,6 +29,19 @@ assert.ok(di.parts.some(p=>p.key==='십이운성'));
 assert.equal(dayIndex(a,'2026-09-09').score,dayIndex(a,'2026-09-09').score);
 assert.equal(monthIndex(a,'2026-09').length,30);
 assert.equal(monthIndex(a,'2026-02').length,28);
+// 택일: 建은 월건과 같은 지지의 날. 사람과 무관하게 정해집니다.
+assert.equal(daySelect('2026-03-06').officer,'건');
+assert.ok(['황도','흑도'].includes(daySelect('2026-03-06').yellow?'황도':'흑도'));
+// 60일이면 건제십이신이 다섯 바퀴 — 절입 중복을 빼면 각 신이 고르게 나옵니다.
+const off={};for(let i=0;i<60;i++){const d=new Date(Date.UTC(2026,0,1+i)).toISOString().slice(0,10);off[daySelect(d).officer]=1;}
+assert.equal(Object.keys(off).length,12,'건제십이신 12신이 모두 나와야 합니다');
+// 택일 점수도 항목 합일 뿐이어야 합니다.
+const gd=goodDays('2026-09','이사');
+assert.equal(gd.length,30);
+for(const d of gd)assert.equal(d.score,d.parts.reduce((t,p)=>t+p.score,0));
+// 원국이 필요 없으므로 누구에게나 같은 값입니다.
+assert.deepEqual(goodDays('2026-09','이사').map(d=>d.score),gd.map(d=>d.score));
+
 assert.match(safety('죽고 싶어요'),/109/);assert.match(safety('코인 투자'),/예측하지/);
 assert.equal(flow(a,'2026-09-10').length,3);assert.equal(monthly([],'2026-09').list.length,0);
 
@@ -52,4 +65,4 @@ assert.equal(fw.start,7);             // 망종까지 20일 ÷ 3
 assert.equal(bw.start,4);             // 입하부터 11일 ÷ 3
 assert.equal(fortune(calculate(base),base),null,'성별이 없으면 방향을 정할 수 없다');
 
-console.log('PASS: lunar/leap conversion, term boundary, unknown time, invalid/DST dates, manse pillars, 십이운성, 공망, 신살, 대운 direction, 일진 이름·점수 합·월 길이, contextual coaching and safety.');
+console.log('PASS: lunar/leap conversion, term boundary, unknown time, invalid/DST dates, manse pillars, 십이운성, 공망, 신살, 대운 direction, 일진 이름·점수 합·월 길이, 택일 건제십이신·점수 합, contextual coaching and safety.');
