@@ -136,6 +136,11 @@ export function dressPage({page, result, profile}) {
     const stats = document.querySelector('.stats');
     stats?.closest('.card')?.classList.add('journal-summary');
   }
+  if (page === 'settings') {
+    const privacy = [...document.querySelectorAll('.narrow .card:first-of-type p')]
+      .find(p => p.textContent.startsWith('외부 AI'));
+    if (privacy) privacy.textContent = 'AI 상담이 연결된 경우 계산된 사주 정보와 대화 내용이 답변 생성을 위해 카페24 LLM Router와 선택된 AI 제공사로 전송됩니다. 운영 서버 관리자 접근을 막는 종단간 암호화 서비스는 아닙니다.';
+  }
   // Focus follows navigation, without forcing users back to the top of a chat.
   const main = document.querySelector('main');
   if (main) main.setAttribute('aria-label',`${profile?.name || '나'}의 달빛 사주`);

@@ -1,13 +1,9 @@
 // 대운 서사 판독. 상담과 달리 한 번에 한 편을 뽑고 JSON으로 받습니다.
 // 원형은 빌려오지 않았습니다 — 십이운성 열두 단계가 이미 생애의 부침을
 // 담고 있고, 그건 지어낸 상징이 아니라 명식에서 계산된 값입니다.
-import { GoogleGenAI } from '@google/genai';
+import { chatCompletion, enabled, parseJsonReply } from './cafe24-llm.mjs';
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-const apiKey = () => process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
-export const enabled = () => Boolean(apiKey());
-let client = null;
-const getClient = () => (client ??= new GoogleGenAI({ apiKey: apiKey() }));
+export { enabled };
 
 const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
 const num = v => (Number.isFinite(v) ? Math.trunc(v) : null);
@@ -36,28 +32,6 @@ function readInput(raw) {
     forward: raw.forward === true, start: num(raw.start), cycles
   };
 }
-
-const SCHEMA = {
-  type: 'object',
-  properties: {
-    en: { type: 'string' }, kr: { type: 'string' }, idx: { type: 'string' },
-    pull: { type: 'string' },
-    chapters: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          age: { type: 'string' }, en: { type: 'string' }, kr: { type: 'string' },
-          pillar: { type: 'string' }, gate: { type: 'string' },
-          body: { type: 'string' }, essay: { type: 'string' }
-        },
-        required: ['age', 'en', 'kr', 'pillar', 'gate', 'body', 'essay']
-      }
-    },
-    closing: { type: 'string' }
-  },
-  required: ['en', 'kr', 'idx', 'pull', 'chapters', 'closing']
-};
 
 function prompt(d) {
   const rows = d.cycles.map(c => `- ${c.age}세부터 · ${c.gz}(${c.label}) · ${c.ten} · ${c.stage}(${ARC[c.stage]})`).join('\n');
@@ -102,18 +76,32 @@ ${rows}
 - closing: 60~100자. 여덟 구간 전체를 한 호흡으로 닫습니다.`;
 }
 
+function readOutput(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const chapters = (Array.isArray(raw.chapters) ? raw.chapters : []).slice(0, 3).map(c => ({
+    age: str(c?.age, 20), en: str(c?.en, 30), kr: str(c?.kr, 20),
+    pillar: str(c?.pillar, 50), gate: str(c?.gate, 80),
+    body: str(c?.body, 300), essay: str(c?.essay, 900)
+  })).filter(c => Object.values(c).every(Boolean));
+  const out = {
+    en: str(raw.en, 30), kr: str(raw.kr, 20), idx: str(raw.idx, 100),
+    pull: str(raw.pull, 200), chapters, closing: str(raw.closing, 400)
+  };
+  return out.en && out.kr && out.idx && out.pull && out.closing && chapters.length === 3 ? out : null;
+}
+
 export async function epicReading(raw) {
   const d = readInput(raw);
   if (!d) return { error: '대운 정보가 부족합니다.', status: 400 };
-  const res = await getClient().models.generateContent({
-    model: MODEL,
-    contents: [{ role: 'user', parts: [{ text: prompt(d) }] }],
-    config: { responseMimeType: 'application/json', responseSchema: SCHEMA, maxOutputTokens: 4000, temperature: 1 }
+  const res = await chatCompletion({
+    messages: [{ role: 'user', content: prompt(d) }],
+    maxTokens: 4000,
+    temperature: 1,
+    metadata: { feature: 'epic' }
   });
-  if (res.promptFeedback?.blockReason) return { error: '판독을 완성하지 못했어요.', status: 502 };
   try {
-    const out = JSON.parse(res.text || '');
-    if (!Array.isArray(out.chapters) || !out.chapters.length) throw new Error('no chapters');
+    const out = readOutput(parseJsonReply(res.text));
+    if (!out) throw new Error('invalid reading');
     return { reading: out };
   } catch {
     return { error: '판독 결과를 읽지 못했어요. 잠시 뒤에 다시 시도해 주세요.', status: 502 };

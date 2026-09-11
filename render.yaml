@@ -8,3 +8,7 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22
+      - key: CAFE24_LLM_API_KEY
+        sync: false
+      - key: CAFE24_LLM_MODEL
+        value: cafe24/auto
