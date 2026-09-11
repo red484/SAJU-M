@@ -120,10 +120,26 @@ export function dressPage({page, result, profile}) {
       const [art] = topicArt[topic] || topicArt.진로;
       card.style.setProperty('--topic-art',`url('/assets/${art}.webp')`);
     });
+
+    // Keep every result visible while separating interpretation from calculations.
+    const technical = ['chart', 'manse', 'daeun', 'epic', 'flow']
+      .map(id => document.getElementById(id)).filter(Boolean);
+    if (technical.length) {
+      const divider = document.createElement('div');
+      divider.className = 'result-layer-title';
+      divider.innerHTML = '<span>두 번째 장</span><h2>나를 이루는 계산과 흐름</h2><p>앞의 해석이 어디에서 왔는지 차례로 이어집니다.</p>';
+      technical[0].before(divider);
+      technical.forEach(section => section.classList.add('result-technical'));
+    }
   }
   if (page === 'records') {
     const stats = document.querySelector('.stats');
     stats?.closest('.card')?.classList.add('journal-summary');
+  }
+  if (page === 'settings') {
+    const privacy = [...document.querySelectorAll('.narrow .card:first-of-type p')]
+      .find(p => p.textContent.startsWith('외부 AI'));
+    if (privacy) privacy.textContent = 'AI 상담이 연결된 경우 계산된 사주 정보와 대화 내용이 답변 생성을 위해 카페24 LLM Router와 선택된 AI 제공사로 전송됩니다. 운영 서버 관리자 접근을 막는 종단간 암호화 서비스는 아닙니다.';
   }
   // Focus follows navigation, without forcing users back to the top of a chat.
   const main = document.querySelector('main');

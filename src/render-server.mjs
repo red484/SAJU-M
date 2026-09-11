@@ -184,9 +184,10 @@ async function handleCoach(req, res) {
     const body = JSON.parse(await readBody(req, 100_000));
     const out = await coachReply(body);
     if (out.error) return sendJson(res, { error: out.error }, out.status || 500);
-    return sendJson(res, { text: out.text, source: out.source });
+    return sendJson(res, { text: out.text, offer: out.offer || null, source: out.source });
   } catch (error) {
     console.error('Coach request failed', error?.message);
+    if (error?.status === 429) return sendJson(res, { error: 'AI 상담 사용량이 많습니다. 잠시 뒤에 다시 시도해 주세요.' }, 429);
     return sendJson(res, { error: '상담을 불러오지 못했어요. 잠시 뒤에 다시 시도해 주세요.' }, 502);
   }
 }
@@ -215,6 +216,7 @@ async function handleEpic(req, res) {
     return sendJson(res, { reading: out.reading });
   } catch (error) {
     console.error('Epic request failed', error?.message);
+    if (error?.status === 429) return sendJson(res, { error: 'AI 판독 사용량이 많습니다. 잠시 뒤에 다시 시도해 주세요.' }, 429);
     return sendJson(res, { error: '판독을 불러오지 못했어요. 잠시 뒤에 다시 시도해 주세요.' }, 502);
   }
 }

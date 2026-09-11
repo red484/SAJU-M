@@ -1,15 +1,9 @@
 // 실제 상담 연동. 키가 없으면 이 모듈은 스스로 비활성이라고 답하고,
 // 클라이언트는 기존 규칙 기반 코칭으로 돌아갑니다.
-import { GoogleGenAI } from '@google/genai';
+import { chatCompletion, enabled } from './cafe24-llm.mjs';
 import { safety } from './engine.js';
 
-// 모델은 환경변수로 바꿀 수 있게 둡니다. 가용 모델이 바뀌어도 코드를 고치지
-// 않고 Render의 환경변수만 바꾸면 됩니다.
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-const apiKey = () => process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
-export const enabled = () => Boolean(apiKey());
-let client = null;
-const getClient = () => (client ??= new GoogleGenAI({ apiKey: apiKey() }));
+export { enabled };
 
 const TOPICS = ['진로', '연애', '재물', '건강', '가족'];
 const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
@@ -96,23 +90,14 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   const safe = safety(turns.at(-1).content);
   if (safe) return { text: safe, source: 'safety' };
 
-  const res = await getClient().models.generateContent({
-    model: MODEL,
-    // Gemini는 assistant를 'model'이라고 부릅니다.
-    contents: turns.map(t => ({ role: t.role === 'assistant' ? 'model' : 'user', parts: [{ text: t.content }] })),
-    config: {
-      systemInstruction: systemPrompt(chart),
-      maxOutputTokens: 2000,
-      temperature: 0.7,
-      // 상담은 응답 속도가 곧 체감 품질이라 생각 단계를 끕니다. 더 깊은
-      // 답이 필요하면 이 값만 올리면 됩니다.
-      thinkingConfig: { thinkingBudget: 0 }
-    }
+  const res = await chatCompletion({
+    messages: [{ role: 'system', content: systemPrompt(chart) }, ...turns],
+    maxTokens: 2000,
+    temperature: 0.7,
+    metadata: { feature: 'coach' }
   });
 
-  const blocked = res.promptFeedback?.blockReason;
-  if (blocked) return { text: '지금은 답하기 어려운 질문이에요. 다르게 물어봐 주세요.', source: 'blocked' };
-  let text = (res.text || '').trim();
+  let text = res.text;
   // 모델이 붙인 기록 제안 블록을 본문에서 떼어내 구조화합니다. 형식이
   // 어긋나면 조용히 버립니다 — 본문은 그대로 읽히므로 손해가 없습니다.
   let offer = null;
@@ -125,6 +110,5 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
     return '';
   }).trim();
   if (!text) return { error: '빈 응답을 받았습니다.', status: 502 };
-  const u = res.usageMetadata || {};
-  return { text, offer, source: 'gemini', usage: { in: u.promptTokenCount, out: u.candidatesTokenCount } };
+  return { text, offer, source: 'cafe24', usage: res.usage };
 }
