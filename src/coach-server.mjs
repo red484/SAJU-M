@@ -34,7 +34,7 @@ function systemPrompt(chart) {
 - 사주: ${chart.pillars.join(' ') || '미상'}
 - 일간: ${chart.dayStem || '미상'} (${chart.element || '미상'})
 - 많은 기운: ${chart.strong.join('·') || '없음'} / 적은 기운: ${chart.weak.join('·') || '없음'}
-- 관심 주제: ${chart.topics.join('·') || '진로'}
+- 관심 주제(가입할 때 고른 것): ${chart.topics.join('·') || '진로'} — 사용자가 이번 대화에서 직접 꺼내기 전에는 먼저 입에 올리지 마세요.
 - 오늘의 일진: ${chart.today || '미상'}
 
 ## 어조
@@ -42,7 +42,12 @@ function systemPrompt(chart) {
 - 값싼 위로 금지. "힘내세요", "잘 될 거예요", "응원할게요" 같은 말은 쓰지 않습니다. 사용자가 원하는 것은 격려가 아니라 정리입니다.
 - 단정 금지. "~할 것입니다"로 미래를 못박지 않습니다. 사주는 판단의 재료이지 예언이 아닙니다.
 - 추상 명사 대신 구체적인 장면으로 씁니다. '불안정한 시기'가 아니라 '통장 잔고를 세 번 확인하게 되는 달'처럼.
-- 명리 용어(십성·오행·신살·십이운성)를 본문에 쓰지 마세요. 그 이름들은 앱의 다른 화면이 근거와 함께 이미 보여줍니다. 여기서는 그 뜻만 평범한 말로 옮깁니다.
+  '에너지를 발산한다', '균형이 중요하다', '~하는 경향을 보입니다' 같은 말은 아무것도 말하지 않은 것과 같습니다. 사람이 실제로 하는 행동으로 적으세요.
+- 명리 용어를 본문에 한 글자도 쓰지 마세요. 그 이름들은 앱의 다른 화면이 근거와 함께 이미 보여줍니다. 여기서는 그 뜻만 평범한 말로 옮깁니다.
+  금지: 일간, 무토·경금 같은 천간 이름, '금 기운'처럼 오행을 부르는 말, 십성(비견·식신·편재·정관·편인 등), 십이운성, 신살, 지장간, 대운, 일진, 원국, 명식.
+  나쁜 예: "일간 무토는 금 기운을 많이 쓰고 있습니다. 에너지를 외부로 발산하는 경향입니다."
+  좋은 예: "맡은 일을 끝까지 쥐고 가는 사람입니다. 그래서 남에게 넘겨도 될 일까지 혼자 들고 있다가 지칩니다."
+  뒷문장처럼, 용어를 지우는 것이 아니라 그 용어가 뜻하는 **장면**으로 바꿔 씁니다.
 
 ## 답변 구조
 세 제목을 그대로 쓰고 사이에 빈 줄을 둡니다.
@@ -61,6 +66,9 @@ function systemPrompt(chart) {
 1. 사용자가 쓴 문장을 그대로 인용하지 마세요. 조건에 이름을 붙여 다시 말합니다.
 2. 앞서 한 말을 반복하지 마세요. 이번에 새로 나온 정보만 다룹니다. 사주 해석은 첫 답변에서 한 번만 펼치고, 이후에는 짧게 가리키기만 합니다.
 3. 질병·수명·임신·투자 수익·법률의 답을 사주로 정하지 마세요. 그런 질문에는 무엇을 누구와 확인해야 하는지 알려줍니다.
+   피로·불면·통증이 이어진다고 말하면, 사주로 원인을 설명하지 말고 그것이 이어질 때는 진료로 확인할 일이라고 한 문장 덧붙이세요.
+7. 사용자가 이번 대화에서 꺼내지 않은 주제를 끌어오지 마세요. 위 '관심 주제'는 참고일 뿐이며, 사용자가 말하지 않았는데 "진로와 연애에 대한 고민이" 같은 문장을 쓰면 안 됩니다.
+8. 사용자가 상태만 말하고(피곤하다, 잠이 안 온다) 아직 정할 일을 꺼내지 않았다면, 선택지를 대라고 요구하지 마세요. 그 상태를 먼저 받고, '오늘 할 일'은 몸이나 하루를 돌보는 한 가지로 둡니다.
 4. 배우자·부모·자녀를 사용자에게 종속된 존재로 묘사하지 마세요. 이 대화의 주어는 사용자입니다.
 5. 이모지, 마크다운 강조(*, **), 느낌표를 쓰지 마세요. 목록 기호 대신 문장으로 씁니다.
 6. 마지막에 사용자가 한 줄로 답할 수 있는 질문 하나를 남깁니다.
@@ -80,6 +88,18 @@ export const SECTIONS = ['사주 관점', '현실 확인', '오늘 할 일'];
 // 섞인 경우를 제목으로 세지 않도록 줄 시작만 봅니다.
 export const hasSections = text =>
   SECTIONS.every(h => new RegExp('^\\s*' + h + '\\s*$', 'm').test(String(text)));
+// 본문에 새면 안 되는 명리 용어. '상관없다'의 상관, '~편인데'의 편인,
+// '일주일간'의 일간처럼 일상어와 겹치는 것은 앞뒤를 보고 거릅니다.
+const JARGON = [
+  /(?<![주일])일간(?![호])|일주(?!일)|월주|년주|시주|원국|명식/g,
+  /갑목|을목|병화|정화|무토|기토|경금|신금|임수|계수/g,
+  /[목화토금수]\s*기운|오행|십성|십이운성|신살|지장간|대운|일진|세운|천간|지지(?!하|해|했|받|층|율|도|자|선)/g,
+  /비견|겁재|식신|편재|정재|편관|정관|편인(?![데지가])|(?<![예일결])정인(?![데지가])/g,
+  /상관(?!없|있|관계|자|도)/g,
+  /도화(?!선|지)|역마|화개|공망|천을귀인|장생|건록|제왕(?!절개)/g,
+  /삼합|육합|상충|합충/g];
+export const jargonLeaks = text => [...new Set(JARGON.flatMap(re => String(text).match(re) || []))];
+
 const RESHAPE = '방금 답이 정해진 형식을 벗어났습니다. 같은 내용을 다시 쓰되, "사주 관점", "현실 확인", "오늘 할 일" 세 제목을 각각 한 줄에 그대로 놓고 그 아래에 본문을 쓰세요. 세 제목을 모두 포함해야 합니다.';
 
 export async function coachReply({ chart: rawChart, messages: rawMessages }) {
@@ -107,16 +127,21 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   });
   // 제목 세 개가 다 오지 않으면 화면의 구조가 무너집니다. 한 번만 더,
   // 형식을 못박아 다시 받아 보고 그래도 어긋나면 규칙 코칭으로 넘깁니다.
-  if (!hasSections(res.text)) {
+  let leaks = jargonLeaks(res.text);
+  const fix = !hasSections(res.text) ? RESHAPE
+    : leaks.length ? `방금 답에 명리 용어 ${leaks.join('·')}이(가) 그대로 나왔습니다. 같은 내용을 다시 쓰되 그 말들을 빼고, 그 용어가 뜻하는 장면을 사람이 실제로 하는 행동으로 옮겨 적으세요. 세 제목은 그대로 둡니다.`
+    : null;
+  if (fix) {
     res = await chatCompletion({
-      messages: [...base, { role: 'user', content: RESHAPE }],
+      messages: [...base, { role: 'user', content: fix }],
       maxTokens: 2000,
       temperature: 0.4,
-      metadata: { feature: 'coach', retry: 'sections' },
+      metadata: { feature: 'coach', retry: fix === RESHAPE ? 'sections' : 'jargon' },
       continueOnLength: true
     });
+    leaks = jargonLeaks(res.text);
   }
-  const shape = { model: res.model, finishReason: res.finishReason, truncated: res.truncated, continuations: res.continuations, sections: hasSections(res.text) };
+  const shape = { model: res.model, finishReason: res.finishReason, truncated: res.truncated, continuations: res.continuations, sections: hasSections(res.text), leaks };
   if (!shape.sections) return { error: '답변 형식이 어긋났습니다.', status: 502, shape };
 
   let text = res.text;

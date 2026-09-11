@@ -168,7 +168,8 @@ function logShape(feature, shape) {
   if (!shape) return;
   const flag = shape.truncated ? ' TRUNCATED' : '';
   const sec = shape.sections === false ? ' NO-SECTIONS' : '';
-  console.log(`LLM ${feature} model=${shape.model || '?'} finish=${shape.finishReason} continuations=${shape.continuations}${flag}${sec}`);
+  const leak = shape.leaks?.length ? ` LEAK=${shape.leaks.join(',')}` : '';
+  console.log(`LLM ${feature} model=${shape.model || '?'} finish=${shape.finishReason} continuations=${shape.continuations}${flag}${sec}${leak || ''}`);
 }
 
 const coachHits = new Map();

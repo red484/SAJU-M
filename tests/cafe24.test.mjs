@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { chatCompletion, enabled, model, parseJsonReply } from '../src/cafe24-llm.mjs';
-import { hasSections } from '../src/coach-server.mjs';
+import { hasSections, jargonLeaks } from '../src/coach-server.mjs';
 
 const oldKey = process.env.CAFE24_LLM_API_KEY;
 const oldModel = process.env.CAFE24_LLM_MODEL;
@@ -124,7 +124,28 @@ try {
   assert.equal(hasSections(full.replace('사주 관점\n', '')), false);
   assert.equal(hasSections('오늘 할 일을 사주 관점으로 현실 확인 했습니다'), false);
 
-  console.log('PASS: Cafe24 LLM Router auth, request, response, JSON parsing, finish_reason, truncation continue and section check.');
+  // 명리 용어가 본문에 새면 잡아내는지.
+  assert.deepEqual(
+    jargonLeaks('일간 무토는 금 기운을 많이 쓰고 있습니다.'),
+    ['일간', '무토', '금 기운']);
+  assert.deepEqual(jargonLeaks('대운 흐름과 지장간을 보면 편재가 강합니다.').sort(),
+    ['대운', '지장간', '편재']);
+
+  // 일상어와 겹치는 말을 용어로 잘못 잡지 않는지.
+  for (const clean of [
+    '버티는 힘이 강해서 오래 참는 편인데, 그만큼 떠날 결심도 늦어집니다.',
+    '그 일과는 상관없이 지금 통장 잔고부터 세어 보세요.',
+    '상대에게 관대한 편이지만 자신에게는 그렇지 않습니다.',
+    '자기 전에 목욕을 하고 누워도 잠이 오지 않는다면',
+    '예정인데 일정이 밀렸습니다.',
+    '일주일간 기록해 보세요.',
+    '가족이 지지해 주는지 확인해 보세요.',
+    '지지층이 두터운 편입니다.',
+    '제왕절개 후 회복 중이라면 무리하지 마세요.',
+    '도화선에 불이 붙듯 말이 커지기 쉽습니다.'
+  ]) assert.deepEqual(jargonLeaks(clean), [], clean);
+
+  console.log('PASS: Cafe24 LLM Router auth, request, response, JSON parsing, finish_reason, truncation continue, section and jargon checks.');
 } finally {
   if (oldKey === undefined) delete process.env.CAFE24_LLM_API_KEY;
   else process.env.CAFE24_LLM_API_KEY = oldKey;
