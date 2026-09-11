@@ -250,3 +250,22 @@ dialog[open]:has(.daysheet) .modal-close{position:absolute;top:10px;right:12px;z
 .day-sec h4:first-of-type{margin-top:0}
 .day-where{margin:0 0 8px!important;font-size:.74rem;color:#8b7750}
 .day-foot{margin:18px 0 26px;font-size:.8rem;line-height:1.85;color:#8b7750}
+
+/* 대화 캡처 선택 모드. 말풍선이 그대로 과녁이 되고, 고른 것만 테두리와
+   체크로 표시합니다. */
+.message.pickable .pick{display:flex;align-items:flex-start;gap:9px;background:none;border:0;padding:0;width:100%;text-align:left;cursor:pointer}
+.message.pickable.user .pick{flex-direction:row-reverse}
+.message.pickable .bubble{flex:0 1 auto}
+.message.pickable .tick{flex:none;width:21px;height:21px;margin-top:9px;border:2px solid var(--line);border-radius:50%;background:var(--card);position:relative}
+.message.picked .tick{background:var(--teal);border-color:var(--teal)}
+.message.picked .tick:after{content:'';position:absolute;left:6px;top:2px;width:5px;height:10px;border:2px solid #f4ecd8;border-top:0;border-left:0;transform:rotate(45deg)}
+.message.picked .bubble{outline:2px solid var(--teal);outline-offset:2px}
+.capture-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-top:1px solid var(--line);background:var(--card);flex-wrap:wrap}
+/* 좁은 화면에서는 라벨이 눌려 줄바꿈되느니 버튼 줄이 아래로 내려갑니다. */
+.capture-bar>span{flex:0 1 auto;white-space:nowrap;font-size:.85rem;color:var(--teal);font-weight:600;margin-right:auto}
+/* .primary는 전역에서 width:100%·margin:14px 0을 쓰기 때문에 여기서 되돌립니다.
+   안 그러면 버튼이 줄 전체를 차지하려 들고 바가 위아래로 28px 부풀어요. */
+.capture-bar button{white-space:nowrap;flex:none;width:auto;margin:0;display:inline-flex;align-items:center;justify-content:center}
+.capture-bar .plain{padding:0 12px;min-height:44px}
+.capture-bar .primary{min-height:44px;padding:0 16px;font-size:.85rem;border-radius:24px}
+.capture-bar .primary:disabled{opacity:.45;cursor:default}
