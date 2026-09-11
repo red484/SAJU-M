@@ -120,6 +120,17 @@ export function dressPage({page, result, profile}) {
       const [art] = topicArt[topic] || topicArt.진로;
       card.style.setProperty('--topic-art',`url('/assets/${art}.webp')`);
     });
+
+    // Keep every result visible while separating interpretation from calculations.
+    const technical = ['chart', 'manse', 'daeun', 'epic', 'flow']
+      .map(id => document.getElementById(id)).filter(Boolean);
+    if (technical.length) {
+      const divider = document.createElement('div');
+      divider.className = 'result-layer-title';
+      divider.innerHTML = '<span>두 번째 장</span><h2>나를 이루는 계산과 흐름</h2><p>앞의 해석이 어디에서 왔는지 차례로 이어집니다.</p>';
+      technical[0].before(divider);
+      technical.forEach(section => section.classList.add('result-technical'));
+    }
   }
   if (page === 'records') {
     const stats = document.querySelector('.stats');

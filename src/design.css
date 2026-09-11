@@ -202,3 +202,39 @@ body.motion-paused .chat-bird,body.motion-paused .chat-bird img{animation-play-s
 .chat-panel .send{min-width:54px;min-height:46px;border-radius:23px;font-size:.8125rem;padding:0 12px;flex:none}
 @media(max-width:850px){.header-controls{gap:3px}.header-controls .save-status{max-width:100px;font-size:.6875rem;padding:4px}.chat-panel .mentor{padding:13px 16px;min-height:76px}.chat-stage .messages{padding-inline:16px}.chat-stage .bubble{padding:15px 16px}.chat-panel #chat-form{padding-bottom:8px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.display-menu-items .motion-toggle{display:none}}
+
+/* Shared design tokens: one vocabulary for the book surfaces and controls. */
+:root{
+ --surface:#fffdf9;--surface-muted:#f0f1ea;
+ --radius-sm:8px;--radius-md:12px;--radius-lg:16px;
+ --control-height:52px;
+ --space-1:8px;--space-2:12px;--space-3:16px;--space-4:24px;
+ --shadow-soft:0 8px 25px #163e3512;
+}
+.card,.narrow,.core,.chat-panel,.daily-image{border-radius:var(--radius-lg)}
+input:not([type=checkbox]):not([type=range]),select,textarea,.topic-choice,.signals>div{border-radius:var(--radius-md)}
+.privacy-note{border-radius:var(--radius-sm);background:var(--surface-muted)}
+.primary,.secondary,.danger{min-height:var(--control-height)}
+nav{box-shadow:var(--shadow-soft)}
+
+/* Birth form: less vertical drift while preserving 44px+ touch targets. */
+#birth-form>label,#birth-form>.fields label{margin-top:var(--space-3);margin-bottom:var(--space-1)}
+#birth-form input:not([type=checkbox]),#birth-form select{min-height:48px;padding-block:12px}
+#birth-form .hint{margin-block:4px var(--space-2)}
+#birth-form .check{margin-block:var(--space-1)}
+#birth-form .segment{margin-block:var(--space-3) var(--space-1)}
+#birth-form details{margin-top:var(--space-2);padding-block:var(--space-2)}
+#birth-form .privacy-note{margin:var(--space-3) 0 var(--space-2);padding:12px 14px}
+
+/* Result hierarchy: all content remains visible, separated into readable layers. */
+.result-layer-title{margin:46px 0 8px;padding:28px 4px 18px;border-top:1px solid #c9d1c5}
+.result-layer-title span{display:block;margin-bottom:8px;color:#8b7750;font-size:.75rem;letter-spacing:.12em}
+.result-layer-title h2{margin:0 0 6px;font-size:1.45rem}.result-layer-title p{margin:0;color:var(--muted);font-size:.875rem}
+.result-technical{margin-top:30px}.result-technical+.result-technical{margin-top:38px}
+
+@media(max-width:850px){
+ body[data-page=birth] .workspace{padding-bottom:32px}
+ #birth-form>.primary{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom));z-index:12;margin:var(--space-3) 0 0;box-shadow:0 -12px 22px 9px #f6f4eef2,0 9px 28px #173d3538}
+ .result-layer-title{margin-top:38px;padding-top:24px}.result-layer-title h2{font-size:1.3rem}
+ .result-technical{margin-top:26px}.result-technical+.result-technical{margin-top:32px}
+}
