@@ -260,7 +260,19 @@ async function epicAvailable(){
  try{const r=await fetch('/api/epic');aiEpic=r.ok&&(await r.json()).available===true;}catch{aiEpic=false;}
  return aiEpic;
 }
+let epicCollapsed=false;
+document.addEventListener('click',event=>{
+ const button=event.target.closest('[data-epic-toggle]');
+ if(!button)return;
+ epicCollapsed=!epicCollapsed;
+ render();
+ const block=document.getElementById('epic');
+ block?.scrollIntoView({block:'start',behavior:'instant'});
+ block?.querySelector('[data-epic-toggle]')?.focus({preventScroll:true});
+});
 async function loadEpic(){
+ if(epicBusy)return;
+ epicCollapsed=false;
  const f=E.fortune(result,p());
  if(!f){notice('대운을 계산하려면 성별이 필요해요. 정보 수정에서 선택해 주세요.');return;}
  if(!await epicAvailable()){notice('판독이 아직 연결되지 않았어요.');return;}
@@ -280,16 +292,17 @@ async function loadEpic(){
 
 function epicBlock(){
  if(!aiEpic&&!epic)return '';
+ if(epic&&epicCollapsed)return `<section class="block" id="epic"><h2 class="block-title">대운 판독</h2><p class="hint">읽어둔 판독을 다시 펼쳐볼 수 있어요.</p><button class="secondary" data-epic-toggle aria-expanded="false">판독 다시 펼치기</button></section>`;
  if(!epic)return `<section class="block" id="epic"><h2 class="block-title">대운 판독</h2><p class="hint">여덟 구간의 대운을 한 편의 서사로 읽어 드려요. 계산된 명식과 십이운성만 재료로 씁니다.</p><button class="secondary" data-action="epic" ${epicBusy?'disabled':''}>${epicBusy?'읽는 중…':'판독 열기'}</button></section>`;
  const e=epic;
- return `<section class="block epic" id="epic"><h2 class="block-title">대운 판독</h2>
+ return `<section class="block epic" id="epic"><div class="epic-toolbar"><h2 class="block-title">대운 판독</h2><button class="plain" data-epic-toggle aria-expanded="true">판독 닫기</button></div>
   <div class="epic-head"><span class="epic-en">${esc(e.en)}</span><b class="epic-kr">${esc(e.kr)}</b><span class="epic-idx">${esc(e.idx)}</span></div>
   <p class="epic-pull">${esc(e.pull).replace(/\n/g,'<br>')}</p>
   ${e.chapters.map(c=>`<article class="epic-ch"><div class="epic-ch-head"><span>${esc(c.age)}</span><span class="epic-en">${esc(c.en)}</span><b>${esc(c.kr)}</b></div>
    <p class="epic-pillar">${esc(c.pillar)}</p><p class="epic-gate">${esc(c.gate)}</p>
    <p class="epic-body">${esc(c.body)}</p><p class="epic-essay">${esc(c.essay)}</p></article>`).join('')}
   <p class="epic-close">${esc(e.closing)}</p>
-  <button class="text-link" data-action="epic">다시 읽기</button></section>`;}
+  <div class="epic-actions"><button class="secondary" data-epic-toggle aria-expanded="true">판독 닫기</button><button class="text-link" data-action="epic" ${epicBusy?'disabled':''}>${epicBusy?'읽는 중…':'새로 판독하기'}</button></div></section>`;}
 
 // 카카오톡처럼 범위로 고릅니다. 시작 말풍선과 끝 말풍선을 찍으면 사이가
 // 전부 담깁니다. capturing은 {a,b} — 아직 안 찍었으면 null입니다.

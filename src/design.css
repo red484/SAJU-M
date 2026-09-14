@@ -77,7 +77,7 @@ body:not([data-page=welcome]):after{content:'';position:fixed;inset:-8%;z-index:
 body.motion-paused:before,body.motion-paused:after,body.motion-paused .ink-branches:before,body.motion-paused .ink-branches:after{animation-play-state:paused!important}
 body.motion-paused main{animation:none!important}
 .section-top{background:#f6f4eedb;border-radius:12px;padding:16px}
-.element-ribbon,.block-title{background:#f6f4eeeb}
+.element-ribbon{background:var(--surface)}
 header{background:#faf8f2ed;border-bottom-color:#dcded4;box-shadow:none}
 .workspace{position:relative}
 .narrow{padding:36px 30px;background:linear-gradient(#fffdf7eb,#fffdf7fa),url('/assets/branchPlum.webp') right -20px top 8px/145px auto no-repeat;border:1px solid #e2e0d6;border-radius:16px}
@@ -122,7 +122,7 @@ header{background:#faf8f2ed;border-bottom-color:#dcded4;box-shadow:none}
 .message .bubble{border-radius:4px 14px 14px 14px}.message.user .bubble{border-radius:14px 4px 14px 14px}
 .section-top{padding-bottom:12px;margin-bottom:24px}
 .section-top h1{letter-spacing:-.035em;line-height:1.5}
-.block-title{font-size:1.25rem;letter-spacing:-.025em;padding-bottom:14px;border-bottom:1px solid #d5dccf}
+.block-title{font-size:1.25rem;letter-spacing:-.025em;padding:16px 20px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);line-height:1.6;margin-bottom:16px}
 .narrow>.eyebrow,.section-top .eyebrow{font-size:.8125rem;letter-spacing:.04em;color:#7d795f}
 .narrow>h1{font-size:1.9rem;line-height:1.65;letter-spacing:-.035em}
 .narrow>.muted{font-size:.9375rem;line-height:1.8;margin-bottom:28px}
@@ -294,3 +294,34 @@ body[data-page=welcome] .save-error{position:fixed;top:12px;left:12px;right:12px
  .dial-core:after{background:#0b1820cc}.dial-core b,.dial-core small{color:#fff8e5}
 }
 @media(max-width:420px){.narrow{padding:23px 17px}.core{padding:18px 16px}.core h2{font-size:1.08rem;line-height:1.62}.message .bubble{line-height:1.7}.reflection-card{margin-inline:0}}
+
+/* Continuous bottom dock and consistent paper surfaces. */
+nav[aria-label="주요 메뉴"]{bottom:0;width:100%;max-width:none;left:0;right:0;transform:none;border-radius:20px 20px 0 0;padding:8px 12px calc(8px + env(safe-area-inset-bottom));background:#fffdf9;border:1px solid var(--line);border-bottom:0;box-shadow:0 -4px 24px #183e3510;gap:6px}
+nav[aria-label="주요 메뉴"] button{border-radius:14px;min-height:54px}
+.action-card,.record-row.card,.empty,.score-note,.ai-recovery,.basis-open,.element-ribbon{border-radius:var(--radius-lg)}
+.action-card{border:1px solid #e1d6bd;background:#f5efe1}
+.element-ribbon{padding:10px 8px;border:1px solid var(--line);margin-bottom:18px}
+.element-ribbon a{border-radius:10px}
+.basis-open{background:var(--surface-muted);padding:16px 18px}
+.card,.reflection-card,.section-top{background:var(--surface)}
+.result-layer-title{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:22px;margin-bottom:20px}
+.jump{border-radius:14px;padding:8px;background:#f6f3eb;border:1px solid var(--line);gap:6px}
+.core-highlights h3{font-size:1rem;line-height:1.65;margin:0;color:#fffaf0}
+.core-highlights .eyebrow{color:#d8c998}
+.epic-toolbar{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:10px 16px;margin-bottom:20px}
+.epic-toolbar .block-title{flex:1;background:none;border:0;padding:0;margin:0}
+.epic-toolbar button{flex:none;border-radius:10px;background:var(--surface-muted)}
+#epic{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:22px}
+.epic-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.epic-actions .secondary{width:auto;flex:1}
+.epic-ch{border-radius:12px}.epic-pull{border-radius:12px}
+@media(max-width:850px){
+ nav[aria-label="주요 메뉴"]{padding-inline:8px;gap:3px}
+ .block-title{padding:14px 16px;font-size:1.1rem}
+ .workspace,.workspace:not(.dual){padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+ body[data-page=chat] .dual{height:calc(100dvh - 136px - env(safe-area-inset-bottom));padding:0}
+ .chat-panel{border-radius:16px 16px 0 0}
+ .result-layer-title{padding:20px 18px}
+ #epic{padding:16px}.epic-toolbar{padding:10px 12px;gap:6px}
+ .basis-open{padding:14px 16px}
+ .topic-reading p,.reflection-card p{font-size:1rem}
+}
