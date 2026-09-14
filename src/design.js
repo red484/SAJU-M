@@ -1,3 +1,20 @@
+// 학. 몸통·목·다리는 고정이고 날개만 다섯 자리(A 최고점 → E 최저점)로
+// 나뉘어 있습니다. CSS가 한 번에 한 장만 켜서 프레임 애니메이션이 됩니다.
+const CRANE_BODY = `
+ <path d="M58 58 C68 50 82 47 96 48 C104 49 110 51 113 53 C108 57 98 61 84 62 C72 63 62 61 58 58 Z"/>
+ <path d="M111 52 C118 49 126 45 133 42 C136 41 139 41 140 42 C141 43 140 45 138 46 L152 44 L139 49 C136 51 133 52 130 53 C124 56 117 57 112 57 Z"/>
+ <path d="M60 60 C48 64 34 68 18 72 M62 61 C51 66 39 71 25 76" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+ <circle cx="18" cy="72" r="1.5"/><circle cx="25" cy="76" r="1.5"/>`;
+const CRANE_WINGS = [
+  `<path opacity=".5" d="M86 50 C78 34 70 18 62 4 C76 14 88 32 94 48 Z"/><path d="M82 50 C70 36 58 20 48 4 C64 12 78 30 88 48 Z"/>`,
+  `<path opacity=".5" d="M86 50 C76 40 64 30 52 22 C68 26 84 36 94 48 Z"/><path d="M82 50 C68 42 54 32 38 24 C56 26 74 36 88 48 Z"/>`,
+  `<path opacity=".5" d="M86 49 C72 40 58 35 42 32 C56 41 72 47 92 51 Z"/><path d="M82 48 C64 38 46 32 24 28 C42 39 62 47 88 52 Z"/>`,
+  `<path opacity=".5" d="M86 52 C76 62 66 72 56 80 C70 74 84 62 94 52 Z"/><path d="M82 51 C70 62 58 74 44 86 C62 78 78 64 88 52 Z"/>`,
+  `<path opacity=".5" d="M86 52 C82 66 76 82 70 96 C80 82 90 64 94 52 Z"/><path d="M82 51 C76 68 68 86 60 104 C74 88 86 66 90 52 Z"/>`
+];
+const crane = () => `<svg viewBox="0 0 158 112" aria-hidden="true" focusable="false">${
+  CRANE_WINGS.map((w, i) => `<g class="wing w${i + 1}">${w}</g>`).join('')}<g class="crane-body">${CRANE_BODY}</g></svg>`;
+
 // Presentation only: the reading, calendar and storage remain owned by app.js.
 const elements = [
   ['木', '목', '자라나는 힘', '#42755c'],
@@ -25,11 +42,7 @@ export function dressPage({page, result, profile}) {
     for (let i = 0; i < 2; i++) {
       const bird = document.createElement('span');
       bird.className = `chat-bird chat-bird-${i + 1}`;
-      const art = document.createElement('img');
-      art.src = '/assets/chat-crane.png';
-      art.alt = '';
-      art.draggable = false;
-      bird.append(art);
+      bird.innerHTML = crane();
       sky.append(bird);
     }
     log.before(stage);

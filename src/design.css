@@ -162,13 +162,13 @@ body:not([data-page=chat]):not([data-page=welcome]) main{animation:ink-settle .8
 .chat-stage .message time{background:#f5f7f4e8;border-radius:4px;padding:2px 5px}
 .chat-sky{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
 .chat-bird{position:absolute;left:12%;top:26%;width:100px;opacity:.52;animation:crane-passage 19s linear -5s infinite}
-.chat-bird img{display:block;width:100%;height:auto;animation:crane-bank 3.6s ease-in-out infinite;transform-origin:center}
+.chat-bird svg{display:block;width:100%;height:auto;color:#2f3b35;fill:currentColor;animation:crane-bank 3.6s ease-in-out infinite;transform-origin:center}.chat-bird .wing{opacity:0;animation:var(--flap,none) .9s linear infinite}.chat-bird .w3{opacity:1}.chat-bird .w1{--flap:wing-a}.chat-bird .w2{--flap:wing-b}.chat-bird .w3{--flap:wing-c}.chat-bird .w4{--flap:wing-d}.chat-bird .w5{--flap:wing-e}.chat-bird .crane-body{animation:crane-bob .9s linear infinite}@keyframes wing-a{0%,5.9%{opacity:1}6%,84.9%{opacity:0}85%,100%{opacity:1}}@keyframes wing-b{0%,5.9%{opacity:0}6%,12.9%{opacity:1}13%,69.9%{opacity:0}70%,84.9%{opacity:1}85%,100%{opacity:0}}@keyframes wing-c{0%,12.9%{opacity:0}13%,19.9%{opacity:1}20%,55.9%{opacity:0}56%,69.9%{opacity:1}70%,100%{opacity:0}}@keyframes wing-d{0%,19.9%{opacity:0}20%,26.9%{opacity:1}27%,41.9%{opacity:0}42%,55.9%{opacity:1}56%,100%{opacity:0}}@keyframes wing-e{0%,26.9%{opacity:0}27%,41.9%{opacity:1}42%,100%{opacity:0}}@keyframes crane-bob{0%{transform:translateY(1.4px)}30%{transform:translateY(-1.2px)}42%{transform:translateY(-2px)}100%{transform:translateY(1.4px)}}
 .chat-bird-2{left:48%;top:62%;width:65px;opacity:.32;animation:crane-passage-low 27s linear -16s infinite}
-.chat-bird-2 img{animation-delay:-1.8s}
+.chat-bird-2 svg{animation-delay:-1.8s}.chat-bird-2 .wing,.chat-bird-2 .crane-body{animation-duration:.78s;animation-delay:-.31s}
 @keyframes crane-passage{0%{left:-30%;top:35%;opacity:0}10%{opacity:.52}45%{top:19%}80%{opacity:.52}100%{left:115%;top:27%;opacity:0}}
 @keyframes crane-passage-low{0%{left:-25%;top:72%;opacity:0}10%{opacity:.32}55%{top:55%}85%{opacity:.32}100%{left:115%;top:61%;opacity:0}}
 @keyframes crane-bank{0%,100%{transform:translateY(4px) rotate(2deg)}50%{transform:translateY(-5px) rotate(-4deg)}}
-body.motion-paused .chat-bird,body.motion-paused .chat-bird img{animation-play-state:paused!important}
+body.motion-paused .chat-bird,body.motion-paused .chat-bird svg,body.motion-paused .chat-bird .wing,body.motion-paused .chat-bird .crane-body{animation-play-state:paused!important}
 @media(max-width:850px){.chat-bird{width:88px}.chat-bird-2{width:58px}}
 /* Consolidated controls and a quieter conversation surface. */
 .header-controls{display:flex;align-items:center;gap:12px;min-width:0}
