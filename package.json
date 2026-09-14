@@ -7,7 +7,7 @@
     "build": "node build.mjs",
     "dev": "wrangler dev --port 8766",
     "start": "node src/render-server.mjs",
-    "test": "node tests/engine.test.mjs && node tests/cafe24.test.mjs"
+    "test": "node tests/engine.test.mjs && node tests/cafe24.test.mjs && node tests/journal-merge.test.mjs"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

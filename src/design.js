@@ -25,9 +25,12 @@ const elements = [
 ];
 const topicArt = {진로:['todayStart','나아갈 방향'],연애:['todayTalk','마음의 거리'],재물:['todayDeal','나의 기준'],건강:['todayRest','쉬어갈 시간'],가족:['todayDuty','함께하는 마음']};
 let motionPaused = false;
+let jumpObserver = null;
 
 export function dressPage({page, result, profile}) {
   document.body.classList.add('moonbook');
+  jumpObserver?.disconnect();
+  jumpObserver = null;
   // Keep scenery outside the live log and behind opaque, selectable messages.
   const log = document.querySelector('.chat-panel .messages');
   if (log && !log.closest('.chat-stage')) {
@@ -128,6 +131,33 @@ export function dressPage({page, result, profile}) {
       item.append(symbol,value);strip.append(item);
     });
     core.after(strip);
+
+    // Put the decision-making essentials in one compact opening chapter. The
+    // original content is moved, not duplicated or hidden behind a control.
+    document.querySelector('.section-top')?.classList.add('result-heading');
+    const cards = document.querySelector('.two-cards');
+    const strength = cards?.querySelector(':scope > .card:first-child');
+    const reflection = cards?.querySelector(':scope > .card:last-child');
+    const action = document.querySelector('.action-card');
+    if (strength && reflection && action) {
+      const highlights = document.createElement('div');
+      highlights.className = 'core-highlights';
+      const strengthItem = document.createElement('div');
+      const actionItem = document.createElement('div');
+      strengthItem.append(strength.querySelector('.eyebrow'), strength.querySelector('h3'));
+      actionItem.append(action.querySelector('.eyebrow'), action.querySelector('h3'), action.querySelector('button'));
+      highlights.append(strengthItem, actionItem);
+      const meta = document.createElement('div');
+      meta.className = 'core-meta';
+      core.querySelectorAll(':scope > .pill').forEach(pill => meta.append(pill));
+      core.append(highlights, meta);
+      const context = strength.querySelector('p');
+      if (context) { context.className = 'strength-context'; reflection.append(context); }
+      reflection.classList.add('reflection-card');
+      cards.before(reflection);
+      cards.remove();
+      action.remove();
+    }
     document.querySelectorAll('.topic-reading').forEach(card => {
       const topic = card.querySelector('.pill')?.textContent;
       const [art] = topicArt[topic] || topicArt.진로;
@@ -144,15 +174,69 @@ export function dressPage({page, result, profile}) {
       technical[0].before(divider);
       technical.forEach(section => section.classList.add('result-technical'));
     }
+
+    const jumpLinks = [...document.querySelectorAll('.jump [data-jump]')];
+    const jumpSections = jumpLinks.map(link => document.getElementById(link.dataset.jump)).filter(Boolean);
+    if (jumpSections.length && 'IntersectionObserver' in window) {
+      const setActive = id => jumpLinks.forEach(link => {
+        const active = link.dataset.jump === id;
+        link.classList.toggle('active', active);
+        if (active) {
+          link.setAttribute('aria-current', 'location');
+          link.parentElement.scrollTo({left:link.offsetLeft-(link.parentElement.clientWidth-link.offsetWidth)/2, behavior:'smooth'});
+        } else link.removeAttribute('aria-current');
+      });
+      jumpObserver = new IntersectionObserver(() => {
+        const marker = Math.min(360, window.innerHeight * .45);
+        const passed = jumpSections.filter(section => section.getBoundingClientRect().top <= marker);
+        const active = passed.at(-1) || jumpSections.find(section => section.getBoundingClientRect().bottom > marker);
+        if (active) setActive(active.id);
+      }, {rootMargin:'-150px 0px -55% 0px', threshold:0});
+      jumpSections.forEach(section => jumpObserver.observe(section));
+      jumpLinks.forEach(link => link.addEventListener('click', () => {
+        setActive(link.dataset.jump);
+        setTimeout(() => setActive(link.dataset.jump), 800);
+      }));
+    }
   }
+
+  // The server already returns three named parts. Present those names as real
+  // reading landmarks instead of leaving the response as one dense paragraph.
+  document.querySelectorAll('.message.assistant:not(.pickable) .bubble').forEach(bubble => {
+    const text = bubble.textContent.trim();
+    const heading = /^(사주 관점|현실 확인|오늘 할 일)$/;
+    const lines = text.split(/\n/);
+    if (!lines.some(line => heading.test(line.trim()))) return;
+    const fragment = document.createDocumentFragment();
+    let section = null;
+    lines.forEach(line => {
+      const title = line.trim().match(heading)?.[1];
+      if (title) {
+        section = document.createElement('section');
+        section.className = `chat-answer-part part-${title.replaceAll(' ','-')}`;
+        const h = document.createElement('strong'); h.textContent = title;
+        const p = document.createElement('p');
+        section.append(h,p); fragment.append(section);
+      } else if (section) {
+        const p = section.querySelector('p');
+        if (line.trim()) p.append(p.childNodes.length ? document.createElement('br') : '', document.createTextNode(line.trim()));
+      }
+    });
+    if (fragment.childNodes.length) bubble.replaceChildren(fragment);
+  });
   if (page === 'records') {
     const stats = document.querySelector('.stats');
     stats?.closest('.card')?.classList.add('journal-summary');
   }
   if (page === 'settings') {
+    const storage = document.querySelector('.narrow .card:first-of-type p');
+    if (storage) storage.textContent = '프로필·상담·선택 기록·저장한 답변은 서버 저장 공간에 보관되고, 이 브라우저의 보안 쿠키로 연결됩니다. 운영 서버에 영구 저장소가 연결되지 않았다면 재시작·재배포 때 기록이 사라질 수 있으니 중요한 내용은 내보내기로 보관하세요.';
     const privacy = [...document.querySelectorAll('.narrow .card:first-of-type p')]
       .find(p => p.textContent.startsWith('외부 AI'));
     if (privacy) privacy.textContent = 'AI 상담이 연결된 경우 계산된 사주 정보와 대화 내용이 답변 생성을 위해 카페24 LLM Router와 선택된 AI 제공사로 전송됩니다. 운영 서버 관리자 접근을 막는 종단간 암호화 서비스는 아닙니다.';
+    const connection = [...document.querySelectorAll('.narrow .card')]
+      .find(card => card.querySelector('h2')?.textContent === '연결 상태')?.querySelector('p');
+    if (connection) connection.innerHTML = connection.innerHTML.replace('실제 AI 상담: 연결됨', 'AI 키: 연결됨 (실제 답변은 상담 화면에서 확인)');
   }
   // Focus follows navigation, without forcing users back to the top of a chat.
   const main = document.querySelector('main');

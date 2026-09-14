@@ -29,9 +29,11 @@ function join(head, tail) {
 const CONTINUE_PROSE = '끊긴 지점에서 바로 이어서 계속 쓰세요. 앞서 쓴 문장을 다시 쓰지 말고, 인사나 설명도 붙이지 마세요.';
 const CONTINUE_JSON = '위 JSON이 중간에서 끊겼습니다. 끊긴 지점의 다음 글자부터 이어서 출력해 JSON을 완성하세요. 앞부분을 다시 쓰지 말고, 코드펜스나 설명도 붙이지 마세요.';
 
-async function once({ messages, maxTokens, temperature, metadata }) {
+async function once({ messages, maxTokens, temperature, metadata, deadlineAt = Infinity }) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45_000);
+  const remaining = Math.min(45_000, deadlineAt - Date.now());
+  if (remaining <= 0) throw new Error('Cafe24 LLM Router deadline exceeded');
+  const timeout = setTimeout(() => controller.abort(), remaining);
   try {
     const response = await fetch(`${baseUrl()}/chat/completions`, {
       method: 'POST',
@@ -76,8 +78,8 @@ async function once({ messages, maxTokens, temperature, metadata }) {
 // 답이 max_tokens에 걸려 잘리면 이어서 받아옵니다. 같은 요청을 처음부터
 // 다시 돌리면 또 같은 자리에서 끊기므로, 받아둔 부분을 assistant 차례로
 // 되돌려주고 그다음부터 쓰게 합니다.
-export async function chatCompletion({ messages, maxTokens, temperature, metadata, continueOnLength = false, json = false, maxContinuations = 2 }) {
-  let res = await once({ messages, maxTokens, temperature, metadata });
+export async function chatCompletion({ messages, maxTokens, temperature, metadata, continueOnLength = false, json = false, maxContinuations = 2, deadlineAt = Infinity }) {
+  let res = await once({ messages, maxTokens, temperature, metadata, deadlineAt });
   let text = res.text;
   const usage = { in: res.usage.in || 0, out: res.usage.out || 0 };
   let rounds = 0;
@@ -87,7 +89,7 @@ export async function chatCompletion({ messages, maxTokens, temperature, metadat
       messages: [...messages,
         { role: 'assistant', content: text },
         { role: 'user', content: json ? CONTINUE_JSON : CONTINUE_PROSE }],
-      maxTokens, temperature, metadata: { ...metadata, continuation: rounds }
+      maxTokens, temperature, metadata: { ...metadata, continuation: rounds }, deadlineAt
     });
     text = join(text, res.text);
     usage.in += res.usage.in || 0;

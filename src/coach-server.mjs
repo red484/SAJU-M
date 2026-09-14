@@ -289,12 +289,14 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   if (safe) return { text: safe, source: 'safety' };
 
   const base = [{ role: 'system', content: systemPrompt(chart) }, ...turns];
+  const deadlineAt = Date.now() + 55_000;
   let res = await chatCompletion({
     messages: base,
     maxTokens: 2000,
     temperature: 0.7,
     metadata: { feature: 'coach' },
-    continueOnLength: true
+    continueOnLength: true,
+    deadlineAt
   });
   // 제목 세 개가 다 오지 않으면 화면의 구조가 무너집니다. 한 번만 더,
   // 형식을 못박아 다시 받아 보고 그래도 어긋나면 규칙 코칭으로 넘깁니다.
@@ -308,7 +310,8 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
       maxTokens: 2000,
       temperature: 0.4,
       metadata: { feature: 'coach', retry: 'critique' },
-      continueOnLength: true
+      continueOnLength: true,
+      deadlineAt
     });
     faults = critique(res.text, readBasis(res.text), turn);
   }

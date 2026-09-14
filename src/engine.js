@@ -39,7 +39,7 @@ const TRAITS=[
  ['기준을 세우고 결론을 내리는 힘','모호한 상황에서 핵심을 분별하는 편','완벽한 답을 찾느라 자신에게 엄격해지는 패턴','기준과 피드백이 명확한 환경','꼭 지킬 기준 하나와 양보할 조건 하나를 적어보세요.'],
  ['깊이 살피고 유연하게 적응하는 힘','바로 반응하기보다 맥락을 이해하는 편','생각이 길어져 첫 행동을 미루는 패턴','혼자 생각할 시간과 유연한 선택권이 있는 환경','생각 중인 일을 10분 안에 할 수 있는 행동으로 줄여보세요.']];
 export function topicReading(r,t){const a=TOPIC[t]||TOPIC.진로;return {title:a[0],body:`${ELEMENTS[r.strong[0]]} 기운을 ${TRAITS[r.strong[0]][0]}으로 읽으면, ${t}에서도 ${TRAITS[r.strong[0]][3]}이 맞는지 살펴볼 수 있어요. ${a[1]}`,action:a[2]};}
-export function reading(r,p){const e=r.strong[0],w=r.weak[0];return {summary:`${p.name}님은 ${TRAITS[e][1]}으로 읽힙니다. 다만 ${TRAITS[e][2]}은 돌아볼 필요가 있어요.`,strength:TRAITS[e][0],caution:TRAITS[e][2],environment:TRAITS[e][3],balance:`${ELEMENTS[w]}은 ${r.cnt[w]}개로 상대적으로 적게 나타납니다. ${TRAITS[w][0]}을 일상의 습관으로 보완해보는 관점입니다. 없는 기운이 곧 결핍이나 불운이라는 뜻은 아니에요.`,action:topicReading(r,p.topics?.[0]||'진로').action};}
+export function reading(r,p){const e=r.strong[0],w=r.weak[0];return {summary:`${p.name}님의 일간은 ${ELEMENTS[r.element]}입니다. ${r.total}글자에서 ${r.strong.length>1?'가장 많이 나타난 기운 중':'가장 많이 나타난'} ${ELEMENTS[e]}은 ${TRAITS[e][0]}으로 읽어볼 수 있어요.`,strength:TRAITS[e][0],caution:TRAITS[e][2],environment:TRAITS[e][3],balance:`${ELEMENTS[w]}은 ${r.cnt[w]}개로 상대적으로 적게 나타납니다. ${TRAITS[w][0]}을 일상의 습관으로 보완해보는 관점입니다. 없는 기운이 곧 결핍이나 불운이라는 뜻은 아니에요.`,action:topicReading(r,p.topics?.[0]||'진로').action};}
 // 흐름 카드. 천간은 십성으로 주제를, 지지는 십이운성으로 세기를 말하고,
 // 원국 지지와 부딪히면 그 자리도 함께 짚습니다. 예전에는 천간을 오행 다섯
 // 관계로만 눌러 써서 편인과 정인이 같은 문장을 받았습니다.
