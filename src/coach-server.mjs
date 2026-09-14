@@ -54,10 +54,16 @@ function systemPrompt(chart) {
 
 "사주 관점" (60~110자)
   위 명식에서 읽히는 것만. 명식에 없는 것을 지어내지 마세요.
+  누구에게나 들어맞는 말은 쓰지 마세요. '할 일을 미루지 않는 사람입니다', '책임감이 강합니다' 같은 문장은
+  이 사람의 명식에서 나온 것인지 알 수 없으므로 쓸모가 없습니다. 위 명식의 **어느 값**에서 나온 말인지
+  스스로 짚을 수 없다면 그 문장은 지우세요.
 
 "현실 확인" (120~200자)
-  사용자가 말한 조건에 이름을 붙여 정리하고, 그 조건을 숫자나 사실로 확인할 방법을 제시합니다.
+  사용자가 말한 조건에 이름을 붙여 정리하고, 그 조건을 **숫자나 날짜로 셀 수 있게** 확인할 방법을 제시합니다.
   예: '회사가 걱정된다' → '조직 규모 — 지금 현금으로 버틸 수 있는 개월 수'.
+  예: '자도 피곤하다' → '실제 수면 — 지난 7일의 취침·기상 시각과, 그중 깬 횟수'.
+  일반 건강 상식이나 생활 수칙을 늘어놓지 마세요. '잠자리가 편안한지, 식사는 거르는지' 같은 문장은
+  이 사람에 대해 아무것도 세지 않습니다.
 
 "오늘 할 일" (40~80자)
   오늘 안에 실제로 끝낼 수 있는 한 가지. 마음가짐이 아니라 행동이어야 합니다.
@@ -66,12 +72,21 @@ function systemPrompt(chart) {
 1. 사용자가 쓴 문장을 그대로 인용하지 마세요. 조건에 이름을 붙여 다시 말합니다.
 2. 앞서 한 말을 반복하지 마세요. 이번에 새로 나온 정보만 다룹니다. 사주 해석은 첫 답변에서 한 번만 펼치고, 이후에는 짧게 가리키기만 합니다.
 3. 질병·수명·임신·투자 수익·법률의 답을 사주로 정하지 마세요. 그런 질문에는 무엇을 누구와 확인해야 하는지 알려줍니다.
-   피로·불면·통증이 이어진다고 말하면, 사주로 원인을 설명하지 말고 그것이 이어질 때는 진료로 확인할 일이라고 한 문장 덧붙이세요.
+   피로·불면·통증이 이어진다고 말하면, 사주로 원인을 설명하지 말고 그것이 이어질 때는 진료로 확인할 일이라고 **딱 한 문장** 덧붙이세요.
+   검사 항목이나 진단명을 들지 마세요. 우리가 할 말은 '이어지면 진료로 확인하세요'까지입니다.
 7. 사용자가 이번 대화에서 꺼내지 않은 주제를 끌어오지 마세요. 위 '관심 주제'는 참고일 뿐이며, 사용자가 말하지 않았는데 "진로와 연애에 대한 고민이" 같은 문장을 쓰면 안 됩니다.
 8. 사용자가 상태만 말하고(피곤하다, 잠이 안 온다) 아직 정할 일을 꺼내지 않았다면, 선택지를 대라고 요구하지 마세요. 그 상태를 먼저 받고, '오늘 할 일'은 몸이나 하루를 돌보는 한 가지로 둡니다.
 4. 배우자·부모·자녀를 사용자에게 종속된 존재로 묘사하지 마세요. 이 대화의 주어는 사용자입니다.
 5. 이모지, 마크다운 강조(*, **), 느낌표를 쓰지 마세요. 목록 기호 대신 문장으로 씁니다.
+   맺음을 흐리지 마세요. '~하는 것이 좋습니다', '~하는 것도 방법입니다', '~해 볼 수 있습니다', '~할 때입니다'처럼
+   물러서는 말끝 대신 '~하세요', '~입니다'로 끊습니다.
 6. 마지막에 사용자가 한 줄로 답할 수 있는 질문 하나를 남깁니다.
+
+## 근거 (필수)
+답변 맨 끝에 아래 블록을 붙입니다. 사용자에게는 보이지 않습니다. '사주 관점'을 쓸 때 위 명식에서
+실제로 읽은 값을 그대로 적으세요. 여기에 적을 것이 없다면 '사주 관점'을 잘못 쓴 것입니다.
+
+<근거>일간 무토, 많은 기운 금, 적은 기운 수</근거>
 
 ## 기록 제안
 사용자가 구체적인 선택 하나를 앞에 두고 있고 조건이 어느 정도 나왔다면, 마지막 질문 대신 "이 선택, 기록해둘까요?"처럼 자연스럽게 물으세요. 그리고 답변 맨 끝에 아래 블록을 붙입니다. 이 블록은 사용자에게 보이지 않습니다.
@@ -82,6 +97,12 @@ function systemPrompt(chart) {
 - 선택이 아직 뚜렷하지 않거나 이미 제안한 뒤라면 붙이지 마세요.
 - 사용자가 방금 동의했거나 거절했다면 다시 제안하지 마세요.`;
 }
+
+// 근거 블록은 사용자에게 보이지 않습니다. 어느 값을 읽고 쓴 말인지
+// 로그에 남겨, 사주 관점이 명식과 무관해지는 것을 뒤늦게라도 알아챕니다.
+const BASIS = /<근거>([\s\S]*?)<\/근거>/;
+export const readBasis = text => (String(text).match(BASIS)?.[1] || '').trim().slice(0, 120) || null;
+export const stripBasis = text => String(text).replace(new RegExp(BASIS, 'g'), '').trim();
 
 export const SECTIONS = ['사주 관점', '현실 확인', '오늘 할 일'];
 // 제목은 줄 맨 앞에 그대로 서 있어야 합니다. 본문 속에 우연히 같은 말이
@@ -100,7 +121,26 @@ const JARGON = [
   /삼합|육합|상충|합충/g];
 export const jargonLeaks = text => [...new Set(JARGON.flatMap(re => String(text).match(re) || []))];
 
-const RESHAPE = '방금 답이 정해진 형식을 벗어났습니다. 같은 내용을 다시 쓰되, "사주 관점", "현실 확인", "오늘 할 일" 세 제목을 각각 한 줄에 그대로 놓고 그 아래에 본문을 쓰세요. 세 제목을 모두 포함해야 합니다.';
+// 물러서는 말끝. 어조 규칙이 '담담하고 서늘하게'인데 이런 맺음이 쌓이면 정반대가 됩니다.
+const HEDGE = /것이 좋습니다|것도 방법입니다|볼 수 있습니다|수도 있습니다|때입니다|듯합니다|같습니다/g;
+// 진료 권유는 한 문장이면 충분합니다. 검사 항목까지 들면 우리가 할 말이 아닙니다.
+const MEDICAL = /건강\s*검진|혈액\s*검사|검사\s*결과|진단|처방|약을|영양제/g;
+
+// 답을 되돌려주기 전에 스스로 읽어 봅니다. 걸린 것이 있으면 무엇이 걸렸는지
+// 짚어서 한 번만 다시 받습니다. 프롬프트에 적어두는 것만으로는 지켜지지 않습니다.
+export function critique(raw, basis) {
+  const text = stripBasis(raw);
+  const out = [];
+  if (!hasSections(text)) out.push('"사주 관점", "현실 확인", "오늘 할 일" 세 제목이 각각 한 줄에 그대로 있어야 합니다.');
+  const leaks = jargonLeaks(text);
+  if (leaks.length) out.push(`명리 용어 ${leaks.join('·')}이(가) 본문에 그대로 나왔습니다. 그 말이 뜻하는 장면을 사람이 하는 행동으로 옮겨 적으세요.`);
+  if (!basis) out.push('<근거> 블록이 없습니다. 사주 관점을 쓸 때 명식에서 실제로 읽은 값을 적어야 합니다.');
+  const med = text.match(MEDICAL) || [];
+  if (med.length) out.push(`검사 항목이나 진단 이야기(${[...new Set(med)].join('·')})는 빼세요. 이어지면 진료로 확인하라는 한 문장까지입니다.`);
+  const hedge = [...new Set(text.match(HEDGE) || [])];
+  if (hedge.length >= 3) out.push(`맺음이 흐립니다(${hedge.join('·')}). '~하세요', '~입니다'로 끊으세요.`);
+  return out;
+}
 
 export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   const chart = readChart(rawChart);
@@ -127,21 +167,22 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   });
   // 제목 세 개가 다 오지 않으면 화면의 구조가 무너집니다. 한 번만 더,
   // 형식을 못박아 다시 받아 보고 그래도 어긋나면 규칙 코칭으로 넘깁니다.
-  let leaks = jargonLeaks(res.text);
-  const fix = !hasSections(res.text) ? RESHAPE
-    : leaks.length ? `방금 답에 명리 용어 ${leaks.join('·')}이(가) 그대로 나왔습니다. 같은 내용을 다시 쓰되 그 말들을 빼고, 그 용어가 뜻하는 장면을 사람이 실제로 하는 행동으로 옮겨 적으세요. 세 제목은 그대로 둡니다.`
-    : null;
-  if (fix) {
+  let faults = critique(res.text, readBasis(res.text));
+  if (faults.length) {
     res = await chatCompletion({
-      messages: [...base, { role: 'user', content: fix }],
+      messages: [...base, { role: 'user', content:
+        '방금 답에 아래 문제가 있습니다. 같은 내용을 다시 쓰되 이 점만 고치세요.\n' +
+        faults.map((f, i) => `${i + 1}. ${f}`).join('\n') }],
       maxTokens: 2000,
       temperature: 0.4,
-      metadata: { feature: 'coach', retry: fix === RESHAPE ? 'sections' : 'jargon' },
+      metadata: { feature: 'coach', retry: 'critique' },
       continueOnLength: true
     });
-    leaks = jargonLeaks(res.text);
+    faults = critique(res.text, readBasis(res.text));
   }
-  const shape = { model: res.model, finishReason: res.finishReason, truncated: res.truncated, continuations: res.continuations, sections: hasSections(res.text), leaks };
+  const basis = readBasis(res.text);
+  const shape = { model: res.model, finishReason: res.finishReason, truncated: res.truncated,
+    continuations: res.continuations, sections: hasSections(res.text), leaks: jargonLeaks(stripBasis(res.text)), faults: faults.length, basis };
   if (!shape.sections) return { error: '답변 형식이 어긋났습니다.', status: 502, shape };
 
   let text = res.text;
@@ -156,6 +197,7 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
     } catch { /* 형식이 어긋나면 제안 없이 넘어갑니다 */ }
     return '';
   }).trim();
+  text = stripBasis(text);
   if (!text) return { error: '빈 응답을 받았습니다.', status: 502, shape };
   return { text, offer, source: 'cafe24', usage: res.usage, shape };
 }

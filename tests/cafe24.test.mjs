@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { chatCompletion, enabled, model, parseJsonReply } from '../src/cafe24-llm.mjs';
-import { hasSections, jargonLeaks } from '../src/coach-server.mjs';
+import { hasSections, jargonLeaks, critique, readBasis, stripBasis } from '../src/coach-server.mjs';
 
 const oldKey = process.env.CAFE24_LLM_API_KEY;
 const oldModel = process.env.CAFE24_LLM_MODEL;
@@ -145,7 +145,32 @@ try {
     '도화선에 불이 붙듯 말이 커지기 쉽습니다.'
   ]) assert.deepEqual(jargonLeaks(clean), [], clean);
 
-  console.log('PASS: Cafe24 LLM Router auth, request, response, JSON parsing, finish_reason, truncation continue, section and jargon checks.');
+  // 근거 블록은 읽어서 보관하고 본문에서는 떼어냅니다.
+  const withBasis = '사주 관점\n한 번 쥐면 놓지 않습니다.\n<근거>일간 무토, 많은 기운 금</근거>';
+  assert.equal(readBasis(withBasis), '일간 무토, 많은 기운 금');
+  assert.equal(stripBasis(withBasis), '사주 관점\n한 번 쥐면 놓지 않습니다.');
+  assert.equal(readBasis('근거 없는 답'), null);
+
+  // 근거 블록 안의 용어는 누출이 아닙니다. 거기 적으라고 만든 자리입니다.
+  assert.deepEqual(jargonLeaks(stripBasis(withBasis)), []);
+
+  // 실제로 돌아온 나쁜 답을 그대로 넣어 무엇이 걸리는지 확인합니다.
+  const weak = ['사주 관점', '할 일을 미루지 않고 바로 시작하는 사람입니다.', '',
+    '현실 확인', '몸이 보내는 신호에 귀 기울일 때입니다. 건강 검진 결과나 최근 혈액 검사 기록을 확인해 보는 것도 방법입니다. 필요하다면 상담하는 것이 좋습니다.', '',
+    '오늘 할 일', '일찍 자세요.'].join('\n');
+  const faults = critique(weak, readBasis(weak));
+  assert.equal(faults.length, 3);
+  assert.match(faults.join(' '), /근거/);
+  assert.match(faults.join(' '), /건강 검진/);
+  assert.match(faults.join(' '), /맺음이 흐립니다/);
+
+  // 고친 답에는 지적이 남지 않아야 합니다.
+  const solid = ['사주 관점', '한 번 쥐면 끝까지 놓지 않습니다.', '',
+    '현실 확인', '실제 수면 — 지난 7일의 취침·기상 시각을 적으세요. 이어지면 진료로 확인하세요.', '',
+    '오늘 할 일', '오늘 넘길 일 하나를 고르세요.', '<근거>일간 무토, 많은 기운 금</근거>'].join('\n');
+  assert.deepEqual(critique(solid, readBasis(solid)), []);
+
+  console.log('PASS: Cafe24 LLM Router auth, request, response, JSON parsing, finish_reason, truncation continue, section, jargon, basis and critique checks.');
 } finally {
   if (oldKey === undefined) delete process.env.CAFE24_LLM_API_KEY;
   else process.env.CAFE24_LLM_API_KEY = oldKey;
