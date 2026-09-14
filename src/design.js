@@ -132,7 +132,7 @@ export function dressPage({page, result, profile}) {
       });
       const caption = document.createElement('p');
       caption.className = 'element-caption';
-      caption.textContent = `${result.total}글자 기준 · ${result.strong.map(i=>elements[i][1]).join('·')}이 가장 많이 나타나요. 그림의 농도는 개수에 따라 달라집니다.`;
+      caption.textContent = `${result.total}글자 기준 · ${result.strong.map(i=>elements[i][1]).join('·')} 기운이 가장 많이 나타나요. 비율은 실제 명식의 오행 개수로 계산합니다.`;
       balance.after(caption);
     }
     const core = document.querySelector('.core');

@@ -27,15 +27,7 @@ const moonSvg=(frac,waxing,size=20)=>{const R=10,C=12,k=1-2*frac,rx=Math.abs(k)*
 // The five elements sit around a shared centre, like the relationship diagram
 // in the reading book. Counts remain explicit, so the art never has to carry
 // quantitative meaning by itself.
-const elementRadar=r=>{const art=['wood','fire','earth','metal','water'],pos=['wood','fire','earth','metal','water'];
- const water='<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 7C26 18 15 29 15 41a17 17 0 0034 0C49 29 38 18 32 7z" fill="#4f7da4"/><path d="M25 43c1 5 5 8 10 9" fill="none" stroke="#dce9ef" stroke-width="3" stroke-linecap="round"/></svg>';
- const level=count=>count===0?0:count===1?1:count<=3?2:3;
- const artPath=(name,count)=>`/assets/element-${name}${level(count)===2?'':'-'+level(count)}.webp`;
- return `<div class="element-wheel" role="img" aria-label="오행 분포 ${ELEMENTS.map((e,i)=>e+' '+r.cnt[i]+'개 '+r.pct[i]+'%').join(', ')}">
-  <svg class="element-paths" viewBox="0 0 320 320" aria-hidden="true"><circle cx="160" cy="153" r="100"/><circle cx="160" cy="153" r="77"/><path d="M160 52L263 133L224 253L96 253L57 133Z"/></svg>
-  ${ELEMENTS.map((e,i)=>`<div class="element-node ${pos[i]} level-${level(r.cnt[i])}${r.strong.includes(i)?' strong':''}" style="--element:${COLORS[i]}"><span class="element-art">${i===4?water:`<img src="${artPath(art[i],r.cnt[i])}" alt="" width="360" height="360" loading="lazy" decoding="async">`}</span><b>${ECHAR[i]}<small>${e}</small></b></div>`).join('')}
-  <span class="element-centre" aria-hidden="true"><svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="27" fill="#31594f"/><path d="M30 3a27 27 0 010 54 13.5 13.5 0 000-27 13.5 13.5 0 010-27" fill="#d9ab80"/><circle cx="30" cy="16.5" r="4" fill="#d9ab80"/><circle cx="30" cy="43.5" r="4" fill="#31594f"/></svg></span>
- </div>`;};
+const elementRadar=r=>`<div class="element-wheel element-plate" role="img" aria-label="목·화·토·금·수의 수묵화 오행 도식. 실제 개수와 비율은 아래에 표시됩니다."><img src="/assets/element-plate.png" alt="" width="1024" height="1536" decoding="async"></div>`;
 // 운세 캘린더. 하루하루가 원국에 어떻게 걸리는지를 한 달 단위로 펼칩니다.
 // 점수는 항목 합일 뿐이고, 날짜를 누르면 그 합을 그대로 볼 수 있습니다.
 function calendar(){

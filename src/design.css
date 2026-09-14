@@ -416,3 +416,38 @@ nav[aria-label="주요 메뉴"]{
  .balance .element-legend li>span:not(.element-meter){white-space:normal}
  .element-node b{font-size:1rem}
 }
+/* Reference artwork above live values; printed sample percentages stay cropped out. */
+.balance:has(.element-plate){display:block}
+.element-wheel.element-plate{width:100%;max-width:560px;aspect-ratio:1024/940;overflow:hidden;border-radius:18px}
+.element-plate>img{display:block;width:100%;height:auto;max-width:none}
+.balance:has(.element-plate) .element-legend{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:14px 0 0;padding:0}
+.balance:has(.element-plate) .element-legend li{display:flex;flex-direction:column;gap:10px;min-width:0;padding:16px 4px;background:linear-gradient(135deg,#fffdf795,#e9e7dd70);border:1px solid #d6cbb780;border-radius:18px;box-shadow:inset 0 1px 1px #fff}
+.balance:has(.element-plate) .element-legend li>i{display:none}
+.balance:has(.element-plate) .element-legend b{font-size:1.25rem;color:#294640}
+.balance:has(.element-plate) .element-legend li>span:not(.element-meter){font-size:.78rem;white-space:normal;text-align:center}
+.balance:has(.element-plate) .element-meter{width:82%;height:6px;margin-top:3px;background:#d6d5cb90}
+.balance:has(.element-plate) .element-legend li.is-dominant{border-color:#ad8747;box-shadow:inset 0 0 0 2px #fffaf0,0 3px 12px #9a7b2510}
+.balance:has(.element-plate) .is-dominant b{color:var(--element)}
+.element-card .element-caption{text-align:center;border-color:#bfa46b65;margin:22px 0 18px;padding-top:18px;font-size:.88rem;line-height:1.8}
+/* Two glass densities: quiet reading surfaces and more opaque title bars. */
+:root{--reading-glass:linear-gradient(125deg,#ffffffb8 0%,#fffdf775 38%,#f6f4e982 70%,#ffffffa3 100%);--title-glass:linear-gradient(125deg,#fffffff0 0%,#fffdf7cc 38%,#f6f4e9d9 70%,#ffffffeb 100%)}
+.block>.card,.block>.flow-card,#epic,body[data-page=today] main>.card,body[data-page=today] .signals>div,body[data-page=today] .action-card,body[data-page=today] #cal{
+ background:var(--reading-glass);
+ border:1px solid #ffffffb8;outline:1px solid #bdc6bc50;outline-offset:-1px;
+ box-shadow:inset 0 1px 0 #fff,inset 1px 0 0 #ffffffb0,inset 0 -1px 0 #ffffff70,0 8px 24px #23493d12;
+ backdrop-filter:blur(9px) saturate(.85);-webkit-backdrop-filter:blur(9px) saturate(.85);
+}
+.section-top,.block-title,.result-layer-title,.epic-toolbar{
+ background:var(--title-glass);border-color:#fffffff0;
+ box-shadow:inset 0 2px 1px #fff,inset 1px 0 0 #ffffffcc,inset 0 -1px 0 #ffffffa0,0 6px 20px #23493d12;
+ backdrop-filter:blur(12px) saturate(.85);-webkit-backdrop-filter:blur(12px) saturate(.85);
+}
+.epic-toolbar .block-title{background:none;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+body[data-page=today] #cal{padding:18px;border-radius:var(--radius-lg)}
+body[data-page=today] #cal>.block-title{margin:-18px -18px 18px}
+body[data-page=today] .daily-image>div{margin:100px 12px 12px;padding:22px;border-radius:18px;background:var(--reading-glass);border:1px solid #ffffffc0;box-shadow:inset 0 1px 0 #fff,0 5px 18px #183e3515;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);color:#294640}
+body[data-page=today] .daily-image :is(h2,p,span){color:#294640}
+body[data-page=today] .daily-image:after{background:linear-gradient(0deg,#173e3530,transparent 70%)}
+@media(max-width:420px){body[data-page=today] #cal{padding:12px}body[data-page=today] #cal>.block-title{margin:-12px -12px 14px}body[data-page=today] .daily-image>div{padding:18px;margin-top:90px}}
+@media(prefers-reduced-transparency:reduce){.block>.card,.block>.flow-card,#epic,.section-top,.block-title,.result-layer-title,.epic-toolbar,body[data-page=today] main>.card,body[data-page=today] .signals>div,body[data-page=today] .action-card,body[data-page=today] #cal,body[data-page=today] .daily-image>div{background:#faf9f3;backdrop-filter:none;-webkit-backdrop-filter:none}}
+@media(max-width:380px){.balance:has(.element-plate) .element-legend{gap:5px}.balance:has(.element-plate) .element-legend li{border-radius:13px;padding:12px 2px}.balance:has(.element-plate) .element-legend li>span:not(.element-meter){font-size:.7rem}}
