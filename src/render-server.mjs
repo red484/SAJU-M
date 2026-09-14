@@ -251,6 +251,10 @@ async function serveStatic(req, res) {
   try {
     info = await stat(file);
   } catch {
+    if (extname(target)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return void res.end('Not Found');
+    }
     file = join(clientRoot, 'index.html');
     info = await stat(file);
   }
