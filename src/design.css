@@ -11,7 +11,7 @@ h1{letter-spacing:-.06em}p{word-break:keep-all;overflow-wrap:anywhere}.eyebrow,.
 .primary,.secondary,.danger{min-height:54px;transition:transform .2s,box-shadow .2s,background .2s}
 .primary{background:#184e46;box-shadow:0 7px 18px #164e4719}.primary:hover{background:#226558;box-shadow:0 10px 24px #164e4728;transform:translateY(-2px)}
 .primary:active,.secondary:active{transform:translateY(1px)}.secondary:hover{background:#eaf0e7}
-input:not([type=checkbox]):not([type=range]),select,textarea{border-color:#ccd7cd;border-radius:14px;transition:border-color .2s,box-shadow .2s}
+input:not([type=checkbox]):not([type=range]):not([type=radio]),select,textarea{border-color:#ccd7cd;border-radius:14px;transition:border-color .2s,box-shadow .2s}
 input:focus,select:focus,textarea:focus{border-color:#5b8670;box-shadow:0 0 0 4px #58867112}
 .narrow{max-width:590px}.steps{justify-content:center;margin-bottom:26px}.steps i{width:48px;height:4px}.steps span{font-size:.8rem}
 .narrow>h1{font-size:2.2rem}.privacy-note{background:#e7ede2;border:1px solid #d9e0d3;border-radius:16px}
@@ -212,14 +212,14 @@ body.motion-paused .chat-bird,body.motion-paused .chat-bird img{animation-play-s
  --shadow-soft:0 8px 25px #163e3512;
 }
 .card,.narrow,.core,.chat-panel,.daily-image{border-radius:var(--radius-lg)}
-input:not([type=checkbox]):not([type=range]),select,textarea,.topic-choice,.signals>div{border-radius:var(--radius-md)}
+input:not([type=checkbox]):not([type=range]):not([type=radio]),select,textarea,.topic-choice,.signals>div{border-radius:var(--radius-md)}
 .privacy-note{border-radius:var(--radius-sm);background:var(--surface-muted)}
 .primary,.secondary,.danger{min-height:var(--control-height)}
 nav{box-shadow:var(--shadow-soft)}
 
 /* Birth form: less vertical drift while preserving 44px+ touch targets. */
 #birth-form>label,#birth-form>.fields label{margin-top:var(--space-3);margin-bottom:var(--space-1)}
-#birth-form input:not([type=checkbox]),#birth-form select{min-height:48px;padding-block:12px}
+#birth-form input:not([type=checkbox]):not([type=radio]),#birth-form select{min-height:48px;padding-block:12px}
 #birth-form .hint{margin-block:4px var(--space-2)}
 #birth-form .check{margin-block:var(--space-1)}
 #birth-form .segment{margin-block:var(--space-3) var(--space-1)}
