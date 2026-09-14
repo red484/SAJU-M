@@ -247,7 +247,9 @@ async function loadEpic(){
   const r=await fetch('/api/epic',{method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({name:p().name,pillars:result.pillars.map(v=>v.gz),dayStem:SK[result.day],
     element:ELEMENTS[result.element],strong:result.strong.map(i=>ELEMENTS[i]),weak:result.weak.map(i=>ELEMENTS[i]),
-    forward:f.forward,start:f.start,cycles:f.list.map(c=>({age:c.age,gz:c.gz,label:c.label,ten:c.ten,stage:c.stage}))})});
+    forward:f.forward,start:f.start,
+    currentAge:Number(today().slice(0,4))-Number(p().birth.slice(0,4)),
+    cycles:f.list.map(c=>({age:c.age,gz:c.gz,label:c.label,ten:c.ten,stage:c.stage}))})});
   const j=await r.json();
   if(r.ok&&j.reading)epic=j.reading;else notice(j.error||'판독을 불러오지 못했어요.');
  }catch{notice('판독을 불러오지 못했어요.');}

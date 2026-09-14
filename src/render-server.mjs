@@ -171,7 +171,8 @@ function logShape(feature, shape) {
   const leak = shape.leaks?.length ? ` LEAK=${shape.leaks.join(',')}` : '';
   const bad = shape.faults ? ` FAULTS=${shape.faults}` : '';
   const why = shape.basis ? ` basis="${shape.basis}"` : ' NO-BASIS';
-  console.log(`LLM ${feature} model=${shape.model || '?'} finish=${shape.finishReason} continuations=${shape.continuations}${flag}${sec}${leak || ''}${bad}${feature === 'coach' ? why : ''}`);
+  const sch = shape.schema === false ? ' BAD-JSON' : '';
+  console.log(`LLM ${feature} model=${shape.model || '?'} finish=${shape.finishReason} continuations=${shape.continuations}${flag}${sec}${leak || ''}${bad}${sch}${feature === 'coach' ? why : ''}`);
 }
 
 const coachHits = new Map();
