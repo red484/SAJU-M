@@ -24,18 +24,18 @@ const moonSvg=(frac,waxing,size=20)=>{const R=10,C=12,k=1-2*frac,rx=Math.abs(k)*
  const outer=waxing?1:0,inner=(k>0)===waxing?0:1;
  return `<svg class="moon" viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true"><circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".45"/><path d="M ${C},${C-R} A ${R},${R} 0 0,${outer} ${C},${C+R} A ${rx},${R} 0 0,${inner} ${C},${C-R} Z" fill="currentColor" opacity="${frac<.02?0:.9}"/></svg>`;};
 
-// Five-axis chart for the element balance. A pentagon shows the shape of a
-// chart at a glance in a way five stacked bars cannot; the counts stay beside
-// it so the picture never has to be read for a number.
-const elementRadar=r=>{const C=78,R=58,pt=(i,f)=>{const a=(-90+i*72)*Math.PI/180;return [C+Math.cos(a)*R*f,C+Math.sin(a)*R*f];};
- const poly=f=>ELEMENTS.map((_,i)=>pt(i,f).map(n=>n.toFixed(1)).join(',')).join(' ');
- const max=Math.max(...r.pct,1),data=ELEMENTS.map((_,i)=>pt(i,Math.max(r.pct[i]/max,.04)).map(n=>n.toFixed(1)).join(',')).join(' ');
- return `<svg class="radar" viewBox="0 0 156 156" role="img" aria-label="오행 비율 ${ELEMENTS.map((e,i)=>e+' '+r.pct[i]+'%').join(', ')}">
-  ${[.34,.67,1].map(f=>`<polygon points="${poly(f)}" fill="none" stroke="var(--line)" stroke-width="1"/>`).join('')}
-  ${ELEMENTS.map((_,i)=>`<line x1="${C}" y1="${C}" x2="${pt(i,1)[0].toFixed(1)}" y2="${pt(i,1)[1].toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`).join('')}
-  <polygon points="${data}" fill="#4c7a6033" stroke="#4c7a60" stroke-width="1.8" stroke-linejoin="round"/>
-  ${ELEMENTS.map((e,i)=>{const [x,y]=pt(i,1.2);return `<text x="${x.toFixed(1)}" y="${(y+4).toFixed(1)}" text-anchor="middle" font-size="11" fill="${COLORS[i]}">${ECHAR[i]}</text>`;}).join('')}
- </svg>`;};
+// The five elements sit around a shared centre, like the relationship diagram
+// in the reading book. Counts remain explicit, so the art never has to carry
+// quantitative meaning by itself.
+const elementRadar=r=>{const art=['wood','fire','earth','metal','water'],pos=['wood','fire','earth','metal','water'];
+ const water='<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 7C26 18 15 29 15 41a17 17 0 0034 0C49 29 38 18 32 7z" fill="#4f7da4"/><path d="M25 43c1 5 5 8 10 9" fill="none" stroke="#dce9ef" stroke-width="3" stroke-linecap="round"/></svg>';
+ const level=count=>count===0?0:count===1?1:count<=3?2:3;
+ const artPath=(name,count)=>`/assets/element-${name}${level(count)===2?'':'-'+level(count)}.webp`;
+ return `<div class="element-wheel" role="img" aria-label="오행 분포 ${ELEMENTS.map((e,i)=>e+' '+r.cnt[i]+'개 '+r.pct[i]+'%').join(', ')}">
+  <svg class="element-paths" viewBox="0 0 320 320" aria-hidden="true"><circle cx="160" cy="153" r="100"/><circle cx="160" cy="153" r="77"/><path d="M160 52L263 133L224 253L96 253L57 133Z"/></svg>
+  ${ELEMENTS.map((e,i)=>`<div class="element-node ${pos[i]} level-${level(r.cnt[i])}${r.strong.includes(i)?' strong':''}" style="--element:${COLORS[i]}"><span class="element-art">${i===4?water:`<img src="${artPath(art[i],r.cnt[i])}" alt="" width="360" height="360" loading="lazy" decoding="async">`}</span><b>${ECHAR[i]}<small>${e}</small></b></div>`).join('')}
+  <span class="element-centre" aria-hidden="true"><svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="27" fill="#31594f"/><path d="M30 3a27 27 0 010 54 13.5 13.5 0 000-27 13.5 13.5 0 010-27" fill="#d9ab80"/><circle cx="30" cy="16.5" r="4" fill="#d9ab80"/><circle cx="30" cy="43.5" r="4" fill="#31594f"/></svg></span>
+ </div>`;};
 // 운세 캘린더. 하루하루가 원국에 어떻게 걸리는지를 한 달 단위로 펼칩니다.
 // 점수는 항목 합일 뿐이고, 날짜를 누르면 그 합을 그대로 볼 수 있습니다.
 function calendar(){

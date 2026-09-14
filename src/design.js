@@ -99,6 +99,31 @@ export function dressPage({page, result, profile}) {
     visual.append(image, small); label.append(visual);
   });
   if (result && ['result','chat'].includes(page)) {
+    const balance = document.querySelector('.balance');
+    if (balance) {
+      balance.closest('.card')?.classList.add('element-card');
+      const heading = balance.previousElementSibling;
+      if (heading) {
+        const intro = document.createElement('p');
+        intro.className = 'element-intro';
+        intro.textContent = '나를 이루는 다섯 가지 기운';
+        heading.after(intro);
+      }
+      balance.querySelectorAll('.element-legend li').forEach((row,i) => {
+        row.style.setProperty('--element', elements[i][3]);
+        row.style.setProperty('--share', `${result.cnt[i] / result.total * 100}%`);
+        row.classList.toggle('is-dominant', result.strong.includes(i));
+        const track = document.createElement('span');
+        track.className = 'element-meter';
+        track.setAttribute('aria-hidden','true');
+        track.append(document.createElement('i'));
+        row.append(track);
+      });
+      const caption = document.createElement('p');
+      caption.className = 'element-caption';
+      caption.textContent = `${result.total}글자 기준 · ${result.strong.map(i=>elements[i][1]).join('·')}이 가장 많이 나타나요. 그림의 농도는 개수에 따라 달라집니다.`;
+      balance.after(caption);
+    }
     const core = document.querySelector('.core');
     const [glyph, name, caption, color] = elements[result.element];
     core.style.setProperty('--element',color);

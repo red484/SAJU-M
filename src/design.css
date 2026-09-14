@@ -354,7 +354,7 @@ nav[aria-label="주요 메뉴"]{
  border-color:#fff;
  box-shadow:inset 0 1px 0 #fff,0 -6px 26px #183e3518;
 }
-.chat-stage .message.user .bubble{background:#20564b;border-color:#20564b;box-shadow:0 6px 18px #183e3515}
+ .chat-stage .message.user .bubble{background:#20564b;border-color:#20564b;box-shadow:0 6px 18px #183e3515}
 .core,.journal-summary,.day-hero{box-shadow:inset 0 1px 0 #ffffff26,0 10px 28px #183e3520}
 @media(max-width:850px){
  .section-top,.block-title,.card,.reflection-card,.result-layer-title,
@@ -362,4 +362,50 @@ nav[aria-label="주요 메뉴"]{
  .action-card,.signals>div,.chat-stage .message.assistant .bubble{
   background:var(--glass);
  }
+}
+
+/* Five-element painting plate: proportional geometry at every screen width. */
+.element-card>h2{margin-bottom:4px}
+.element-intro{margin:0 0 20px;color:#778274;font-size:.875rem;letter-spacing:.02em}
+.element-wheel{position:relative;flex:0 1 340px;width:min(100%,340px);aspect-ratio:1;margin:0 auto;color:var(--ink)}
+.element-paths{position:absolute;inset:0;width:100%;height:100%}
+.element-paths circle{fill:none;stroke:#d6ceba;stroke-width:.8}
+.element-paths circle+circle{stroke-dasharray:1 5}
+.element-paths path{fill:none;stroke:#b7c2b5;stroke-width:.8;stroke-dasharray:3 5;opacity:.6}
+.element-node{position:absolute;z-index:2;width:26%;text-align:center;transform:translateX(-50%)}
+.element-node.wood{left:50%;top:3%}.element-node.fire{left:82%;top:28%}.element-node.earth{left:70%;top:65%}.element-node.metal{left:30%;top:65%}.element-node.water{left:18%;top:28%}
+.element-art{display:grid;place-items:center;width:82%;aspect-ratio:1;margin:0 auto 8px;overflow:hidden;border:3px solid #fffaf0;border-radius:50%;background:#f3edde;box-shadow:0 3px 10px #574b3012,0 0 0 1px #c8bfaa}
+.element-art img,.element-art svg{display:block;width:100%;height:100%;object-fit:cover}
+.element-art img{transform:scale(1.07)}
+.element-node b{display:flex;justify-content:center;align-items:baseline;gap:5px;color:var(--element);font:600 1.1rem/1.25 var(--font)}
+.element-node b small{font-size:.75rem;color:#677568}
+.element-node.strong .element-art{box-shadow:0 4px 15px #78643e20,0 0 0 2px #baa16a,0 0 0 5px #baa16a15}
+.element-node.level-0 .element-art{filter:saturate(.25)}
+.element-node.water.level-0 svg{opacity:.35}
+.element-node.water svg{padding:8px}
+.element-centre{position:absolute;left:50%;top:48%;z-index:3;display:grid;place-items:center;width:17%;aspect-ratio:1;transform:translate(-50%,-50%);padding:6px;border:1px solid #d4c7a5;border-radius:50%;background:#faf5e9;box-shadow:0 4px 12px #574b3012}
+.element-centre svg{display:block;width:100%;height:100%}
+.balance:has(.element-wheel){gap:24px;flex-wrap:nowrap;align-items:center;margin:0}
+.balance:has(.element-wheel) .element-legend{flex:1;min-width:125px}
+.balance .element-legend li{display:grid;grid-template-columns:9px 24px 1fr;align-items:center;gap:7px;padding:11px 0;font-size:.9rem}
+.balance .element-legend li>i{width:7px;height:7px;border-radius:50%;background:var(--element)}
+.balance .element-legend li>span:not(.element-meter){text-align:right;font-size:.8rem;color:#657263;white-space:nowrap}
+.balance .element-meter{display:block;grid-column:2 / -1;height:4px;background:#e7e8df;border-radius:4px;overflow:hidden}
+.balance .element-meter i{display:block;width:var(--share);height:100%;background:var(--element);border-radius:inherit}
+.balance .is-dominant b{color:var(--element)}
+.element-caption{margin:20px 0 8px;padding:13px 0;border-top:1px solid #dfdfd3;color:#677568;font-size:.8rem;line-height:1.7}
+@media(max-width:600px){
+ .balance:has(.element-wheel){display:block}
+ .element-wheel{width:min(100%,320px)}
+ .balance:has(.element-wheel) .element-legend{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:16px}
+ .balance .element-legend li{display:flex;flex-direction:column;gap:5px;padding:10px 3px;background:#f5f3eb;border:1px solid #e7e4d9;border-radius:12px;min-width:0}
+ .balance .element-legend li>i{display:none}
+ .balance .element-legend li>span:not(.element-meter){font-size:.7rem;letter-spacing:-.025em;text-align:center}
+ .balance .element-meter{width:80%;margin-top:3px}
+ .element-caption{margin-top:16px;font-size:.78rem}
+}
+@media(max-width:350px){
+ .balance:has(.element-wheel) .element-legend{gap:3px}
+ .balance .element-legend li>span:not(.element-meter){white-space:normal}
+ .element-node b{font-size:1rem}
 }
