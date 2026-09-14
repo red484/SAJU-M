@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { chatCompletion, enabled, model, parseJsonReply } from '../src/cafe24-llm.mjs';
 import { hasSections, jargonLeaks, critique, readBasis, stripBasis } from '../src/coach-server.mjs';
+import { signalsOf } from '../src/engine.js';
 
 const oldKey = process.env.CAFE24_LLM_API_KEY;
 const oldModel = process.env.CAFE24_LLM_MODEL;
@@ -170,7 +171,36 @@ try {
     '오늘 할 일', '오늘 넘길 일 하나를 고르세요.', '<근거>일간 무토, 많은 기운 금</근거>'].join('\n');
   assert.deepEqual(critique(solid, readBasis(solid)), []);
 
-  console.log('PASS: Cafe24 LLM Router auth, request, response, JSON parsing, finish_reason, truncation continue, section, jargon, basis and critique checks.');
+  // 후속 답변은 제목 두 개만 쓰고, 사주 관점을 다시 펼치면 지적합니다.
+  const first = ['사주 관점', '한 번 쥐면 놓지 않습니다.', '', '현실 확인', '지난 7일 취침 시각을 적으세요.', '',
+    '오늘 할 일', '10분만 적으세요.', '<근거>일간 무</근거>'].join('\n');
+  const later = ['현실 확인', '가져온 숫자부터 받겠습니다.', '', '오늘 할 일', '10분만 적으세요.', '<근거>해석 없음</근거>'].join('\n');
+  assert.deepEqual(critique(first, readBasis(first), 1), []);
+  assert.deepEqual(critique(later, readBasis(later), 2), []);
+  assert.match(critique(first, readBasis(first), 2).join(' '), /다시 쓰지 않습니다/);
+  assert.match(critique(later, readBasis(later), 1).join(' '), /빠진 것: 사주 관점/);
+  assert.equal(hasSections(later, 2), true);
+  assert.equal(hasSections(later, 1), false);
+
+  // 누적 신호는 사용자 발화에서만, 두 번 이상 나온 것만, 최근 순으로.
+  const at = n => '2026-09-' + String(n).padStart(2, '0');
+  const sig = signalsOf([{ messages: [
+    { role: 'user', text: '요즘 잠을 못 자요', at: at(1) },
+    { role: 'assistant', text: '이직 이직 이직 팀장 팀장', at: at(2) },
+    { role: 'user', text: '팀장이랑 부딪혀요', at: at(3) },
+    { role: 'user', text: '또 잠을 설쳤어요', at: at(4) },
+    { role: 'user', text: '팀장 때문에 힘들어요', at: at(5) },
+    { role: 'user', text: '창업도 생각해요', at: at(6) }] }]);
+  assert.deepEqual(sig, [{ name: '상사', count: 2 }, { name: '수면', count: 2 }]);
+
+  // 일상어와 겹치는 소재를 신호로 잘못 세지 않는지.
+  assert.deepEqual(signalsOf([{ messages: [
+    { role: 'user', text: '아이디어가 없어요', at: at(1) },
+    { role: 'user', text: '아이폰 샀어요', at: at(2) },
+    { role: 'user', text: '집중이 안 돼요', at: at(3) },
+    { role: 'user', text: '집안일이 많아요', at: at(4) }] }]), []);
+
+  console.log('PASS: Cafe24 LLM Router auth, request, response, JSON parsing, finish_reason, truncation continue, section, jargon, basis, critique, turn split and signal checks.');
 } finally {
   if (oldKey === undefined) delete process.env.CAFE24_LLM_API_KEY;
   else process.env.CAFE24_LLM_API_KEY = oldKey;

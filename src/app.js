@@ -195,9 +195,26 @@ async function coachAvailable(){
  return aiCoach;
 }
 // 명식은 계산된 값만 골라 보냅니다. 자유 문장은 대화 쪽에만 실립니다.
+// 지난 방문 이후 며칠인지. 이번 대화를 뺀 나머지에서 가장 최근 기록을 봅니다.
+const daysSince=c=>{
+ let last='';
+ for(const v of data.conversations)if(v.id!==c?.id)for(const m of v.messages||[])if(m.at>last)last=m.at;
+ for(const r of data.records)if(r.date&&r.date>last.slice(0,10))last=r.date;
+ if(!last)return null;
+ const d=Math.floor((Date.now()-new Date(last).getTime())/86400000);
+ return d>=0?d:null;
+};
 const chartFor=c=>({name:p().name,pillars:result.pillars.map(v=>v.gz),dayStem:SK[result.day],
  element:ELEMENTS[result.element],strong:result.strong.map(i=>ELEMENTS[i]),weak:result.weak.map(i=>ELEMENTS[i]),
- topics:p().topics,today:E.dayName(today()).name+' '+E.dayName(today()).label+'일'});
+ topics:p().topics,today:E.dayName(today()).name+' '+E.dayName(today()).label+'일',
+ // 도령이 명식을 설명하는 대신 먼저 짚을 거리들입니다.
+ signals:E.signalsOf(data.conversations),
+ records:data.records.filter(r=>r.result==='pending').slice(-3)
+   .map(r=>({title:r.title,topic:r.topic,expectation:r.expectation,date:r.date})),
+ lastVisit:daysSince(c),
+ // 직전 할 일을 했는지는 아직 물어보는 화면이 없습니다. 지어내지 않고 미확인으로 보냅니다.
+ lastActionStatus:'미확인',
+ turnIndex:(c?.messages||[]).filter(m=>m.role==='user').length||1});
 
 // 짧은 수긍 한 마디로 기록이 남습니다. 판정은 클라이언트에서 합니다 —
 // 모델을 한 번 더 부르지 않아 즉시 반응하고, 같은 말에 늘 같게 동작합니다.

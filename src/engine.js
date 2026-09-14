@@ -1,7 +1,7 @@
 import {Solar} from 'lunar-javascript';
 import KoreanLunarCalendar from 'korean-lunar-calendar';
 import {DateTime} from 'luxon';
-import {STEM,BRANCH,SK,BK,ELEMENTS,COLORNAME,COLORS,HOURS,HARMONY,HIDDEN,STAGE,BIRTHPLACE,TRIAD,PEACH,HORSE,CANOPY,NOBLE,STEMHUE,ZODIAC,TENSCORE,STAGESCORE,OFFICER,OFFICERSAY,YELLOWGOD,ISYELLOW,DRAGONSTART,PURPOSE,TENSAY,STAGESAY,MARKSAY,SHIN12,ROBSTART,SHINSAY,BRANCHCLASH,STEMCLASH,TENGROUP,STAGEDAY,FLOWSAY,FLOWGROUND,TOPIC,topics} from './constants.js';
+import {STEM,BRANCH,SK,BK,ELEMENTS,COLORNAME,COLORS,HOURS,HARMONY,HIDDEN,STAGE,BIRTHPLACE,TRIAD,PEACH,HORSE,CANOPY,NOBLE,STEMHUE,ZODIAC,TENSCORE,STAGESCORE,OFFICER,OFFICERSAY,YELLOWGOD,ISYELLOW,DRAGONSTART,PURPOSE,TENSAY,STAGESAY,MARKSAY,SHIN12,ROBSTART,SHINSAY,BRANCHCLASH,STEMCLASH,TENGROUP,STAGEDAY,FLOWSAY,FLOWGROUND,SIGNALS,TOPIC,topics} from './constants.js';
 const SE=[0,0,1,1,2,2,3,3,4,4],BE=[4,2,0,0,2,1,1,2,3,3,2,4];
 const mod=(a,b)=>(a%b+b)%b;
 function solar(dt){return Solar.fromYmdHms(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second);}
@@ -104,6 +104,26 @@ export function smallTalk(text,nth=0){
   return '반갑습니다. 오늘은 어떤 이야기부터 꺼내볼까요?\n요즘 마음에 걸리는 일이나 정해야 하는 일이 있다면 편하게 적어주세요.';
  return null;
 }
+// 사용자가 되풀이해 꺼낸 소재를 세어 최근 순으로 돌려줍니다. 프롬프트의
+// '누적 신호'에 들어가, 도령이 명식을 설명하는 대신 먼저 짚어볼 거리가 됩니다.
+// 사용자가 쓴 문장만 봅니다. 도령이 한 말은 세지 않습니다.
+export function signalsOf(conversations,limit=5){
+ const seen=new Map();
+ const msgs=[];
+ for(const c of conversations||[])for(const m of c.messages||[])if(m.role==='user')msgs.push(m);
+ msgs.sort((a,b)=>String(a.at||'').localeCompare(String(b.at||'')));
+ msgs.forEach((m,i)=>{
+  for(const [re,name] of SIGNALS){
+   if(!re.test(m.text||''))continue;
+   const v=seen.get(name)||{name,count:0,last:-1};
+   v.count++;v.last=i;seen.set(name,v);
+  }
+ });
+ // 두 번 이상 나온 것만 신호로 봅니다. 한 번 나온 말은 되풀이가 아닙니다.
+ return [...seen.values()].filter(v=>v.count>=2)
+  .sort((a,b)=>b.last-a.last).slice(0,limit).map(({name,count})=>({name,count}));
+}
+
 export function coach(r,p,conversation,text){const safe=safety(text);if(safe)return {text:safe,phase:'safety'};const user=conversation.messages.filter(m=>m.role==='user');let topic=conversation.topic||p.topics?.[0]||'진로',named=false;
  // 사용자가 직접 꺼낸 주제인지 구분합니다. 프로필에 적어둔 관심사를
  // "진로 이야기를 정리해볼게요"처럼 단정해 버리면 안 한 말을 지어낸 셈입니다.
