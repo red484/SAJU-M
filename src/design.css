@@ -226,15 +226,71 @@ nav{box-shadow:var(--shadow-soft)}
 #birth-form details{margin-top:var(--space-2);padding-block:var(--space-2)}
 #birth-form .privacy-note{margin:var(--space-3) 0 var(--space-2);padding:12px 14px}
 
+/* Recovery and transparent calculation wording stay visible without a modal. */
+.save-error{position:sticky;top:76px;z-index:22;max-width:900px;margin:0 auto;padding:12px 20px;background:#fff6e8;border:1px solid #d8b99b;border-radius:0 0 12px 12px;color:#624638;box-shadow:0 8px 20px #35281916}
+.save-error p{margin:0 0 8px;line-height:1.55}.save-error>div{display:flex;gap:8px;flex-wrap:wrap}
+.save-error button,.ai-recovery button{min-height:42px;padding:8px 14px;border:1px solid #7b967c;border-radius:9px;background:#fffdf7;color:#204e40;font-weight:600}
+body[data-page=welcome] .save-error{position:fixed;top:12px;left:12px;right:12px;z-index:30}
+.ai-recovery{margin:7px 0 0;padding:10px 12px;border-left:3px solid #8eaa93;background:#edf2e9;color:#405c49;font-size:.82rem;line-height:1.55}
+.ai-recovery p{margin:0 0 7px}.ai-recovery button{font-size:.82rem}
+.score-note{padding:10px 13px;background:#f0f3eb;border-left:3px solid #8aaa8e;color:#435a49!important;line-height:1.65}
+.cal-day.high,.cal-day.mid,.cal-day.low{background:#fffdf8;border-color:#dce0d5}
+.cal-day.today{background:#1b5148;color:#fff8df;border-color:#1b5148}.cal-day.today i{color:#e5d7b6}
+.day-hero.high,.day-hero.low{background:linear-gradient(160deg,#2f5b52,#16332e)}
+.day-score{font-size:2.5rem}.day-score small{display:block;margin:5px 0 0;font-size:.75rem;letter-spacing:0;font-weight:500}
+
 /* Result hierarchy: all content remains visible, separated into readable layers. */
 .result-layer-title{margin:46px 0 8px;padding:28px 4px 18px;border-top:1px solid #c9d1c5}
 .result-layer-title span{display:block;margin-bottom:8px;color:#8b7750;font-size:.75rem;letter-spacing:.12em}
 .result-layer-title h2{margin:0 0 6px;font-size:1.45rem}.result-layer-title p{margin:0;color:var(--muted);font-size:.875rem}
 .result-technical{margin-top:30px}.result-technical+.result-technical{margin-top:38px}
 
+/* Result opening: identity, interpretation and one action read as one chapter. */
+.result-heading{margin-bottom:12px}.result-heading h1{margin-bottom:0}
+.core-highlights{display:grid;grid-template-columns:1fr 1.12fr;margin:22px -6px 17px;border-top:1px solid #f7f0d328;border-bottom:1px solid #f7f0d328}
+.core-highlights>div{padding:16px 14px}.core-highlights>div+div{border-left:1px solid #f7f0d328}
+.core-highlights span{display:block;margin-bottom:7px;color:#d8c998;font-size:.72rem;letter-spacing:.07em}
+.core-highlights b{display:block;color:#fffaf0;font-size:.96rem;line-height:1.65;word-break:keep-all}
+.core-highlights .text-link{min-height:38px;margin-top:7px;padding:6px 0;border-color:#d9c98c;color:#f4e8bf;font-size:.78rem}
+.core-meta{display:flex;flex-wrap:wrap;gap:6px}.core-meta .pill{margin:0}
+.reflection-card{padding:19px 22px;margin-bottom:0;background:#fffdf9f5}
+.reflection-card .eyebrow{margin-bottom:5px}.reflection-card h3{margin:3px 0 5px}.reflection-card p{margin:4px 0;font-size:.875rem;line-height:1.7}
+.reflection-card .strength-context{padding-top:9px;border-top:1px solid var(--line);color:var(--muted)}
+.jump a.active,.jump a[aria-current=location]{border-color:#315f52;background:#315f52;color:#fffaf0;font-weight:700}
+
+/* AI answers already arrive in these three sections; typography exposes them. */
+.chat-answer-part{margin:0;padding:0}.chat-answer-part+.chat-answer-part{margin-top:15px;padding-top:14px;border-top:1px solid #dde3d9}
+.chat-answer-part strong{display:block;margin-bottom:5px;color:#315b50;font-size:.76rem;line-height:1.5;letter-spacing:.06em}
+.chat-answer-part p{margin:0;font-size:inherit;line-height:inherit;white-space:normal}
+.chat-answer-part.part-오늘-할-일{padding-left:12px;border-left:3px solid #b69b5d}
+.chat-answer-part.part-오늘-할-일 strong{color:#856f39}
+.chat-stage .response-source{margin-right:5px;padding:3px 7px;border:1px solid #d6ded3;border-radius:10px;background:#f5f7f1;color:#53665b;font-size:.66rem;line-height:1.2}
+
 @media(max-width:850px){
  body[data-page=birth] .workspace{padding-bottom:32px}
  #birth-form>.primary{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom));z-index:12;margin:var(--space-3) 0 0;box-shadow:0 -12px 22px 9px #f6f4eef2,0 9px 28px #173d3538}
  .result-layer-title{margin-top:38px;padding-top:24px}.result-layer-title h2{font-size:1.3rem}
  .result-technical{margin-top:26px}.result-technical+.result-technical{margin-top:32px}
+ .result-heading{padding:10px 12px;margin-bottom:10px}.result-heading .eyebrow{margin-bottom:4px}.result-heading h1{font-size:1.35rem;line-height:1.4}
+ .core{padding:20px 18px}.core .reading-seal{margin-bottom:12px}.core h2{margin-bottom:8px}
+ .core>p{margin:5px 0 9px;font-size:.81rem}
+ .core-highlights{grid-template-columns:1fr;margin:13px 0 12px}
+ .core-highlights>div{padding:11px 4px}.core-highlights>div+div{border-left:0;border-top:1px solid #f7f0d328}
+ .core-highlights b{font-size:.9rem;line-height:1.55}.core-highlights .text-link{margin-top:4px}
+ .core-meta{gap:4px}.core-meta .pill{font-size:.68rem;padding:4px 7px}
+ .reflection-card{padding:16px 17px}.reflection-card h3{font-size:.98rem}.reflection-card p{line-height:1.65}
 }
+@media(max-width:850px){
+ .save-error{top:65px;margin:0 10px;padding:12px 14px}
+ .narrow{background:#fffefb;padding:25px 19px}
+ .narrow .card,.narrow .privacy-note,.topic-reading,.reflection-card{background:#fffefb}
+ .core h2{font-size:1.16rem;line-height:1.72;letter-spacing:-.02em;word-break:keep-all}
+ .core{min-height:0}.core p{line-height:1.65}
+ .narrow .card p,.topic-reading p{line-height:1.75;letter-spacing:-.01em}
+ .chat-stage:before{opacity:.35}.chat-stage .bubble{background:#fffefb;border-color:#d4ddd2}
+ .chat-stage .bubble,.chat-answer-part p{font-size:1rem;line-height:1.78;letter-spacing:-.012em}
+ .chat-answer-part strong{font-size:.78rem}.chat-answer-part+.chat-answer-part{margin-top:13px;padding-top:12px}
+ .narrow .eyebrow,.narrow .hint{color:#58685e}
+ .dial-core:after{background:#0b1820cc}.dial-core b,.dial-core small{color:#fff8e5}
+}
+@media(max-width:420px){.narrow{padding:23px 17px}.core{padding:18px 16px}.core h2{font-size:1.08rem;line-height:1.62}.message .bubble{line-height:1.7}.reflection-card{margin-inline:0}}

@@ -41,6 +41,10 @@ try {
   assert.equal(request.body.metadata.project, 'dalbit-saju');
   assert.equal(result.text, '상담 답변');
   assert.deepEqual(result.usage, { in: 12, out: 8 });
+  await assert.rejects(() => chatCompletion({
+    messages: [{ role: 'user', content: '시간 초과 테스트' }], maxTokens: 10,
+    deadlineAt: Date.now() - 1
+  }), /deadline exceeded/);
   assert.deepEqual(parseJsonReply('```json\n{"ok":true}\n```'), { ok: true });
 
   // finish_reason을 읽어 올리는지.

@@ -3,6 +3,7 @@ import {dressPage} from './design.js';
 import {topics,CITIES,ELEMENTS,ECHAR,COLORS,SK,PURPOSE} from './constants.js';
 import {captureMessages} from './capture.js';
 import {now,dateLabel} from './time.js';
+import {mergeJournal} from './journal-merge.js';
 // The 만세력 tables are ~323KB of the bundle and are not needed until a chart
 // is actually cast, so engine.js loads on demand. E is null until then.
 let E=null,enginePromise=null,engineTry=0;
@@ -14,6 +15,7 @@ const engineReady=async()=>{try{await ensureEngine();return true;}catch{enginePr
 const ENGINE_PAGES=['result','today','chat','choice','records'];
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let data={profile:null,records:[],conversations:[],savedAnswers:[]},revision=0,result=null,page='welcome',loaded=false,saveState='loading',activeConversation=null,month=now().toFormat('yyyy-MM'),selectedDate=now().toISODate(),recordFilter='all',pendingProfile=null,saveQueue=Promise.resolve(),generation=0;
+let savedBaseline=null,saveError='';
 const uid=()=>crypto.randomUUID(), today=()=>now().toISODate(),ct=()=>data.conversations.find(c=>c.id===activeConversation),p=()=>data.profile;
 // Moon phase as geometry rather than an emoji, so it inherits the page's ink
 // and scales with the type around it. frac is the lit fraction; the terminator
@@ -45,8 +47,8 @@ function calendar(){
  <div class="cal-grid" role="grid">${['일','월','화','수','목','금','토'].map(d=>`<span class="cal-dow">${d}</span>`).join('')}
  ${'<span></span>'.repeat(pad)}
  ${days.map((d,i)=>{const iso=first.plus({days:i}).toISODate();
-  return `<button class="cal-day ${band(d.score)}${iso===t?' today':''}" data-fday="${iso}" aria-label="${iso} ${d.name} ${d.score}점"><b>${i+1}</b><i>${d.score}</i></button>`;}).join('')}</div>
- <p class="hint">날짜를 누르면 그날의 일진과 점수가 어떻게 나왔는지 볼 수 있어요.</p>`;}
+  return `<button class="cal-day ${band(d.score)}${iso===t?' today':''}" data-fday="${iso}" aria-label="${iso} ${d.name} 계산 지표 ${d.score}"><b>${i+1}</b><i>${d.score}</i></button>`;}).join('')}</div>
+ <p class="hint score-note">숫자는 이 서비스가 정한 항목을 더한 비교 지표입니다. 좋은 날의 확률이나 실제 결과 예측이 아니에요. 날짜를 누르면 항목별 계산을 볼 수 있습니다.</p>`;}
 
 // 택일. 월지와 일지만으로 정해지므로 원국이 없어도 같은 값이고, 어떤 항목이
 // 몇 점이었는지 날짜마다 그대로 붙여 보여줍니다.
@@ -59,7 +61,7 @@ function selectDays(){
   ${top.length?`<ul class="pickdays">${top.map(d=>`<li><div><b>${dateLabel(d.iso)}</b><span>${d.officer}일 · ${d.god}${d.yellow?' (황도)':''}${d.sonless?' · 손 없는 날':''}</span></div>
    <p>${d.say}</p><p class="calc">${d.parts.map(p=>`${p.key} ${p.value} ${p.score>0?'+':''}${p.score}`).join(' / ')} = <b>${d.score}</b></p></li>`).join('')}</ul>`
    :'<p class="hint">이 달에는 이 일에 특별히 맞는 날이 없어요. 다음 달도 살펴보세요.</p>'}
-  <p class="hint">건제십이신과 황도흑도로 고릅니다. 월지와 일지로 정해지는 값이라 누구에게나 같고, 사주와는 별개예요.</p>`;}
+  <p class="hint score-note">건제십이신과 황도흑도에 이 서비스의 배점을 적용한 비교입니다. 개인의 사주를 반영하지 않고, 실제 일이 잘 풀릴 확률을 뜻하지 않습니다.</p>`;}
 
 // 하루치 상세. 총점 뒤에 숨은 계산이 없다는 것을 보여주는 자리입니다.
 // 하루치 전체 판독을 전면 시트로 엽니다. 점수는 맨 위에 두되 바로 아래에
@@ -69,7 +71,7 @@ function dayDetail(iso){
  openModal(`<div class="daysheet">
   <div class="day-hero ${band}">
    <p class="day-date">${dateLabel(iso)} · ${now().setZone('Asia/Seoul').toFormat('yyyy')}</p>
-   <b class="day-score">${d.score}<small>점</small></b>
+   <b class="day-score">${d.score}<small>계산 지표</small></b>
    <p class="day-headline">${esc(d.headline)}</p>
    <p class="day-gz"><span class="moon-inline">${moonSvg(d.moon.frac,d.moon.waxing,14)}${d.moon.name}</span> · ${d.name} ${d.label}일</p>
   </div>
@@ -96,11 +98,11 @@ function dayDetail(iso){
    <p class="day-where">하루 동안 나에게 영향을 줄 수 있는 기운</p><p>${esc(d.shin.say)}</p>
   </section>
 
-  <section class="day-sec"><h3>이 점수는 이렇게 나왔어요</h3>
+  <section class="day-sec"><h3>계산 지표는 이렇게 나왔어요</h3>
    <table class="daytable"><tbody>
     <tr><th>기본</th><td>—</td><td>${d.base}</td></tr>
     ${d.parts.map(p=>`<tr><th>${p.key}</th><td>${p.value}</td><td>${p.score>0?'+':''}${p.score}</td></tr>`).join('')}
-    <tr class="sum"><th>합계</th><td></td><td>${d.score}점</td></tr>
+    <tr class="sum"><th>합계</th><td></td><td>${d.score}</td></tr>
    </tbody></table>
    <p class="hint">일진이 내 일간에 걸리는 방식을 수치로 옮긴 값입니다. 좋고 나쁨의 등급이 아니며, 배점은 이 서비스가 정한 것이라 다른 곳의 점수와 같을 수 없습니다.</p>
    <button class="text-link" data-nav-day="${iso}">이 날로 선택 기록 남기기</button>
@@ -108,7 +110,7 @@ function dayDetail(iso){
   </section>
  </div>`);}
 
-const jumpNav=fo=>`<div class="jump" role="navigation" aria-label="이 페이지 안에서 이동">${[['topics','주제'],['chart','명식'],['manse','만세력'],['daeun','대운'],['flow','흐름']].map(([id,t])=>`<a href="#${id}">${t}</a>`).join('')}</div>`;
+const jumpNav=fo=>`<div class="jump" role="navigation" aria-label="이 페이지 안에서 이동">${[['topics','주제'],['chart','명식'],['manse','만세력'],['daeun','대운'],['flow','흐름']].map(([id,t])=>`<a href="#${id}" data-jump="${id}">${t}</a>`).join('')}</div>`;
 // 값은 0~100을 유지합니다. engine의 월간 비교가 50을 기준으로 나눕니다.
 const CONFIDENCE=[[10,'많이 망설여요'],[30,'조금 망설여요'],[50,'반반이에요'],[70,'조금 확신해요'],[90,'확신이 있어요']];
 const steps=(n,of=2)=>`<p class="steps" aria-label="${of}단계 중 ${n}단계">${Array.from({length:of},(_,i)=>`<i${i<n?' class="on"':''}></i>`).join('')}<span>${n}/${of}</span></p>`;
@@ -122,8 +124,26 @@ const PLUSICO={
 const icon={today:ico('<circle cx="12" cy="12" r="4.2"/><path d="M12 3.2v2.1M12 18.7v2.1M3.2 12h2.1M18.7 12h2.1M5.9 5.9l1.5 1.5M16.6 16.6l1.5 1.5M18.1 5.9l-1.5 1.5M7.4 16.6l-1.5 1.5"/>'),result:ico('<path d="M6.2 3.4h11.6v17.2L12 17.1l-5.8 3.5z"/>'),chat:ico('<path d="M4.2 5.2h15.6v10.8H9.6L4.2 19.8z"/>'),choice:ico('<circle cx="12" cy="12" r="8.6"/><path d="M15.7 8.3l-2.2 5.2-5.2 2.2 2.2-5.2z"/>'),records:ico('<path d="M4.4 6.4h15.2M4.4 12h15.2M4.4 17.6h9.6"/>')};
 function notice(t){$('#notice').textContent=t;$('#notice').classList.add('visible');clearTimeout(notice.timer);notice.timer=setTimeout(()=>$('#notice').classList.remove('visible'),6000);}
 const fieldError=(form,key,msg)=>{const el=form.querySelector(`[name="${key}"]`);if(el){el.setAttribute('aria-invalid','true');el.focus();}const box=form.querySelector('.form-error');box.textContent=msg;box.hidden=false;};
-function storageLabel(){return {loading:'저장소 연결 중',saved:'저장 완료',saving:'저장 중…',error:'저장하지 못함 · 다시 시도',ready:'저장 준비됨'}[saveState];}
-function persist(){if(!loaded){notice('저장소 연결 후 다시 시도해 주세요.');return Promise.resolve(false);}const snapshot=JSON.stringify(data),g=generation;saveState='saving';refreshSave();saveQueue=saveQueue.then(async()=>{if(g!==generation)return false;try{const res=await fetch('/api/journal',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:JSON.parse(snapshot),revision})});const r=await res.json();if(!res.ok)throw new Error(r.error);revision=r.revision;saveState='saved';refreshSave();return true;}catch(e){saveState='error';refreshSave();notice(e.message||'저장하지 못했어요. 현재 입력은 유지됩니다.');return false;}});return saveQueue;}
+function storageLabel(){return {loading:'저장소 연결 중',saved:'저장 완료',saving:'저장 중…',error:'저장 실패 · 내용 보관',ready:'저장 준비됨'}[saveState];}
+function refreshSaveError(){const box=$('#save-error');if(!box)return;box.hidden=saveState!=='error';box.querySelector('p').textContent=saveError||'저장하지 못했습니다. 현재 화면의 내용은 남아 있습니다.';}
+function markSaveError(message){saveError=message==='Failed to fetch'?'서버에 연결하지 못했습니다. 현재 내용은 화면에 남아 있습니다. 파일로 보관하거나 연결을 확인한 뒤 다시 저장해 주세요.':message;saveState='error';refreshSave();refreshSaveError();}
+function persist(){if(!loaded){notice('저장소 연결 후 다시 시도해 주세요.');return Promise.resolve(false);}const g=generation,snapshot=JSON.parse(JSON.stringify(data));saveState='saving';refreshSave();refreshSaveError();saveQueue=saveQueue.then(async()=>{if(g!==generation)return false;try{
+  let saved=snapshot;
+  let res=await fetch('/api/journal',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:snapshot,revision})});
+  if(res.status===409){
+    const latest=await fetch('/api/journal');if(!latest.ok)throw new Error('최신 기록을 불러오지 못했습니다.');
+    const remote=await latest.json(),merged=remote.revision===0&&!remote.data?snapshot:mergeJournal(savedBaseline,snapshot,remote.data);
+    if(!merged)throw new Error('다른 탭에서 같은 기록을 수정했습니다. 현재 내용을 파일로 보관한 뒤 새로고침해 주세요.');
+    const current=mergeJournal(snapshot,data,merged);
+    if(!current)throw new Error('저장 중 기록이 다시 변경됐습니다. 현재 내용을 파일로 보관해 주세요.');
+    saved=merged;
+    res=await fetch('/api/journal',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:merged,revision:remote.revision})});
+    if(res.ok){Object.assign(data,current);notice('다른 탭의 변경 내용과 합쳐 저장했습니다.');}
+  }
+  const reply=await res.json();if(!res.ok)throw new Error(reply.error);
+  revision=reply.revision;savedBaseline=JSON.parse(JSON.stringify(saved));
+  saveError='';saveState='saved';refreshSave();refreshSaveError();return true;
+ }catch(e){markSaveError(e.message);return false;}});return saveQueue;}
 let badgeTimer=null,badgeShown='',lastPage=null,plusOpen=false,calMonth=null,aiCoach=null,aiEpic=null,capturing=null,epic=null,epicBusy=false,calTab='일진',calPurpose='이사';
 function refreshSave(){const changed=badgeShown!==saveState;badgeShown=saveState;clearTimeout(badgeTimer);
  const settled=saveState==='ready'||(saveState==='saved'&&!changed);
@@ -132,6 +152,7 @@ function refreshSave(){const changed=badgeShown!==saveState;badgeShown=saveState
  if(saveState==='saved'&&changed)badgeTimer=setTimeout(()=>paint(true),1800);}
 async function nav(to){capturing=null;plusOpen=false;if(!loaded&&to!=='welcome'&&to!=='settings'){notice('저장소 연결이 필요합니다. 잠시 후 다시 시도해 주세요.');return;}if(!p()&&ENGINE_PAGES.includes(to))to='birth';if(ENGINE_PAGES.includes(to)&&!await engineReady())return;page=to;render();}
 function header(){return `<header><button class="brand" data-nav="welcome"><img src="/assets/mark.webp" alt="">달빛 사주</button><button class="plain" data-nav="settings" aria-label="개인정보와 저장 설정">보관함 설정</button></header>`;}
+function saveBanner(){return `<section id="save-error" class="save-error" role="alert" ${saveState==='error'?'':'hidden'}><p>${esc(saveError||'저장하지 못했습니다. 현재 화면의 내용은 남아 있습니다.')}</p><div><button type="button" data-action="backup">현재 내용 파일로 보관</button><button type="button" data-action="retry">다시 저장</button></div></section>`;}
 function navBar(){return `<nav aria-label="주요 메뉴">${[['today','오늘'],['result','사주'],['chat','상담'],['choice','선택'],['records','기록']].map(([id,label])=>`<button data-nav="${id}" ${page===id?'aria-current="page"':''}><span aria-hidden="true">${icon[id]}</span>${label}</button>`).join('')}</nav>`;}
 function welcome(){return `<section class="welcome"><img class="landscape" src="/assets/splash.webp" fetchpriority="high" decoding="async" alt="보름달 아래 산과 호수, 불빛이 비치는 작은 정자"><span class="vertical">언제나, 당신의 곁에</span><div class="welcome-copy"><img class="mark" src="/assets/mark.webp" alt="달빛 사주"><h1>나를 읽고,<br>내일을 묻다</h1><p>천년의 지혜가 오늘의 당신과 만납니다.</p><button class="primary gold" data-nav="${p()?'result':'birth'}">${p()?'나의 사주 이어보기':'사주 시작하기'}</button><button class="welcome-link" data-nav="chat">이미 상담 중이신가요?</button><small>나를 위한, 달빛 사주</small></div></section>`;}
 function birth(){const a=p()||{name:'',birth:'1995-05-17',time:'15:30',calendar:'solar',city:'서울',zone:'Asia/Seoul',longitude:126.978,clock:'civil',gender:'',topics:['진로']};return `<div class="narrow">${steps(1)}<p class="eyebrow">첫 번째 이야기 · 나의 시작</p><h1>태어난 순간에서<br>나의 이야기가 시작돼요.</h1><p class="muted">날짜는 정확히, 모르는 시간은 그대로 알려주세요.</p><form id="birth-form" novalidate><label>이름 또는 별명<input name="name" value="${esc(a.name)}" maxlength="20" autocomplete="given-name" placeholder="어떻게 불러드릴까요?"></label><div class="fields"><label>달력<select name="calendar"><option value="solar" ${a.calendar==='solar'?'selected':''}>양력</option><option value="lunar" ${a.calendar==='lunar'?'selected':''}>한국 음력</option></select></label><label>생년월일<input type="text" inputmode="numeric" name="birth" placeholder="1995-05-17" value="${esc(a.birth)}" aria-describedby="birth-hint"></label></div><p id="birth-hint" class="hint">연-월-일로 입력 · 1900년부터 오늘까지 지원</p><label class="check" id="leap-wrap" ${a.calendar!=='lunar'?'hidden':''}><input type="checkbox" name="leap" ${a.leap?'checked':''}>음력 윤달이에요</label><label>태어난 시간<input name="time" type="time" value="${esc(a.time||'12:00')}" ${a.unknown?'disabled':''}></label><label class="check"><input name="unknown" type="checkbox" ${a.unknown?'checked':''}>태어난 시간을 몰라요</label><p class="hint">시간 미상은 정오 기준 3주를 계산합니다. 절기·날짜 경계에서는 년·월·일주도 달라질 수 있어요.</p><fieldset class="segment"><legend>성별</legend>${[['female','여성'],['male','남성']].map(([v,t])=>`<label><input type="radio" name="gender" value="${v}" ${a.gender===v?'checked':''}>${t}</label>`).join('')}</fieldset><p class="hint">대운의 순행·역행을 가르는 값이라 여쭙습니다. 해석 문구는 성별로 달라지지 않아요.</p><label>태어난 도시<select name="city">${[...new Set(CITIES.map(v=>v[3]))].map(g=>`<optgroup label="${g}">${CITIES.filter(v=>v[3]===g).map(v=>`<option ${v[0]===a.city?'selected':''}>${v[0]}</option>`).join('')}</optgroup>`).join('')}<option ${a.city==='직접 입력'?'selected':''}>직접 입력</option></select></label><details id="precise" ${a.city==='직접 입력'||a.clock==='mean'?'open':''}><summary>정밀 계산 설정</summary><p class="hint">도시를 고르면 시간대와 경도가 자동으로 채워집니다. 대부분 그대로 두셔도 됩니다.</p><div class="fields"><label>시간대 (IANA)<input name="zone" value="${esc(a.zone)}" placeholder="Asia/Seoul" ${a.city!=='직접 입력'?'readonly':''}></label><label>출생지 경도<input name="longitude" type="number" step="0.001" min="-180" max="180" value="${a.longitude}" ${a.city!=='직접 입력'?'readonly':''}></label></div><label>시각 계산 방식<select name="clock"><option value="civil" ${a.clock==='civil'?'selected':''}>출생지의 기록된 현지 시각</option><option value="mean" ${a.clock==='mean'?'selected':''}>지역 경도 보정 · 지방평균태양시</option></select></label><p>한국 음력은 윤달을 포함해 변환합니다. 년·월주는 절기 교체 시각을 기준으로 하고, 일주는 자정에 바뀌는 방식을 사용합니다. 시간대의 과거 표준시·서머타임은 기기의 시간대 데이터에 따릅니다.</p><p>경도 보정은 지방평균태양시이며 균시차까지 반영한 진태양시는 아닙니다. 도시의 경도는 대표 지점이므로 경계 출생은 정확한 경도로 수정하세요. 여러 명리 유파의 계산 방식은 다를 수 있습니다.</p></details><div class="form-error" role="alert" hidden></div><p class="privacy-note">정보는 입력 후 서버의 개인 보관함에 저장됩니다. 이 브라우저의 보안 쿠키로 연결되며 다른 기기와 자동 동기화되지 않습니다. 설정에서 내보내기·전체 삭제가 가능합니다.</p><button class="primary" type="submit">관심 주제 선택하기</button></form></div>`;}
@@ -153,11 +174,12 @@ function choicePage(){const cyc=Array.from({length:15},(_,i)=>E.moonPhase(now().
 function recordsPage(){const m=E.monthly(data.records,month),filtered=m.list.filter(r=>recordFilter==='all'||(recordFilter==='pending'?r.result==='pending':r.result!=='pending'));const days=DateTime.fromISO(month+'-01').daysInMonth,offset=DateTime.fromISO(month+'-01').weekday%7;return `<div class="section-top"><div><p class="eyebrow">선택이 쌓이면, 나의 기준이 됩니다</p><h1>나의 기록</h1></div><button class="plain" data-nav="choice">새 기록</button></div><div class="month-nav"><button data-month="-1" aria-label="이전 달">‹</button><h2>${month.replace('-','년 ')}월</h2><button data-month="1" aria-label="다음 달">›</button></div><section class="card"><div class="calendar">${['일','월','화','수','목','금','토'].map(v=>`<span>${v}</span>`).join('')}${Array.from({length:offset},()=>'<span></span>').join('')}${Array.from({length:days},(_,i)=>{const day=month+'-'+String(i+1).padStart(2,'0'),n=m.list.filter(r=>r.date===day).length;return `<button data-day="${day}" class="${n?'has-record':''}" aria-label="${dateLabel(day)}, 기록 ${n}개">${i+1}${n?`<small>${n}</small>`:''}</button>`;}).join('')}</div></section><section class="card"><span class="eyebrow">이번 달 돌아보기</span><div class="stats"><div><b>${m.list.length}</b><span>선택 기록</span></div><div><b>${m.done.length}</b><span>결과 기록</span></div><div><b>${m.list.filter(r=>r.mood).length}</b><span>감정 기록</span></div></div><p>${m.insight}</p>${Object.keys(m.moods).length?`<div class="mood-summary">${Object.entries(m.moods).map(([k,v])=>`<span>${esc(k)} ${v}회</span>`).join('')}</div>`:'<p class="hint">결과를 남길 때 감정도 함께 선택해보세요.</p>'}</section><div class="filters">${[['all','전체'],['pending','돌아볼 선택'],['done','결과 남김']].map(([id,label])=>`<button data-filter="${id}" aria-pressed="${recordFilter===id}">${label}</button>`).join('')}</div>${filtered.length?filtered.sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<button class="record-row card" data-record="${r.id}"><span class="eyebrow">${dateLabel(r.date)} · ${esc(r.topic)}</span><h3>${esc(r.title)}</h3><p>${r.result==='pending'?`${dateLabel(r.due)}에 돌아보기`:resultLabel(r.result)} · 당시 확신 ${r.confidence}</p></button>`).join(''):'<div class="empty"><h3>아직 이 달의 기록이 없어요.</h3><p>큰 결정이 아니어도 좋아요. 오늘의 작은 선택부터 남겨보세요.</p><button class="secondary" data-nav="choice">첫 선택 기록하기</button></div>'}`;}
 const resultLabel=v=>({pending:'아직 결과를 기다려요',good:'만족스러운 결과',neutral:'아직 판단하기 어려워요',rethink:'다르게 선택하고 싶어요'}[v]||'결과 미상');
 function settingsPage(){return `<div class="narrow"><p class="eyebrow">나의 이야기, 나의 권한</p><h1>개인 보관함</h1><section class="card"><h2>어디에 저장되나요?</h2><p>프로필·상담·선택 기록·저장한 답변은 서버 데이터베이스에 보관됩니다. 이 브라우저의 보안 쿠키로만 보관함을 연결합니다.</p><p>쿠키를 지우거나 다른 기기를 쓰면 기존 기록을 다시 열 수 없습니다. 기기 간 로그인·복구는 아직 지원하지 않으므로 중요한 기록은 내보내기로 보관하세요.</p><p>외부 AI 또는 알림 발송 서비스로 대화가 전송되지 않습니다. 운영 서버 관리자 접근을 막는 종단간 암호화 서비스는 아닙니다.</p><button class="secondary" data-action="retry" data-save-status>${storageLabel()}</button></section><section class="card"><h2>내 기록 가져가기</h2><p>프로필·상담·선택 기록을 JSON 또는 읽기 쉬운 문서로 내보냅니다. 파일에는 개인정보가 포함됩니다.</p><div class="button-row"><button class="secondary" data-action="export-json">JSON 내보내기</button><button class="secondary" data-action="export-text">문서 내보내기</button></div></section><section class="card"><h2>저장한 상담 답변</h2>${data.savedAnswers.length?data.savedAnswers.map(a=>`<details><summary>${esc(a.text.slice(0,45))}</summary><p class="preline">${esc(a.text)}</p><button class="plain" data-remove-answer="${a.id}">저장 해제</button></details>`).join(''):'<p class="muted">상담 답변 아래의 ‘저장’을 누르면 이곳에 모입니다.</p>'}</section><section class="card"><h2>연결 상태</h2><p>체험 코칭: 사용 가능<br>실제 AI 상담: ${aiCoach?'연결됨':'미연결'}<br>자동 푸시·이메일: 미연결<br>캘린더 회고 일정: 파일 가져오기 방식</p></section><section class="card danger-zone"><h2>개인정보 전체 삭제</h2><p>현재 보관함의 프로필, 상담, 기록과 저장한 답변을 삭제합니다. 삭제 후 복구할 수 없습니다.</p><button class="danger" data-action="delete-all">내 정보와 기록 모두 삭제</button></section></div>`;}
-function render(){const main={welcome,birth,topic:topicPage,result:resultPage,today:todayPage,chat:()=>'',choice:choicePage,records:recordsPage,settings:settingsPage}[page];const dual=p()&&['result','chat'].includes(page);$('#app').innerHTML=page==='welcome'?welcome():`${header()}<div class="workspace ${dual?'dual':''}"><main id="main">${page==='chat'?resultPage():main()}</main>${dual?`<aside>${chatPanel()}</aside>`:''}</div>${['birth','topic','settings'].includes(page)?'':navBar()}<button class="save-status" data-action="retry" data-save-status>${storageLabel()}</button>`;document.body.dataset.page=page;if(lastPage!==page){lastPage=page;window.scrollTo(0,0);}dressPage({page,result,profile:p()});bind();refreshSave();scrollChat();}
-function scrollChat(){const a=$('.messages');if(a)a.scrollTop=a.scrollHeight;}
+function render(){const main={welcome,birth,topic:topicPage,result:resultPage,today:todayPage,chat:()=>'',choice:choicePage,records:recordsPage,settings:settingsPage}[page];const dual=p()&&['result','chat'].includes(page);$('#app').innerHTML=page==='welcome'?saveBanner()+welcome():`${header()}${saveBanner()}<div class="workspace ${dual?'dual':''}"><main id="main">${page==='chat'?resultPage():main()}</main>${dual?`<aside>${chatPanel()}</aside>`:''}</div>${['birth','topic','settings'].includes(page)?'':navBar()}<button class="save-status" data-action="retry" data-save-status>${storageLabel()}</button>`;document.body.dataset.page=page;if(lastPage!==page){lastPage=page;window.scrollTo(0,0);}dressPage({page,result,profile:p()});bind();refreshSave();refreshSaveError();scrollChat();}
+function scrollChat(){const a=$('.messages');if(!a)return;const c=ct();if(c){const articles=a.querySelectorAll('article.message'),sourceLabel={cafe24:'AI 답변',rules:'기본 답변',safety:'안전 안내',record:'기록 안내'};c.messages.forEach((m,i)=>{const article=articles[i];if(!article)return;const tools=article.querySelector('.answer-tools'),label=sourceLabel[m.source];if(tools&&label){const badge=document.createElement('span');badge.className='response-source';badge.textContent=label;tools.prepend(badge);}if(!m.aiFailure)return;const note=document.createElement('div');note.className='ai-recovery';const p=document.createElement('p');p.textContent=m.aiFailure;note.append(p);if(i===c.messages.length-1){const button=document.createElement('button');button.type='button';button.textContent='AI 답변 다시 시도';button.disabled=!!c.pending;button.onclick=()=>retryAi(c.id,m.id);note.append(button);}article.append(note);});if(c.pending){const label=a.querySelector('.pending .sr-only');if(label)label.textContent='AI 답변을 기다리는 중 · 최대 1분';const send=$('#chat-form .send');if(send)send.disabled=true;}}a.scrollTop=a.scrollHeight;}
 function openModal(html){const m=$('#modal');m.innerHTML=`<button class="modal-close plain" data-close aria-label="닫기">닫기 ×</button>${html}`;if(!m.open)m.showModal();m.querySelector('[data-close]').onclick=()=>m.close();m.addEventListener('click',e=>{if(e.target===m)m.close();},{once:true});bind(m);}
 function recordDetail(id){const r=data.records.find(r=>r.id===id);if(!r)return;openModal(`<p class="eyebrow">${dateLabel(r.date)}의 선택</p><h2>${esc(r.title)}</h2><section class="compare"><div><span>선택 당시</span><p>${esc(r.expectation||'예상을 남기지 않았어요.')}</p><small>확신 ${r.confidence} / 100</small></div><div><span>그날의 해석</span><p>${esc(r.advice||'이전 버전의 기록입니다.')}</p></div></section><form id="edit-record" data-id="${id}"><label>선택 제목<input name="title" maxlength="100" value="${esc(r.title)}" required></label><label>실제 결과<select name="result">${['pending','good','neutral','rethink'].map(v=>`<option value="${v}" ${r.result===v?'selected':''}>${resultLabel(v)}</option>`).join('')}</select></label><label>돌아본 마음<select name="mood"><option value="">아직 선택하지 않음</option>${['기뻐요','편안해요','보통이에요','아쉬워요','속상해요'].map(v=>`<option ${r.mood===v?'selected':''}>${v}</option>`).join('')}</select></label><label>예상과 실제는 어떻게 달랐나요?<textarea name="actual" maxlength="1500">${esc(r.actual||'')}</textarea></label><label>회고 날짜<input type="date" name="due" value="${r.due}"></label><div class="form-error" role="alert" hidden></div><button class="primary">수정 내용 저장</button></form><button class="secondary" data-calendar="${id}">회고 일정 캘린더에 등록하기</button><p class="hint">캘린더 파일을 가져와야 일정·알림이 등록됩니다. 알림 허용 여부는 캘린더 앱에서 확인하세요.</p><button class="danger" data-delete-record="${id}">이 기록 삭제</button>`);}
 function download(name,content,type='text/plain;charset=utf-8'){const u=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
+document.addEventListener('click',e=>{if(e.target.closest('[data-action="backup"]')){download('달빛-저장복구.json',JSON.stringify(data,null,2),'application/json');notice('현재 내용을 파일로 보관했습니다. 파일에는 개인정보가 포함됩니다.');}},true);
 function calendarFile(id){const r=data.records.find(v=>v.id===id),date=DateTime.fromISO(r.due,{zone:'Asia/Seoul'}).set({hour:20}).toUTC(),fmt=d=>d.toFormat("yyyyMMdd'T'HHmmss'Z'");download('달빛-회고.ics',['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Dalbit//Reflection//KO','BEGIN:VEVENT',`UID:${r.id}@dalbit`,`DTSTAMP:${fmt(DateTime.utc())}`,`DTSTART:${fmt(date)}`,`DTEND:${fmt(date.plus({minutes:15}))}`,'SUMMARY:달빛 사주 - 나의 선택 돌아보기','DESCRIPTION:달빛 사주 보관함에서 선택 당시의 예상과 실제 결과를 돌아보세요.','BEGIN:VALARM','TRIGGER:-PT10M','ACTION:DISPLAY','DESCRIPTION:나의 선택을 돌아볼 시간이에요.','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n')+'\r\n','text/calendar;charset=utf-8');notice('파일을 캘린더 앱에서 가져와 주세요. 가져오기 전에는 알림이 예약되지 않습니다.');}
 function getMessage(id){return data.conversations.flatMap(c=>c.messages).find(m=>m.id===id);}
 function exportText(){return ['달빛 사주 개인 보관함',JSON.stringify(p(),null,2),'\n선택 기록',...data.records.map(r=>`${r.date} ${r.title}\n예상: ${r.expectation}\n결과: ${resultLabel(r.result)}\n회고: ${r.actual||''}`),'\n상담',...data.conversations.map(c=>c.messages.map(m=>`${m.role==='user'?'나':'달빛 도령'} (${m.at})\n${m.text}`).join('\n\n')),'\n저장한 답변',...data.savedAnswers.map(a=>a.text)].join('\n\n');}
@@ -316,7 +338,9 @@ async function saveCapture(how){
  }
 }
 
-async function sendMessage(text){text=text.trim();if(!text)return;if(text.length>1500){notice('메시지는 1,500자 이내로 입력해 주세요.');return;}const c=currentConversation();if(c.profileKey!==profileKey()){notice('이전 사주의 상담입니다. 새 상담을 시작해 주세요.');return;}if(!await engineReady())return;c.messages.push({id:uid(),role:'user',text,at:new Date().toISOString()});
+async function requestAi(c, messages){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),65_000);try{const r=await fetch('/api/coach',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chart:chartFor(c),messages}),signal:controller.signal});const j=await r.json().catch(()=>({}));if(r.ok&&j.text)return {ok:true,text:j.text,source:j.source,offer:j.offer};return {ok:false,reason:r.status===429?'AI 사용량이 많아 기본 답변을 표시했습니다. 잠시 뒤 다시 시도할 수 있어요.':'AI 응답을 받지 못해 기본 답변을 표시했습니다. 다시 시도할 수 있어요.'};}catch(e){return {ok:false,reason:e.name==='AbortError'?'AI 응답이 1분 넘게 걸려 기본 답변을 표시했습니다. 다시 시도할 수 있어요.':'연결 문제로 기본 답변을 표시했습니다. 다시 시도할 수 있어요.'};}finally{clearTimeout(timer);}}
+async function retryAi(conversationId,messageId){const c=data.conversations.find(v=>v.id===conversationId),index=c?.messages.findIndex(v=>v.id===messageId);if(!c||index!==c.messages.length-1||c.pending||c.profileKey!==profileKey())return;const m=c.messages[index];c.pending=true;render();const turns=c.messages.slice(0,index).filter(v=>v.source!=='rules'&&v.source!=='safety').slice(-12).map(v=>({role:v.role,text:v.text}));const out=await requestAi(c,turns);c.pending=false;if(out.ok){m.text=out.text;m.source=out.source;m.aiFailure=null;if(out.offer)c.offer=out.offer;persist();}else m.aiFailure=out.reason;render();}
+async function sendMessage(text){text=text.trim();if(!text)return;if(text.length>1500){notice('메시지는 1,500자 이내로 입력해 주세요.');return;}const c=currentConversation();if(c.pending){notice('앞선 답변이 끝난 뒤 보내 주세요.');return;}if(c.profileKey!==profileKey()){notice('이전 사주의 상담입니다. 새 상담을 시작해 주세요.');return;}if(!await engineReady())return;c.messages.push({id:uid(),role:'user',text,at:new Date().toISOString()});
  // 직전 답변이 기록을 제안했다면, 수긍 한 마디로 바로 남깁니다.
  if(c.offer){
   const o=c.offer;c.offer=null;
@@ -334,24 +358,21 @@ async function sendMessage(text){text=text.trim();if(!text)return;if(text.length
  }
  // 규칙 기반 답을 먼저 만들어 둡니다. 실제 상담이 없거나 실패해도 이 답이
  // 나가므로 사용자는 빈 화면을 보지 않습니다.
+ persist(); // AI를 기다리는 중 창을 닫아도 사용자의 질문은 먼저 남깁니다.
  const fallback=E.coach(result,p(),c,text);
  Object.assign(c,{topic:fallback.topic||c.topic,context:fallback.context||c.context});
- let reply=fallback.text,source='rules';
+ let reply=fallback.text,source='rules',aiFailure=null;
  if(fallback.phase!=='safety'&&await coachAvailable()){
   c.pending=true;render();
-  try{
-   const r=await fetch('/api/coach',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({chart:chartFor(c),messages:c.messages.filter(m=>m.role!=='system').slice(-12).map(m=>({role:m.role,text:m.text}))})});
-   const j=await r.json();
-   if(r.ok&&j.text){reply=j.text;source=j.source;if(j.offer)c.offer=j.offer;}
-   else if(r.status===429)notice('잠시 뒤에 다시 물어봐 주세요.');
-  }catch{/* 폴백 답을 그대로 씁니다 */}
+  const out=await requestAi(c,c.messages.filter(m=>m.role!=='system'&&m.source!=='rules').slice(-12).map(m=>({role:m.role,text:m.text})));
+  if(out.ok){reply=out.text;source=out.source;if(out.offer)c.offer=out.offer;}
+  else aiFailure=out.reason;
   c.pending=false;
  }
- c.messages.push({id:uid(),role:'assistant',text:reply,source,at:new Date().toISOString()});persist();render();}
+ c.messages.push({id:uid(),role:'assistant',text:reply,source,aiFailure,at:new Date().toISOString()});persist();render();}
 async function action(a){if(a==='epic'){if(await engineReady())await loadEpic();return;}if(a==='retry'){if(!loaded)await load();else await persist();return;}if(a==='export-json'){download('달빛-보관함.json',JSON.stringify(data,null,2),'application/json');return;}if(a==='export-text'){download('달빛-보관함.txt',exportText());return;}if(a==='chat-history'){openModal(`<h2>이전 상담 이어가기</h2><button class="secondary" id="new-chat">새 상담 시작하기</button>${data.conversations.slice().reverse().map(c=>`<button class="record-row" data-conversation="${c.id}"><b>${esc(c.profileName)} · ${esc(c.topic||'상담')}</b><span>${dateLabel(c.created.slice(0,10))} · ${c.messages.length}개 메시지 ${c.profileKey!==profileKey()?'· 이전 사주 (읽기 전용)':''}</span></button>`).join('')}`);$('#new-chat').onclick=()=>{activeConversation=null;$('#modal').close();render();persist();};document.querySelectorAll('[data-conversation]').forEach(b=>b.onclick=()=>{activeConversation=b.dataset.conversation;$('#modal').close();render();});return;}
  if(a==='delete-all'){openModal('<h2>개인정보를 모두 삭제할까요?</h2><p>현재 보관함의 프로필·상담·선택 기록·저장한 답변이 삭제됩니다. 내려받은 파일과 캘린더 일정은 별도로 삭제해 주세요.</p><label class="check"><input id="delete-confirm" type="checkbox">복구할 수 없음을 이해했습니다.</label><p id="delete-error" role="alert"></p><button class="danger" id="delete-final">전체 삭제</button>');$('#delete-final').onclick=async()=>{if(!$('#delete-confirm').checked){$('#delete-error').textContent='위 확인란을 선택해 주세요.';return;}$('#delete-final').disabled=true;await saveQueue;try{const res=await fetch('/api/journal',{method:'DELETE'});if(!res.ok)throw new Error('삭제하지 못했어요. 잠시 후 다시 시도해 주세요.');generation++;data={profile:null,records:[],conversations:[],savedAnswers:[]};revision=0;result=null;activeConversation=null;localStorage.removeItem('dalbit-v2');saveState='ready';$('#modal').close();nav('welcome');notice('개인 보관함의 정보를 삭제했어요.');}catch(e){$('#delete-error').textContent=e.message;$('#delete-final').disabled=false;}};}}
-async function load(){saveState='loading';refreshSave();try{const res=await fetch('/api/journal'),r=await res.json();if(!res.ok)throw new Error(r.error);loaded=true;revision=r.revision;data=r.data||{profile:null,records:[],conversations:[],savedAnswers:[]};data.savedAnswers||=[];if(data.profile&&await engineReady()){try{result=E.calculate(data.profile);}catch{data.profile=null;notice('이전 프로필의 계산 정보를 다시 확인해 주세요.');}}saveState=revision?'saved':'ready';render();const legacy=localStorage.getItem('dalbit-v2');if(legacy&&!r.data)offerMigration(legacy);}catch(e){saveState='error';render();notice(e.message||'저장소에 연결하지 못했어요. 설정에서 다시 시도해 주세요.');}}
+async function load(){saveState='loading';refreshSave();try{const res=await fetch('/api/journal'),r=await res.json();if(!res.ok)throw new Error(r.error);loaded=true;revision=r.revision;data=r.data||{profile:null,records:[],conversations:[],savedAnswers:[]};data.savedAnswers||=[];savedBaseline=JSON.parse(JSON.stringify(data));if(data.profile&&await engineReady()){try{result=E.calculate(data.profile);}catch{data.profile=null;notice('이전 프로필의 계산 정보를 다시 확인해 주세요.');}}saveError='';saveState=revision?'saved':'ready';render();const legacy=localStorage.getItem('dalbit-v2');if(legacy&&!r.data)offerMigration(legacy);}catch(e){markSaveError(e.message||'저장소에 연결하지 못했어요. 설정에서 다시 시도해 주세요.');render();}}
 function offerMigration(raw){let old;try{old=JSON.parse(raw);}catch{return;}if(!old.birth)return;openModal('<h2>이전 기록을 발견했어요</h2><p>이 브라우저에 있던 프로필과 선택 기록을 서버 보관함으로 옮길 수 있어요. 현재 버전은 생년월일·상담·기록을 서버에 저장합니다.</p><button class="primary" id="migrate">이전 기록 가져와 서버에 저장</button><button class="secondary" id="skip-migrate">지금은 건너뛰기</button>');$('#skip-migrate').onclick=()=>$('#modal').close();$('#migrate').onclick=async()=>{data.profile={name:old.name,birth:old.birth,time:old.time||'12:00',unknown:!!old.unknownTime,calendar:'solar',city:'서울',zone:'Asia/Seoul',longitude:126.978,clock:'civil',topics:old.topics?.length?old.topics:['진로'],question:old.topicNote||''};data.records=(old.records||[]).map(r=>({id:uid(),date:String(r.d).slice(0,10),title:r.title,topic:'진로',confidence:50,expectation:r.sub||'',actual:r.kind==='결과'?r.sub:'',due:String(r.d).slice(0,10),result:r.kind==='결과'?'neutral':'pending',mood:r.mood||'',legacy:true}));if(!await engineReady())return;try{result=E.calculate(p());const ok=await persist();if(ok)localStorage.removeItem('dalbit-v2');$('#modal').close();nav('result');}catch(e){notice(e.message);}};}
 render();
 // Warm the 만세력 chunk while the splash is on screen, so the first navigation
