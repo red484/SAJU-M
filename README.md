@@ -8,7 +8,7 @@
 
 운영 기준은 **Lightsail Docker + PostgreSQL**입니다. `saju-web` Nginx가 정적 프론트를, `saju-backend` Node가 API를 맡고, 공용 PostgreSQL에 익명 세션·보관함·AI 사용 기록·감사 로그를 저장합니다. Toss 로그인·결제·이용권은 포함하지 않습니다.
 
-프론트/백엔드/저장소/외부 AI의 현재 데이터 흐름은 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), 실서비스 목표 구조와 구현 순서는 [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md)에 정리했습니다. 환경 변수 이름은 [`.env.example`](.env.example)을 기준으로 합니다.
+프론트/백엔드/DB 상세 문서와 ERD는 [`docs/README.md`](docs/README.md)에서 찾을 수 있습니다. 현재 데이터 흐름은 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), 실서비스 목표 구조와 구현 순서는 [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md)에 정리했습니다. 환경 변수 이름은 [`.env.example`](.env.example)을 기준으로 합니다.
 
 회사 서버에 직접 배포해 가비아 도메인과 Nginx를 연결하는 절차는 [`docs/COMPANY-SERVER-DEPLOY.md`](docs/COMPANY-SERVER-DEPLOY.md)에 있으며, 컨테이너·외부 Lightsail Nginx 설정은 [`deploy/`](deploy/)에 있습니다.
 
