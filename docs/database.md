@@ -4,6 +4,10 @@
 
 ## ERD
 
+![SAJU-M PostgreSQL ERD](database-erd.svg)
+
+원본 크기로 보려면 [database-erd.svg](database-erd.svg)를 연다. 아래 Mermaid는 텍스트로 검색하고 변경 내역을 비교하기 위한 동일 구조 표현이다.
+
 ```mermaid
 erDiagram
   APP_USERS o|--o{ ANONYMOUS_SESSIONS : "선택적으로 연결"
@@ -161,4 +165,3 @@ erDiagram
 - LLM telemetry에는 프롬프트·답변 원문을 저장하지 않는다.
 - 백업, 삭제 보존기간, 계정 전환 정책은 실서비스 전에 회사 운영 정책으로 확정해야 한다.
 - 개인정보 컬럼을 추가할 때는 암호화·마스킹·삭제 절차를 migration과 함께 정의한다.
-

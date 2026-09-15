@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100" role="img" aria-labelledby="title desc">
+  <title id="title">SAJU-M PostgreSQL ERD</title>
+  <desc id="desc">app_users, anonymous_sessions, saju_journals, usage_sessions, llm_requests, audit_logs and schema_migrations relationships</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#10251f" flood-opacity=".10"/></filter>
+    <style>
+      .bg{fill:#fbfbfa}.card{fill:#fff;stroke-width:1.5;filter:url(#shadow)}.head{stroke-width:1.5}.title{font:700 20px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#173b32}.col{font:15px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#24332f}.type{font:14px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#53635e}.key{font:700 12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.note{font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#53635e}.rel{fill:none;stroke:#344a43;stroke-width:2}.optional{stroke-dasharray:8 7}.dot{fill:#fff;stroke:#344a43;stroke-width:2}.many{fill:none;stroke:#344a43;stroke-width:2;stroke-linecap:round}
+    </style>
+  </defs>
+  <rect class="bg" width="1600" height="1100"/>
+  <text x="54" y="62" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="30" font-weight="700" fill="#173b32">SAJU-M PostgreSQL</text>
+  <text x="54" y="91" class="note">운영 스키마 · 2026-09-15 · 인증/결제 테이블 없음</text>
+
+  <!-- relationships behind cards -->
+  <path class="rel optional" d="M330 230 H390"/><circle class="dot" cx="339" cy="230" r="6"/><circle class="dot" cx="381" cy="230" r="6"/>
+  <path class="rel" d="M730 230 H790"/><circle class="dot" cx="739" cy="230" r="6"/><path class="many" d="M781 230 l-13 -9 M781 230 l-13 9"/>
+  <path class="rel" d="M560 400 V495 H895 V550"/><circle class="dot" cx="560" cy="410" r="6"/><path class="many" d="M895 541 l-9 -13 M895 541 l9 -13"/>
+  <path class="rel" d="M1090 735 H1150"/><circle class="dot" cx="1099" cy="735" r="6"/><path class="many" d="M1141 735 l-13 -9 M1141 735 l-13 9"/>
+  <path class="rel" d="M560 400 V520 H1320 V445"/><circle class="dot" cx="560" cy="410" r="6"/><path class="many" d="M1320 454 l-9 13 M1320 454 l9 13"/>
+
+  <!-- app_users -->
+  <g transform="translate(50 135)"><rect class="card" width="280" height="190" rx="12" stroke="#8064a2"/><path class="head" d="M12 0h256a12 12 0 0 1 12 12v36H0V12A12 12 0 0 1 12 0" fill="#eee9f6" stroke="#8064a2"/><text class="title" x="140" y="31" text-anchor="middle">app_users</text>
+    <text class="key" x="18" y="76" fill="#b78600">PK</text><text class="col" x="52" y="76">id</text><text class="type" x="193" y="76">uuid</text>
+    <text class="col" x="18" y="105">status</text><text class="type" x="193" y="105">text</text>
+    <text class="col" x="18" y="134">created_at</text><text class="type" x="164" y="134">timestamptz</text>
+    <text class="col" x="18" y="163">updated_at</text><text class="type" x="164" y="163">timestamptz</text></g>
+
+  <!-- anonymous_sessions -->
+  <g transform="translate(390 135)"><rect class="card" width="340" height="265" rx="12" stroke="#4d8db7"/><path class="head" d="M12 0h316a12 12 0 0 1 12 12v36H0V12A12 12 0 0 1 12 0" fill="#e4f0f7" stroke="#4d8db7"/><text class="title" x="170" y="31" text-anchor="middle">anonymous_sessions</text>
+    <text class="key" x="18" y="76" fill="#b78600">PK</text><text class="col" x="52" y="76">id</text><text class="type" x="264" y="76">text</text>
+    <text class="key" x="18" y="105" fill="#7651a8">FK</text><text class="col" x="52" y="105">user_id</text><text class="type" x="264" y="105">uuid</text>
+    <text class="col" x="18" y="134">created_at</text><text class="type" x="224" y="134">timestamptz</text>
+    <text class="col" x="18" y="163">last_seen_at</text><text class="type" x="224" y="163">timestamptz</text>
+    <text class="col" x="18" y="192">expires_at</text><text class="type" x="224" y="192">timestamptz</text>
+    <line x1="18" y1="215" x2="322" y2="215" stroke="#d5e1de"/><text class="note" x="18" y="242">쿠키 원문 대신 SHA-256 ID 저장</text></g>
+
+  <!-- journal -->
+  <g transform="translate(790 135)"><rect class="card" width="330" height="215" rx="12" stroke="#65a357"/><path class="head" d="M12 0h306a12 12 0 0 1 12 12v36H0V12A12 12 0 0 1 12 0" fill="#eaf4e6" stroke="#65a357"/><text class="title" x="165" y="31" text-anchor="middle">saju_journals</text>
+    <text class="key" x="18" y="76" fill="#b78600">PK</text><text class="key" x="47" y="76" fill="#7651a8">FK</text><text class="col" x="79" y="76">session_id</text><text class="type" x="254" y="76">text</text>
+    <text class="col" x="18" y="105">payload</text><text class="type" x="254" y="105">jsonb</text>
+    <text class="col" x="18" y="134">revision</text><text class="type" x="235" y="134">integer</text>
+    <text class="col" x="18" y="163">updated_at</text><text class="type" x="214" y="163">timestamptz</text>
+    <text class="note" x="18" y="195">세션당 0..1개 기록</text></g>
+
+  <!-- usage -->
+  <g transform="translate(750 550)"><rect class="card" width="340" height="290" rx="12" stroke="#399c98"/><path class="head" d="M12 0h316a12 12 0 0 1 12 12v36H0V12A12 12 0 0 1 12 0" fill="#e4f4f2" stroke="#399c98"/><text class="title" x="170" y="31" text-anchor="middle">usage_sessions</text>
+    <text class="key" x="18" y="76" fill="#b78600">PK</text><text class="col" x="52" y="76">id</text><text class="type" x="264" y="76">uuid</text>
+    <text class="key" x="18" y="105" fill="#7651a8">FK</text><text class="col" x="52" y="105">anonymous_session_id</text><text class="type" x="264" y="105">text</text>
+    <text class="col" x="18" y="134">feature</text><text class="type" x="264" y="134">text</text>
+    <text class="col" x="18" y="163">status</text><text class="type" x="264" y="163">text</text>
+    <text class="col" x="18" y="192">started_at</text><text class="type" x="224" y="192">timestamptz</text>
+    <text class="col" x="18" y="221">completed_at</text><text class="type" x="224" y="221">timestamptz</text>
+    <line x1="18" y1="244" x2="322" y2="244" stroke="#d5e1de"/><text class="note" x="18" y="270">coach · epic 실행 단위</text></g>
+
+  <!-- llm -->
+  <g transform="translate(1150 550)"><rect class="card" width="390" height="445" rx="12" stroke="#d36c8a"/><path class="head" d="M12 0h366a12 12 0 0 1 12 12v36H0V12A12 12 0 0 1 12 0" fill="#faeaf0" stroke="#d36c8a"/><text class="title" x="195" y="31" text-anchor="middle">llm_requests</text>
+    <text class="key" x="18" y="76" fill="#b78600">PK</text><text class="col" x="52" y="76">id</text><text class="type" x="304" y="76">bigint</text>
+    <text class="key" x="18" y="105" fill="#7651a8">FK</text><text class="col" x="52" y="105">usage_session_id</text><text class="type" x="316" y="105">uuid</text>
+    <text class="col" x="18" y="134">provider</text><text class="type" x="316" y="134">text</text>
+    <text class="col" x="18" y="163">model</text><text class="type" x="316" y="163">text</text>
+    <text class="col" x="18" y="192">key_label</text><text class="type" x="316" y="192">text</text>
+    <text class="col" x="18" y="221">status</text><text class="type" x="316" y="221">text</text>
+    <text class="col" x="18" y="250">finish_reason</text><text class="type" x="316" y="250">text</text>
+    <text class="col" x="18" y="279">input_tokens</text><text class="type" x="297" y="279">integer</text>
+    <text class="col" x="18" y="308">output_tokens</text><text class="type" x="297" y="308">integer</text>
+    <text class="col" x="18" y="337">latency_ms</text><text class="type" x="297" y="337">integer</text>
+    <text class="col" x="18" y="366">error_code</text><text class="type" x="316" y="366">text</text>
+    <text class="col" x="18" y="395">created_at</text><text class="type" x="274" y="395">timestamptz</text>
+    <text class="note" x="18" y="426">프롬프트·답변 원문 미저장</text></g>
+
+  <!-- audit -->
+  <g transform="translate(1180 135)"><rect class="card" width="360" height="310" rx="12" stroke="#8064a2"/><path class="head" d="M12 0h336a12 12 0 0 1 12 12v36H0V12A12 12 0 0 1 12 0" fill="#eee9f6" stroke="#8064a2"/><text class="title" x="180" y="31" text-anchor="middle">audit_logs</text>
+    <text class="key" x="18" y="76" fill="#b78600">PK</text><text class="col" x="52" y="76">id</text><text class="type" x="286" y="76">bigint</text>
+    <text class="key" x="18" y="105" fill="#7651a8">FK</text><text class="col" x="52" y="105">anonymous_session_id</text><text class="type" x="306" y="105">text</text>
+    <text class="col" x="18" y="134">event_type</text><text class="type" x="306" y="134">text</text>
+    <text class="col" x="18" y="163">resource_type</text><text class="type" x="306" y="163">text</text>
+    <text class="col" x="18" y="192">resource_id</text><text class="type" x="306" y="192">text</text>
+    <text class="col" x="18" y="221">metadata</text><text class="type" x="296" y="221">jsonb</text>
+    <text class="col" x="18" y="250">created_at</text><text class="type" x="264" y="250">timestamptz</text>
+    <text class="note" x="18" y="285">저장·삭제 등 운영 감사 이벤트</text></g>
+
+  <!-- schema migrations -->
+  <g transform="translate(50 610)"><rect class="card" width="310" height="155" rx="12" stroke="#73818b"/><path class="head" d="M12 0h286a12 12 0 0 1 12 12v36H0V12A12 12 0 0 1 12 0" fill="#edf0f2" stroke="#73818b"/><text class="title" x="155" y="31" text-anchor="middle">schema_migrations</text>
+    <text class="key" x="18" y="76" fill="#b78600">PK</text><text class="col" x="52" y="76">id</text><text class="type" x="235" y="76">text</text>
+    <text class="col" x="18" y="105">applied_at</text><text class="type" x="184" y="105">timestamptz</text>
+    <text class="note" x="18" y="135">업무 관계 없는 migration 이력</text></g>
+
+  <!-- legend -->
+  <g transform="translate(50 845)"><rect width="480" height="190" rx="12" fill="#fff" stroke="#aab3af"/><text class="title" x="24" y="38">범례</text>
+    <text class="key" x="24" y="75" fill="#b78600">PK</text><text class="note" x="64" y="75">Primary Key</text>
+    <text class="key" x="24" y="105" fill="#7651a8">FK</text><text class="note" x="64" y="105">Foreign Key</text>
+    <line class="rel" x1="245" y1="72" x2="330" y2="72"/><circle class="dot" cx="254" cy="72" r="6"/><path class="many" d="M321 72 l-13 -9 M321 72 l-13 9"/><text class="note" x="346" y="77">1:N</text>
+    <line class="rel optional" x1="245" y1="105" x2="330" y2="105"/><circle class="dot" cx="254" cy="105" r="6"/><circle class="dot" cx="321" cy="105" r="6"/><text class="note" x="346" y="110">선택 관계</text>
+    <text class="note" x="24" y="150">실선: 직접 FK 관계</text><text class="note" x="24" y="176">점선: nullable FK 관계</text></g>
+
+  <text x="1540" y="1060" text-anchor="end" class="note">Source: server/migrations/001_initial.sql</text>
+</svg>
