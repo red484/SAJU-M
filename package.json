@@ -3,22 +3,24 @@
   "version": "3.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "node build.mjs",
-    "dev": "wrangler dev --port 8766",
+    "dev": "node src/render-server.mjs",
     "start": "node src/render-server.mjs",
+    "server": "node server/index.mjs",
     "test": "node tests/engine.test.mjs && node tests/cafe24.test.mjs && node tests/journal-merge.test.mjs && node tests/file-journal-repository.test.mjs",
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
-    "drizzle-orm": "^0.45.2",
     "korean-lunar-calendar": "^0.4.0",
     "lunar-javascript": "^1.7.7",
-    "luxon": "^3.7.2"
+    "luxon": "^3.7.2",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.10",
-    "esbuild": "^0.28.2",
-    "wrangler": "^4.130.0"
+    "esbuild": "^0.28.2"
   }
 }

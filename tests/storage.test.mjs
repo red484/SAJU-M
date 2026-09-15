@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-const origin='http://127.0.0.1:8766';
+const origin=process.env.STORAGE_BASE_URL||'http://127.0.0.1:3000';
 const initial=await fetch(origin+'/api/journal');assert.equal(initial.status,200);const cookie=initial.headers.get('set-cookie').split(';')[0];assert.match(initial.headers.get('set-cookie'),/HttpOnly/);
 const payload={profile:null,records:[{id:'disposable-test',title:'storage test'}],conversations:[],savedAnswers:[]};
 const req=(method,body,extra={})=>fetch(origin+'/api/journal',{method,headers:{Cookie:cookie,Origin:origin,'Content-Type':'application/json',...extra},body:body?JSON.stringify(body):undefined});

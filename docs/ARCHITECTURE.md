@@ -1,113 +1,99 @@
 # 달빛 사주 운영 아키텍처
 
-이 문서는 현재 코드에 실제로 구현된 구조를 기준으로 합니다. 회원 계정, 결제, PostgreSQL은 아직 구현되어 있지 않습니다.
-
-실서비스 목표 구조와 프론트/백엔드/DB별 개선 항목은 [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md)를 따릅니다.
-
 ## 운영 기준
 
-브라우저와 API는 같은 도메인에서 제공합니다. 현재 Render를 유지하면 Render Custom Domain에 가비아 DNS를 연결하고, 회사 서버에 직접 올리면 Nginx가 HTTPS와 reverse proxy를 담당합니다. 두 방식을 동시에 운영하지 않습니다. 회사 서버 절차는 [`COMPANY-SERVER-DEPLOY.md`](COMPANY-SERVER-DEPLOY.md)에 있습니다.
+운영 대상은 Lightsail의 Docker Compose 한 벌입니다. Toss 로그인·IAP·광고·이용권은 포함하지 않습니다.
 
 ```text
-사용자 브라우저
-  ├─ GET /, /assets/* ───────────────┐
-  ├─ /api/journal ─ 기록 저장/복구   │
-  ├─ /api/coach ─── AI 상담          ├─ Render Node Web Service
-  └─ /api/epic ──── 대운 판독        │    ├─ 정적 파일 dist/client
-                                     │    ├─ 파일 저장소 DALBIT_DATA_DIR
-                                     │    └─ Cafe24 LLM Router
-가비아 DNS ─ 사용자 도메인 ──────────┘
+가비아 DNS
+  → 공용 Lightsail Nginx (TLS)
+      ├─ /api/* → saju-backend:9090 (Node)
+      │             ├─ PostgreSQL
+      │             └─ Cafe24 LLM Router
+      └─ /*      → saju-web:80 (Nginx, dist/client)
 ```
+
+Cloudflare Worker/D1 배포 경로는 제거했습니다. 로컬 `npm run dev`만 개발 편의를 위해 Node가 정적 파일과 파일 repository를 함께 제공합니다.
 
 ## 프론트엔드
 
-- 기술: 바닐라 JavaScript, HTML, CSS. React/Vite 앱이 아니며 `VITE_API_BASE_URL`도 사용하지 않습니다.
-- 빌드: `build.mjs`가 `src/client/app.js`, `src/client/engine.js`, CSS와 에셋을 `dist/client`로 번들·복사합니다.
-- API: `/api/journal`, `/api/coach`, `/api/epic`을 상대 경로로 호출합니다.
-- 계산: 만세력, 오행, 대운, 흐름 등 결정론적 계산은 브라우저의 `engine.js`, `constants.js`, `time.js`에서 수행합니다.
-- 인증: 회원가입/로그인이 없습니다. 서버가 발급한 `dalbit_session` HttpOnly 쿠키로 브라우저별 기록을 구분합니다.
-- AI 키: Cafe24 키는 브라우저에 전달하지 않습니다.
+- 위치: `src/client`
+- 기술: 바닐라 JavaScript, HTML, CSS
+- 빌드 결과: `dist/client`
+- API: 같은 도메인의 `/api/journal`, `/api/coach`, `/api/epic`
+- 책임: 만세력 계산, 화면, 저장 충돌 병합, AI 실패 복구 UX
+- 운영 제공자: `saju-web` Nginx 컨테이너
 
 ## 백엔드
 
-- 실행 파일: `src/render-server.mjs`
-- 런타임: Node.js 22, 기본 포트 `3000` (`PORT`로 변경)
-- 역할: 정적 파일 제공, 세션 발급, 기록 저장, Cafe24 LLM 중계, 요청 제한
+- 운영 진입점: `server/index.mjs`
+- API 조립: `src/server/api-handler.mjs`
+- route: `src/server/routes`
+- service: `src/server/services`
+- repository: `src/server/repositories`
+- 외부 연동: `src/server/integrations`
+- 운영 포트: 컨테이너 내부 `9090`
 
-| 경로 | 메서드 | 역할 |
+| 경로 | 역할 |
+|---|---|
+| `/health`, `/api/health` | 프로세스와 AI 설정 상태 |
+| `/api/ready` | PostgreSQL 연결 준비 상태 |
+| `/api/journal` | 보관함 조회·revision 저장·삭제 |
+| `/api/coach` | Cafe24 AI 상담 |
+| `/api/epic` | Cafe24 대운 판독 |
+
+## PostgreSQL
+
+backend 시작 시 `server/migrations`를 순서대로 자동 실행합니다.
+
+| 테이블 | 용도 |
+|---|---|
+| `app_users` | 향후 선택적 계정 연결 자리; 현재 로그인 없음 |
+| `anonymous_sessions` | 익명 HttpOnly 쿠키의 해시 식별자 |
+| `saju_journals` | 프로필·상담·기록 JSONB와 revision |
+| `usage_sessions` | 상담/대운 호출 단위 상태 |
+| `llm_requests` | 공급자·모델·키 라벨·토큰·지연·오류 |
+| `audit_logs` | 저장·삭제 감사 이벤트 |
+| `schema_migrations` | 적용된 migration |
+
+사용자 원문과 생년월일은 일반 로그나 `llm_requests`에 복제하지 않습니다. 보관함 payload에만 존재합니다.
+
+## Cafe24 LLM
+
+- 단일 키: `CAFE24_LLM_API_KEY`
+- 보조 키: `CAFE24_LLM_API_KEYS` 쉼표 목록
+- 안전한 로그 이름: `CAFE24_LLM_KEY_LABELS`
+- 모델: `CAFE24_LLM_MODEL`, 기본 `cafe24/auto`
+- 키 폴백: 429, 500, 502, 503, 504에서 다음 키 시도
+- 실제 선택 모델과 사용량은 응답 shape 및 DB 메타데이터로 기록
+
+## 컨테이너
+
+| 서비스 | 이미지 target | 역할 |
 |---|---|---|
-| `/api/health` | GET, HEAD | 서버·저장 방식·AI 연결 설정 상태 확인 |
-| `/api/journal` | GET, PUT, DELETE | 현재 브라우저의 기록 조회·저장·전체 삭제 |
-| `/api/coach` | GET, POST | AI 상담 연결 확인·응답 생성 |
-| `/api/epic` | GET, POST | AI 대운 판독 연결 확인·응답 생성 |
+| `db-init` | `db-init` | 공용 PostgreSQL에 앱 role/database 생성 |
+| `backend` | `backend` | migration과 API |
+| `web` | `web` | 정적 파일과 내부 API proxy |
 
-쓰기 요청은 같은 출처인지 검사합니다. 기록은 revision 기반 낙관적 잠금으로 여러 탭의 덮어쓰기를 막고, 임시 파일 작성 후 rename하여 교체합니다. AI 요청 제한은 현재 프로세스 메모리에만 존재하므로 서버 재시작이나 수평 확장 시 공유되지 않습니다.
+모두 외부 `levelup-net`을 사용합니다. 공용 Lightsail Nginx도 이 network에 연결되어야 컨테이너 이름으로 접근할 수 있습니다.
 
-## 데이터 저장소
+## 개발과 운영의 차이
 
-### 현재 Render 경로
+| 항목 | 로컬 개발 | 운영 |
+|---|---|---|
+| 실행 | `npm run dev` | `docker compose ... up` |
+| 정적 파일 | Node | `saju-web` Nginx |
+| API | Node | `saju-backend` Node |
+| 저장 | `.data` 파일 | PostgreSQL |
+| TLS | 없음 | 공용 Lightsail Nginx |
 
-- 형식: 세션 하나당 JSON 파일 하나
-- 위치: `DALBIT_DATA_DIR`; 미지정 시 프로젝트의 `.data/`
-- 식별자: 원본 쿠키를 SHA-256으로 해시한 파일명
-- 한계: Render 무료 인스턴스의 로컬 파일은 재배포·재시작·슬립 때 사라질 수 있습니다.
+## 배포 파일
 
-실사용 전에는 아래 중 하나를 선택해야 합니다.
+- `Dockerfile`
+- `docker-compose.prd.yml`
+- `deploy/container-nginx/default.conf`
+- `deploy/lightsail/nginx/saju.conf`
+- `scripts/init_production_database.sh`
+- `.env.production.example`
 
-1. 빠른 출시: Render 유료 persistent disk를 붙이고 `DALBIT_DATA_DIR=/var/data/dalbit-saju`로 설정
-2. 확장 가능한 운영: PostgreSQL용 저장소 어댑터를 새로 구현하고 기록·요청 제한을 DB로 이전
-
-현재 저장 코드는 PostgreSQL에 자동 연결되지 않습니다. `DATABASE_URL`을 추가하는 것만으로 DB 전환되지 않습니다.
-
-### Cloudflare 경로
-
-`src/worker.js`, `wrangler.jsonc`, `drizzle/`에는 Cloudflare Worker + D1 실험 경로가 남아 있습니다. D1의 `journals` 저장은 구현되어 있지만 `/api/coach`, `/api/epic`은 구현되어 있지 않아 현재 Render 서비스와 기능이 동일하지 않습니다. 운영 배포 대상으로 사용하지 않습니다.
-
-## 외부 서비스
-
-- Cafe24 LLM Router: 서버의 `CAFE24_LLM_API_KEY`로만 호출
-- 모델: `CAFE24_LLM_MODEL`; 기본값 `cafe24/auto`
-- 실제 자동 선택 모델: Cafe24 응답의 model 값을 `shape.model`과 Render 로그에서 확인
-- 장애 대응: AI를 사용할 수 없으면 프론트가 규칙 기반 안내로 폴백하며, 기록 입력은 화면에 유지됩니다.
-
-## 환경 변수
-
-| 변수 | 필수 | 설명 |
-|---|---:|---|
-| `PORT` | 호스팅 제공 | Node 수신 포트 |
-| `DALBIT_DATA_DIR` | 운영 권장 | 기록 파일 디렉터리 |
-| `CAFE24_LLM_API_KEY` | AI 사용 시 | 서버 전용 API 키 |
-| `CAFE24_LLM_MODEL` | 아니오 | 기본 `cafe24/auto` |
-| `CAFE24_LLM_BASE_URL` | 아니오 | 별도 Router 엔드포인트 사용 시 |
-
-호환용 별칭 `LLM_ROUTER_KEY`, `LLM_ROUTER_URL`도 코드에서 인식하지만 새 설정에는 Cafe24 이름을 사용합니다. 값 예시는 루트의 `.env.example`에 있습니다.
-
-## 배포 흐름
-
-```text
-GitHub main push
-  → Render: npm ci && npm run build
-  → Render: npm start
-  → Node가 dist/client와 /api/*를 함께 제공
-  → Render custom domain에 가비아 DNS 연결
-```
-
-회사 서버 직접 배포에서는 `Nginx :443 → Node 127.0.0.1:3000`이 앞에 추가됩니다. 저장·쿠키가 갈리지 않도록 Render와 회사 서버 중 하나만 대표 운영 서버로 선택합니다.
-
-## 가비아 연결 전 필수 체크
-
-- [ ] Render 운영 서비스를 Web Service로 유지
-- [ ] 저장 정책 선택: persistent disk 또는 PostgreSQL 어댑터 구현
-- [ ] `CAFE24_LLM_API_KEY`와 모델 설정 확인
-- [ ] Render에 사용자 도메인 추가 후 안내된 DNS 레코드를 가비아에 등록
-- [ ] HTTPS 발급 완료 후 `https://사용자도메인/api/health` 확인
-- [ ] 사용자 도메인에서 기록 저장→새로고침→복구→삭제 확인
-- [ ] 상담과 대운 판독 각각 실제 응답 및 실패 폴백 확인
-- [ ] 기존 `onrender.com` 주소를 함께 쓸 경우 기록이 도메인별 쿠키로 갈린다는 점 확인
-
-## 다음 구조 변경 우선순위
-
-1. 운영 데이터 영속화
-2. 세션 기반 요청 제한을 공유 저장소로 이전
-3. 필요할 때만 계정/기기 간 동기화 도입
-4. Cloudflare 경로를 완성하거나 제거해 배포 대상을 하나로 유지
+실제 서버 절차는 [`COMPANY-SERVER-DEPLOY.md`](COMPANY-SERVER-DEPLOY.md)를 따릅니다.

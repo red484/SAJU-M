@@ -4,5 +4,6 @@ node_modules/
 .wrangler/
 .env*
 !.env.example
+!.env.production.example
 src/generated-assets.js
 .data/

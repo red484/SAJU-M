@@ -6,6 +6,8 @@ import { signalsOf } from '../src/client/engine.js';
 const oldKey = process.env.CAFE24_LLM_API_KEY;
 const oldModel = process.env.CAFE24_LLM_MODEL;
 const oldBaseUrl = process.env.CAFE24_LLM_BASE_URL;
+const oldKeys = process.env.CAFE24_LLM_API_KEYS;
+const oldLabels = process.env.CAFE24_LLM_KEY_LABELS;
 const oldFetch = globalThis.fetch;
 
 try {
@@ -41,6 +43,28 @@ try {
   assert.equal(request.body.metadata.project, 'dalbit-saju');
   assert.equal(result.text, '상담 답변');
   assert.deepEqual(result.usage, { in: 12, out: 8 });
+
+  // 일시적인 429에서는 다음 키로 넘기고, 어떤 키였는지 안전한 라벨만 남깁니다.
+  delete process.env.CAFE24_LLM_API_KEY;
+  process.env.CAFE24_LLM_API_KEYS = 'sk-first,sk-second';
+  process.env.CAFE24_LLM_KEY_LABELS = 'primary,backup';
+  const auth = [];
+  globalThis.fetch = async (_url, options) => {
+    auth.push(options.headers.Authorization);
+    if (auth.length === 1) return new Response(JSON.stringify({ error: { message: 'busy' } }), {
+      status: 429, headers: { 'Content-Type': 'application/json' }
+    });
+    return new Response(JSON.stringify({
+      model: 'fallback-model', choices: [{ message: { content: '보조 키 답변' }, finish_reason: 'stop' }]
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  const fallback = await chatCompletion({ messages: [{ role: 'user', content: '질문' }], maxTokens: 10 });
+  assert.deepEqual(auth, ['Bearer sk-first', 'Bearer sk-second']);
+  assert.equal(fallback.text, '보조 키 답변');
+  assert.equal(fallback.keyLabel, 'backup');
+  process.env.CAFE24_LLM_API_KEY = 'sk-cafe24-test';
+  delete process.env.CAFE24_LLM_API_KEYS;
+  delete process.env.CAFE24_LLM_KEY_LABELS;
   await assert.rejects(() => chatCompletion({
     messages: [{ role: 'user', content: '시간 초과 테스트' }], maxTokens: 10,
     deadlineAt: Date.now() - 1
@@ -212,5 +236,9 @@ try {
   else process.env.CAFE24_LLM_MODEL = oldModel;
   if (oldBaseUrl === undefined) delete process.env.CAFE24_LLM_BASE_URL;
   else process.env.CAFE24_LLM_BASE_URL = oldBaseUrl;
+  if (oldKeys === undefined) delete process.env.CAFE24_LLM_API_KEYS;
+  else process.env.CAFE24_LLM_API_KEYS = oldKeys;
+  if (oldLabels === undefined) delete process.env.CAFE24_LLM_KEY_LABELS;
+  else process.env.CAFE24_LLM_KEY_LABELS = oldLabels;
   globalThis.fetch = oldFetch;
 }

@@ -316,7 +316,7 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
     faults = critique(res.text, readBasis(res.text), turn);
   }
   const basis = readBasis(res.text);
-  const shape = { model: res.model, finishReason: res.finishReason, truncated: res.truncated,
+  const shape = { model: res.model, keyLabel: res.keyLabel, usage: res.usage, finishReason: res.finishReason, truncated: res.truncated,
     continuations: res.continuations, turn, sections: hasSections(res.text, turn), leaks: jargonLeaks(stripBasis(res.text)), faults: faults.length, basis };
   if (!shape.sections) return { error: '답변 형식이 어긋났습니다.', status: 502, shape };
 

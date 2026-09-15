@@ -6,11 +6,11 @@
 
 ## 아키텍처
 
-현재 운영 기준은 **Render Node Web Service 한 곳에서 프론트와 API를 함께 제공하는 동일 출처 구조**입니다. 회원 계정·결제·PostgreSQL은 아직 없으며, 기록은 HttpOnly 세션 쿠키별 JSON 파일로 저장됩니다.
+운영 기준은 **Lightsail Docker + PostgreSQL**입니다. `saju-web` Nginx가 정적 프론트를, `saju-backend` Node가 API를 맡고, 공용 PostgreSQL에 익명 세션·보관함·AI 사용 기록·감사 로그를 저장합니다. Toss 로그인·결제·이용권은 포함하지 않습니다.
 
 프론트/백엔드/저장소/외부 AI의 현재 데이터 흐름은 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), 실서비스 목표 구조와 구현 순서는 [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md)에 정리했습니다. 환경 변수 이름은 [`.env.example`](.env.example)을 기준으로 합니다.
 
-회사 서버에 직접 배포해 가비아 도메인과 Nginx를 연결하는 절차는 [`docs/COMPANY-SERVER-DEPLOY.md`](docs/COMPANY-SERVER-DEPLOY.md)에 있으며, 바로 적용할 Nginx와 systemd 템플릿은 [`deploy/`](deploy/)에 있습니다.
+회사 서버에 직접 배포해 가비아 도메인과 Nginx를 연결하는 절차는 [`docs/COMPANY-SERVER-DEPLOY.md`](docs/COMPANY-SERVER-DEPLOY.md)에 있으며, 컨테이너·외부 Lightsail Nginx 설정은 [`deploy/`](deploy/)에 있습니다.
 
 ## 실행
 
@@ -19,15 +19,13 @@ Node.js 22 이상, npm을 사용합니다.
 ```sh
 npm ci
 npm run build
-npx wrangler d1 migrations apply dalbit-local --local
-npm run dev          # http://localhost:8766
+npm run dev          # http://localhost:3000, 로컬 파일 저장 fallback
 ```
 
-Render(또는 일반 Node 호스팅)용 서버는 별도로 띄웁니다.
+PostgreSQL API만 직접 실행하려면 `DATABASE_URL`을 설정합니다.
 
 ```sh
-npm ci && npm run build
-npm start            # http://localhost:3000
+DATABASE_URL=postgresql://... npm run server  # http://localhost:9090
 ```
 
 ### 테스트
@@ -39,37 +37,23 @@ node tests/storage.test.mjs   # 로컬 서버 실행 중에만
 
 저장 테스트는 별도 세션에 테스트 기록을 만들고 지웁니다.
 
-## 배포 (Render)
+## 배포 (Lightsail Docker)
 
-저장 API가 필요하므로 Static Site가 아니라 **Web Service**로 만듭니다. 정적 배포하면 첫 화면은 뜨지만 `load()`가 실패해 저장 기능이 전부 멈춥니다.
+운영은 `Dockerfile`의 `web`, `backend`, `db-init` target과 `docker-compose.prd.yml`을 사용합니다. 환경 변수는 `.env.production.example`을 복사해 서버에서만 채웁니다.
 
-| 항목 | 값 |
-|---|---|
-| Service Type | Web Service |
-| Branch | `main` |
-| Runtime | Node |
-| Build Command | `npm ci && npm run build` |
-| Start Command | `npm start` |
-| Environment Variable | `NODE_VERSION=22` |
-
-`package.json`에 `engines` 필드가 없어 호스팅 기본값이 적용되므로 `NODE_VERSION`은 생략하지 마세요. `render.yaml`이 위 값을 담고 있어 Blueprint로 연결하면 수동 입력이 필요 없습니다. 수동 생성하면 이후 `render.yaml` 변경이 배포에 반영되지 않습니다.
-
-### 저장소와 플랜
-
-기록은 세션별 JSON 파일로 보관됩니다. 현재 설정은 **free 플랜이라 디스크가 없고**, 파일은 인스턴스의 임시 저장소(`DALBIT_DATA_DIR` 미지정 시 `.data/`)에 쌓입니다. **재배포·재시작·유휴 슬립 때 상담과 기록이 사라집니다.** 시연에는 충분하지만 실제 사용자를 받을 때는 유료 플랜으로 올리고 persistent disk를 붙여야 합니다.
-
-```yaml
-    plan: starter
-    envVars:
-      - key: DALBIT_DATA_DIR
-        value: /var/data/dalbit-saju
-    disk:
-      name: dalbit-saju-data
-      mountPath: /var/data
-      sizeGB: 1
+```sh
+docker network create levelup-net       # 공용 network가 없을 때 한 번만
+docker compose --env-file .env.production -f docker-compose.prd.yml up -d --build
+docker compose --env-file .env.production -f docker-compose.prd.yml ps
 ```
 
-Cloudflare Worker 설정(`wrangler.jsonc`, D1)도 함께 들어 있지만 Render 배포에는 쓰이지 않습니다. **둘 중 하나만 운영하세요.** 두 곳에 띄우면 보관함이 갈려 같은 사용자가 기기마다 다른 기록을 보게 됩니다.
+외부 Nginx와 인증서는 `deploy/lightsail/nginx/saju.conf`를 기준으로 연결합니다. 현재 기본 도메인은 `saju.ashwoodfriends.com`이며 실제 배포 도메인이 다르면 server_name과 인증서 경로를 함께 바꿉니다.
+
+### 저장소
+
+운영 backend는 `DATABASE_URL`이 필수이며 시작 시 `server/migrations`를 자동 적용합니다. `saju_journals`는 revision 기반 충돌 방지를 유지하고, `usage_sessions`, `llm_requests`, `audit_logs`가 운영 이력을 남깁니다.
+
+Cloudflare Worker/D1 경로는 제거했습니다. `npm run dev`의 파일 repository는 로컬 개발과 장애 재현용이며 production compose에서는 사용하지 않습니다.
 
 ## 구현한 기능
 
@@ -203,7 +187,7 @@ Cloudflare Worker 설정(`wrangler.jsonc`, D1)도 함께 들어 있지만 Render
 - **겹침 제거.** 이어쓰기가 앞말을 되풀이하는 모델이 있어, 가장 긴 겹침(여섯 글자 이상)을 찾아 잘라내고 붙입니다.
 - **제목 검사.** 세 제목이 각각 한 줄에 그대로 서 있는지 봅니다(본문에 우연히 섞인 같은 말은 세지 않습니다). 빠졌으면 형식을 못박아 한 번만 다시 받고, 그래도 어긋나면 502로 돌려 규칙 코칭이 답하게 합니다.
 - **대운 판독**도 같은 이어받기를 씁니다. JSON은 한 글자만 잘려도 통째로 못 읽기 때문에 오히려 더 필요합니다.
-- **관측.** 응답에 `shape: {model, finishReason, truncated, continuations, sections}`가 실리고, 서버는 `LLM coach model=… finish=… continuations=…` 형태로 로그를 남깁니다. Render 로그에서 바로 보입니다. `model`은 라우터가 **실제로 고른** 모델이라, `cafe24/auto`가 무엇으로 풀렸는지 여기서 확인합니다.
+- **관측.** 응답의 `shape`와 구조화 서버 로그에 실제 모델·종료 이유·잘림·이어받기·키 라벨이 기록되고, 운영 DB의 `usage_sessions`, `llm_requests`에는 원문을 제외한 상태·토큰·지연시간이 남습니다.
 
 이어쓰기 조각은 앞 공백을 지우지 않고 붙입니다. 다듬기를 조각마다 하면 `여기서` + ` 끊겼다가`가 `여기서끊겼다가`로 붙어버리기 때문입니다.
 
@@ -243,7 +227,7 @@ Cloudflare Worker 설정(`wrangler.jsonc`, D1)도 함께 들어 있지만 Render
 
 저장은 `navigator.canShare({files})`가 되는 기기에서는 시스템 공유 시트를, 아니면 바로 내려받기로 떨어집니다.
 
-Render에서는 Environment Variables에 `CAFE24_LLM_API_KEY`를 추가하면 켜집니다(`LLM_ROUTER_KEY`도 인식합니다). 기본 모델은 자동 라우팅을 사용하는 `cafe24/auto`이며 `CAFE24_LLM_MODEL`로 카페24 모델 목록의 ID나 `@preset/이름`을 지정할 수 있습니다. Base URL을 별도로 운영하는 경우에만 `CAFE24_LLM_BASE_URL` 또는 `LLM_ROUTER_URL`을 설정하세요.
+운영 `.env.production`에 `CAFE24_LLM_API_KEY`를 추가하면 켜집니다(`LLM_ROUTER_KEY`도 인식합니다). 쉼표로 구분한 `CAFE24_LLM_API_KEYS`와 `CAFE24_LLM_KEY_LABELS`를 지정하면 429·일시적 5xx 때 다음 키로 폴백합니다. 기본 모델은 `cafe24/auto`이며 `CAFE24_LLM_MODEL`로 모델 ID나 preset을 지정할 수 있습니다.
 
 ### 상담 화면
 
@@ -326,7 +310,6 @@ PNG 1.8MB가 빠졌습니다.
 
 - `src/client/constants.js`, `src/client/time.js` — 만세력 의존이 없는 조회표와 날짜 헬퍼. 첫 화면과 생년월일 입력이 이것만으로 그려집니다.
 - `src/client/engine.js` — 별도 엔트리(`/engine.js`)로 빌드됩니다. 실패한 dynamic import는 브라우저 module map에 URL 기준으로 영구 캐시되므로, 재시도가 실제로 동작하려면 URL을 바꿀 수 있어야 합니다(`?r=N`).
-- Worker 자산 목록은 `dist/client` 전체를 훑어 생성되므로 청크가 자동 포함됩니다.
 
 ## 명확한 범위
 
@@ -348,4 +331,4 @@ PNG 1.8MB가 빠졌습니다.
 
 기존 Sites 프로젝트 ID는 `.openai/hosting.json`에 유지되어 있습니다. 현재 연결 계정에서 기존 사이트를 찾지 못해 해당 경로로는 게시하지 않았습니다. 새 사이트를 임의로 생성하지 않았습니다.
 
-이미지는 개별 WebP로 제공하며 초기 HTML에 삽입하지 않습니다. `src/generated-assets.js`는 빌드 시 Worker용 자산으로 생성되며 브라우저 HTML에는 포함되지 않습니다.
+이미지는 개별 WebP로 제공하며 초기 HTML에 삽입하지 않습니다.

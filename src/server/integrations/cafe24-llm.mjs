@@ -1,11 +1,16 @@
 const DEFAULT_BASE_URL = 'https://llm-router.cafe24.com/api/v1';
 
-const apiKey = () => process.env.CAFE24_LLM_API_KEY || process.env.LLM_ROUTER_KEY || '';
+const apiKeys = () => {
+  const values = [process.env.CAFE24_LLM_API_KEY || process.env.LLM_ROUTER_KEY || '',
+    ...(process.env.CAFE24_LLM_API_KEYS || '').split(',')].map(value => value.trim()).filter(Boolean);
+  const labels = (process.env.CAFE24_LLM_KEY_LABELS || '').split(',').map(value => value.trim());
+  return [...new Set(values)].map((key, index) => ({ key, label: labels[index] || `key-${index + 1}` }));
+};
 const baseUrl = () => (process.env.CAFE24_LLM_BASE_URL || process.env.LLM_ROUTER_URL || DEFAULT_BASE_URL)
   .replace(/\/+$/, '').replace(/\/api\/v1$/, '') + '/api/v1';
 
 export const model = () => process.env.CAFE24_LLM_MODEL || 'cafe24/auto';
-export const enabled = () => Boolean(apiKey());
+export const enabled = () => apiKeys().length > 0;
 
 const contentText = content => {
   if (typeof content === 'string') return content;
@@ -29,7 +34,7 @@ function join(head, tail) {
 const CONTINUE_PROSE = '끊긴 지점에서 바로 이어서 계속 쓰세요. 앞서 쓴 문장을 다시 쓰지 말고, 인사나 설명도 붙이지 마세요.';
 const CONTINUE_JSON = '위 JSON이 중간에서 끊겼습니다. 끊긴 지점의 다음 글자부터 이어서 출력해 JSON을 완성하세요. 앞부분을 다시 쓰지 말고, 코드펜스나 설명도 붙이지 마세요.';
 
-async function once({ messages, maxTokens, temperature, metadata, deadlineAt = Infinity }) {
+async function onceWithKey(keyEntry, { messages, maxTokens, temperature, metadata, deadlineAt = Infinity }) {
   const controller = new AbortController();
   const remaining = Math.min(45_000, deadlineAt - Date.now());
   if (remaining <= 0) throw new Error('Cafe24 LLM Router deadline exceeded');
@@ -38,7 +43,7 @@ async function once({ messages, maxTokens, temperature, metadata, deadlineAt = I
     const response = await fetch(`${baseUrl()}/chat/completions`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey()}`,
+        Authorization: `Bearer ${keyEntry.key}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -65,6 +70,7 @@ async function once({ messages, maxTokens, temperature, metadata, deadlineAt = I
       // 라우터가 어느 이름으로 주든 잡습니다. 'length'면 토큰이 모자라 끊긴 겁니다.
       finishReason: choice?.finish_reason ?? choice?.finishReason ?? null,
       model: body.model,
+      keyLabel: keyEntry.label,
       usage: {
         in: body.usage?.prompt_tokens,
         out: body.usage?.completion_tokens
@@ -73,6 +79,21 @@ async function once({ messages, maxTokens, temperature, metadata, deadlineAt = I
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function once(options) {
+  const keys = apiKeys();
+  if (!keys.length) throw new Error('Cafe24 LLM Router key is not configured');
+  let lastError;
+  for (const key of keys) {
+    try {
+      return await onceWithKey(key, options);
+    } catch (error) {
+      lastError = error;
+      if (![429, 500, 502, 503, 504].includes(error?.status)) throw error;
+    }
+  }
+  throw lastError;
 }
 
 // 답이 max_tokens에 걸려 잘리면 이어서 받아옵니다. 같은 요청을 처음부터
@@ -102,6 +123,7 @@ export async function chatCompletion({ messages, maxTokens, temperature, metadat
     truncated: res.finishReason === 'length',
     continuations: rounds,
     model: res.model,
+    keyLabel: res.keyLabel,
     usage
   };
 }

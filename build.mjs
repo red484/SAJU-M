@@ -1,4 +1,4 @@
-import {mkdir,copyFile,cp,readFile,rm,writeFile,readdir} from 'node:fs/promises';
+import {mkdir,copyFile,cp,readFile,rm,writeFile} from 'node:fs/promises';
 import {build} from 'esbuild';
 await rm('dist',{recursive:true,force:true});await mkdir('dist/client/assets',{recursive:true});await mkdir('dist/server',{recursive:true});
 // splitting keeps the 만세력 tables out of the entry chunk; app.js stays the
@@ -12,7 +12,6 @@ await build({entryPoints:['src/client/app.js','src/client/engine.js'],bundle:tru
 await copyFile('THIRD_PARTY_NOTICES.txt','dist/client/THIRD_PARTY_NOTICES.txt');
 await writeFile('dist/client/app.css',(await readFile('src/client/styles/app.css','utf8'))+'\n'+(await readFile('src/client/styles/design.css','utf8')));await copyFile('index.html','dist/client/index.html');
 for(const name of ['splash','mark','mentorAvatar','mentorHeader','todayRest','todayTalk','todayDeal','todayDuty','todayStart','hanji','compassCore','branchPine','element-wood','element-fire','element-earth','element-metal',...['wood','fire','earth','metal'].flatMap(e=>[0,1,3].map(n=>`element-${e}-${n}`))])await copyFile(`assets/${name}.webp`,`dist/client/assets/${name}.webp`);
-// Same-origin asset fallback keeps the Worker portable when an ASSETS binding is absent.
 await copyFile('assets/ink-waterfall.png','dist/client/assets/ink-waterfall.png');
 await copyFile('assets/chat-mountains.png','dist/client/assets/chat-mountains.png');
 await copyFile('assets/chat-crane.png','dist/client/assets/chat-crane.png');
@@ -21,12 +20,4 @@ await copyFile('assets/element-plate.png','dist/client/assets/element-plate.png'
 await mkdir('dist/client/assets/fonts',{recursive:true});
 for(const w of ['Regular','SemiBold','Bold'])await copyFile(`assets/fonts/MaruBuri-${w}.woff2`,`dist/client/assets/fonts/MaruBuri-${w}.woff2`);
 for(const name of ['branchPlum','branchMaple','scenery'])await copyFile(`assets/${name}.webp`,`dist/client/assets/${name}.webp`);
-const TYPES={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.txt':'text/plain; charset=utf-8','.webp':'image/webp','.png':'image/png','.woff2':'font/woff2'};
-// Walk the whole tree so code-split chunks are picked up as they are emitted,
-// instead of listing entry filenames by hand.
-async function walk(dir,prefix=''){const out=[];for(const e of await readdir(dir,{withFileTypes:true}))out.push(...e.isDirectory()?await walk(`${dir}/${e.name}`,`${prefix}${e.name}/`):[prefix+e.name]);return out;}
-const assets={};for(const f of (await walk('dist/client')).sort()){const bytes=await readFile('dist/client/'+f);const type=TYPES[f.slice(f.lastIndexOf('.'))];if(!type)throw new Error('unknown asset type for '+f);assets['/'+f]={body:bytes.toString('base64'),type};}
-await writeFile('src/generated-assets.js','export default '+JSON.stringify(assets));
-await build({entryPoints:['src/worker.js'],bundle:true,minify:true,format:'esm',outfile:'dist/server/index.js',target:'es2022'});
-await mkdir('dist/.openai',{recursive:true});await copyFile('.openai/hosting.json','dist/.openai/hosting.json');
-console.log('Client, Worker and local assets built successfully.');
+console.log('Client assets built successfully.');

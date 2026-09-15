@@ -1,0 +1,65 @@
+name: saju-m
+
+services:
+  db-init:
+    build:
+      context: .
+      target: db-init
+    restart: "no"
+    networks:
+      - levelup-net
+    environment:
+      POSTGRES_ADMIN_URL: ${POSTGRES_ADMIN_URL:?POSTGRES_ADMIN_URL is required}
+      POSTGRES_URL: ${POSTGRES_URL:?POSTGRES_URL is required}
+
+  backend:
+    container_name: saju-backend
+    build:
+      context: .
+      target: backend
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    networks:
+      - levelup-net
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 9090
+      DATABASE_URL: ${POSTGRES_URL:?POSTGRES_URL is required}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      CAFE24_LLM_API_KEY: ${CAFE24_LLM_API_KEY:-}
+      CAFE24_LLM_API_KEYS: ${CAFE24_LLM_API_KEYS:-}
+      CAFE24_LLM_KEY_LABELS: ${CAFE24_LLM_KEY_LABELS:-}
+      CAFE24_LLM_MODEL: ${CAFE24_LLM_MODEL:-cafe24/auto}
+      CAFE24_LLM_BASE_URL: ${CAFE24_LLM_BASE_URL:-}
+    expose:
+      - "9090"
+    ports:
+      - "127.0.0.1:${BACKEND_HTTP_PORT:-19101}:9090"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9090/api/ready').then(r=>{if(!r.ok)process.exit(1)})"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  web:
+    container_name: saju-web
+    build:
+      context: .
+      target: web
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - levelup-net
+    ports:
+      - "127.0.0.1:${HTTP_PORT:-19100}:80"
+    restart: unless-stopped
+
+networks:
+  levelup-net:
+    name: levelup-net
+    external: true

@@ -211,7 +211,7 @@ export async function epicReading(raw) {
     });
     out = read(res);
   }
-  const shape = { model: res.model, finishReason: res.finishReason, truncated: res.truncated,
+  const shape = { model: res.model, keyLabel: res.keyLabel, usage: res.usage, finishReason: res.finishReason, truncated: res.truncated,
     continuations: res.continuations, schema: Boolean(out) };
   if (!out) return { error: '판독 결과를 읽지 못했어요. 잠시 뒤에 다시 시도해 주세요.', status: 502, shape };
   return { reading: out, shape };
