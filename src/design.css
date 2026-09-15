@@ -429,6 +429,13 @@ nav[aria-label="주요 메뉴"]{
 .balance:has(.element-plate) .element-legend li.is-dominant{border-color:#ad8747;box-shadow:inset 0 0 0 2px #fffaf0,0 3px 12px #9a7b2510}
 .balance:has(.element-plate) .is-dominant b{color:var(--element)}
 .element-card .element-caption{text-align:center;border-color:#bfa46b65;margin:22px 0 18px;padding-top:18px;font-size:.88rem;line-height:1.8}
+/* Mobile intrinsic sizes must not push the seven calendar columns off-screen. */
+body[data-page=today] main,body[data-page=today] main>section{min-width:0;max-width:100%}
+body[data-page=today] .cal-grid{grid-template-columns:repeat(7,minmax(0,1fr));width:100%;gap:4px}
+body[data-page=today] .cal-grid>*{min-width:0}
+body[data-page=today] .cal-day{aspect-ratio:auto;min-width:0;min-height:44px;padding:3px 0}
+nav[aria-label="주요 메뉴"] button{min-width:0}
+button:disabled{cursor:not-allowed}
 /* Two glass densities: quiet reading surfaces and more opaque title bars. */
 :root{--reading-glass:linear-gradient(125deg,#ffffffb8 0%,#fffdf775 38%,#f6f4e982 70%,#ffffffa3 100%);--title-glass:linear-gradient(125deg,#fffffff0 0%,#fffdf7cc 38%,#f6f4e9d9 70%,#ffffffeb 100%)}
 .block>.card,.block>.flow-card,#epic,body[data-page=today] main>.card,body[data-page=today] .signals>div,body[data-page=today] .action-card,body[data-page=today] #cal{
@@ -445,9 +452,10 @@ nav[aria-label="주요 메뉴"]{
 .epic-toolbar .block-title{background:none;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
 body[data-page=today] #cal{padding:18px;border-radius:var(--radius-lg)}
 body[data-page=today] #cal>.block-title{margin:-18px -18px 18px}
-body[data-page=today] .daily-image>div{margin:100px 12px 12px;padding:22px;border-radius:18px;background:var(--reading-glass);border:1px solid #ffffffc0;box-shadow:inset 0 1px 0 #fff,0 5px 18px #183e3515;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);color:#294640}
+body[data-page=today] .daily-image{display:flow-root;height:auto;min-height:0;padding:100px 12px 12px}
+body[data-page=today] .daily-image>div{margin:0;padding:22px;border-radius:18px;background:var(--reading-glass);border:1px solid #ffffffc0;box-shadow:inset 0 1px 0 #fff,0 5px 18px #183e3515;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);color:#294640}
 body[data-page=today] .daily-image :is(h2,p,span){color:#294640}
 body[data-page=today] .daily-image:after{background:linear-gradient(0deg,#173e3530,transparent 70%)}
-@media(max-width:420px){body[data-page=today] #cal{padding:12px}body[data-page=today] #cal>.block-title{margin:-12px -12px 14px}body[data-page=today] .daily-image>div{padding:18px;margin-top:90px}}
+@media(max-width:420px){body[data-page=today] #cal{padding:12px}body[data-page=today] #cal>.block-title{margin:-12px -12px 14px}body[data-page=today] .daily-image{padding-top:80px}body[data-page=today] .daily-image>div{padding:18px;margin:0}}
 @media(prefers-reduced-transparency:reduce){.block>.card,.block>.flow-card,#epic,.section-top,.block-title,.result-layer-title,.epic-toolbar,body[data-page=today] main>.card,body[data-page=today] .signals>div,body[data-page=today] .action-card,body[data-page=today] #cal,body[data-page=today] .daily-image>div{background:#faf9f3;backdrop-filter:none;-webkit-backdrop-filter:none}}
 @media(max-width:380px){.balance:has(.element-plate) .element-legend{gap:5px}.balance:has(.element-plate) .element-legend li{border-radius:13px;padding:12px 2px}.balance:has(.element-plate) .element-legend li>span:not(.element-meter){font-size:.7rem}}

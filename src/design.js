@@ -13,6 +13,12 @@ let motionPaused = false;
 let jumpObserver = null;
 
 export function dressPage({page, result, profile}) {
+  document.querySelectorAll('[data-nav="choice"],[data-nav="records"]').forEach(button => {
+    button.disabled = true;
+    button.setAttribute('aria-disabled', 'true');
+    button.title = '준비 중';
+    button.setAttribute('aria-label', `${button.textContent.trim()} · 준비 중`);
+  });
   document.body.classList.add('moonbook');
   jumpObserver?.disconnect();
   jumpObserver = null;
