@@ -1,0 +1,26 @@
+[Unit]
+Description=Dalbit Saju Node web service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dalbit
+Group=dalbit
+WorkingDirectory=/srv/dalbit-saju/current
+EnvironmentFile=/etc/dalbit-saju.env
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3000
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/dalbit-saju
+
+[Install]
+WantedBy=multi-user.target

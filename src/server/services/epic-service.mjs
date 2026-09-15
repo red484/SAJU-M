@@ -1,7 +1,7 @@
 // 대운 서사 판독. 상담과 달리 한 번에 한 편을 뽑고 JSON으로 받습니다.
 // 원형은 빌려오지 않았습니다 — 십이운성 열두 단계가 이미 생애의 부침을
 // 담고 있고, 그건 지어낸 상징이 아니라 명식에서 계산된 값입니다.
-import { chatCompletion, enabled, parseJsonReply } from './cafe24-llm.mjs';
+import { chatCompletion, enabled, parseJsonReply } from '../integrations/cafe24-llm.mjs';
 
 export { enabled };
 

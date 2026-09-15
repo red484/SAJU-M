@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import { chatCompletion, enabled, model, parseJsonReply } from '../src/cafe24-llm.mjs';
-import { hasSections, jargonLeaks, critique, readBasis, stripBasis } from '../src/coach-server.mjs';
-import { signalsOf } from '../src/engine.js';
+import { chatCompletion, enabled, model, parseJsonReply } from '../src/server/integrations/cafe24-llm.mjs';
+import { hasSections, jargonLeaks, critique, readBasis, stripBasis } from '../src/server/services/coach-service.mjs';
+import { signalsOf } from '../src/client/engine.js';
 
 const oldKey = process.env.CAFE24_LLM_API_KEY;
 const oldModel = process.env.CAFE24_LLM_MODEL;

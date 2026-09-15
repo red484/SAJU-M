@@ -1,7 +1,7 @@
 // 실제 상담 연동. 키가 없으면 이 모듈은 스스로 비활성이라고 답하고,
 // 클라이언트는 기존 규칙 기반 코칭으로 돌아갑니다.
-import { chatCompletion, enabled } from './cafe24-llm.mjs';
-import { safety } from './engine.js';
+import { chatCompletion, enabled } from '../integrations/cafe24-llm.mjs';
+import { safety } from '../../client/engine.js';
 
 export { enabled };
 

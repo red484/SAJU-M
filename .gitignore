@@ -1,6 +1,8 @@
 dist/
+.DS_Store
 node_modules/
 .wrangler/
 .env*
+!.env.example
 src/generated-assets.js
 .data/

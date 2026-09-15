@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mergeJournal } from '../src/journal-merge.js';
+import { mergeJournal } from '../src/client/journal-merge.js';
 
 const base = { profile: { name: '테스트' }, records: [{ id: 'a', title: '기존' }], conversations: [], savedAnswers: [] };
 const local = { ...base, records: [...base.records, { id: 'b', title: '내 기록' }] };

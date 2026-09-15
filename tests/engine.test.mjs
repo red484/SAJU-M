@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {clashes,shinsal,dayReading,daySelect,goodDays,dayName,dayIndex,monthIndex,calculate,coach,monthly,topicReading,flow,safety,manse,fortune} from '../src/engine.js';
+import {clashes,shinsal,dayReading,daySelect,goodDays,dayName,dayIndex,monthIndex,calculate,coach,monthly,topicReading,flow,safety,manse,fortune} from '../src/client/engine.js';
 const base={name:'테스트',birth:'1995-05-17',time:'15:30',zone:'Asia/Seoul',longitude:126.978,clock:'civil',calendar:'solar',topics:['진로']};
 const a=calculate(base);assert.equal(a.total,8);assert.equal(a.pillars.map(p=>p.gz).join(' '),'乙亥 辛巳 戊申 庚申');
 const lunar=calculate({...base,birth:'1956-01-21',calendar:'lunar'});assert.equal(lunar.solarDate,'1956-03-03');
