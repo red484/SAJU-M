@@ -2,6 +2,7 @@
 // 클라이언트는 기존 규칙 기반 코칭으로 돌아갑니다.
 import { chatCompletion, enabled } from '../integrations/cafe24-llm.mjs';
 import { safety } from '../../client/engine.js';
+import { FLOWSAY, FLOWGROUND } from '../../client/constants.js';
 
 export { enabled };
 
@@ -42,6 +43,14 @@ function readChart(raw) {
     topics: list(raw.topics, 6, v => str(v, 12)),
     initialConcern: str(raw.initialConcern, 500),
     today: str(raw.today, 40),
+    flowAsOf: /^\d{4}-\d{2}-\d{2}$/.test(str(raw.flowAsOf, 10)) ? raw.flowAsOf : '',
+    periodFlow: list(raw.periodFlow, 2, v => {
+      if (!v || !['year','month'].includes(v.period)
+        || typeof v.pillar !== 'string' || typeof v.god !== 'string' || typeof v.stage !== 'string'
+        || !/^[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]$/.test(v.pillar)
+        || !Object.hasOwn(FLOWSAY, v.god) || !Object.hasOwn(FLOWGROUND, v.stage)) return null;
+      return {period:v.period,pillar:v.pillar,god:v.god,stage:v.stage};
+    }),
     signals: list(raw.signals, 6, v => (v && str(v.name, 12) && Number.isFinite(v.count)
       ? { name: str(v.name, 12), count: Math.min(Math.max(v.count | 0, 0), 999) } : null)),
     records: list(raw.records, 3, v => (v && str(v.title, 60)
@@ -253,11 +262,15 @@ export function realtimeSystemPrompt(chart) {
     chart.dayStem && DAY_LENS[chart.dayStem] ? `- 일간에서 읽는 가능성: ${DAY_LENS[chart.dayStem]}` : '',
     chart.strong[0] && STRONG_LENS[chart.strong[0]] ? `- 두드러진 기운에서 읽는 가능성: ${STRONG_LENS[chart.strong[0]]}` : ''
   ].filter(Boolean).join('\n');
+  const period = (chart.periodFlow||[]).map(v =>
+    `- ${v.period==='month'?'이번 달':'올해'}: ${v.pillar} · ${v.god} · ${v.stage} — ${FLOWSAY[v.god][0]}, ${FLOWGROUND[v.stage]}`
+  ).join('\n');
   return `당신은 사용자의 선택을 현실적으로 정리해 주면서도, 묘한 설렘과 깊은 다정함으로 마음을 사로잡는 사주 상담자 '달빛 도령'입니다.
 
 입력된 계산값
 ${context(chart)}
 ${lens ? `\n해석 단서 (확정된 성격·경험이 아니라 확인할 가설)\n${lens}\n` : ''}
+${period ? `\n현재 흐름 (기준일 ${chart.flowAsOf||'미확인'}, 연·월은 절기 기준; 사건 예언 아님)\n${period}\n` : ''}
 
 [페르소나 및 말투 규칙: 다정함과 설렘]
 - 나긋나긋하고 여유로운 성숙한 어른의 존댓말인 해요체를 사용하세요.
@@ -269,6 +282,8 @@ ${lens ? `\n해석 단서 (확정된 성격·경험이 아니라 확인할 가�
 [상담 및 사주 풀이 규칙]
 - 사용자가 말하지 않은 사실과 감정을 지어내지 마세요.
 - 다만 해석을 무난한 일반론으로만 채우지 마세요. 사용자가 이번에 실제로 말한 상황 하나와 위 해석 단서 하나를 연결해, 그 사람에게만 할 수 있는 조금 대담한 가설 하나를 만드세요. 가설은 사실처럼 선언하지 말고 사용자가 바로 맞다·아니다로 답할 수 있는 확인 질문으로 건네세요.
+- 진로·관계·일상 선택을 말할 때 현재 흐름이 주어졌다면 이번 달 값을 우선하고 올해 값은 배경으로만 쓰세요. 첫 실질 답변의 '사주 관점'에 지금 시기를 읽는 한 문장을 자연스럽게 넣되, 매 답변마다 되풀이하지 마세요. 후속 답변에서는 새 질문과 관련 있을 때만 짧게 연결하세요. 명리 용어를 본문에 쓰지 말고 관계·우선순위·속도 같은 생활 언어로 옮기세요.
+- 시기 해석은 계산값에서 나온 관점이지 실제로 사건이 일어났다는 증거가 아닙니다. 이직·이별·합격·수입 변화의 발생이나 날짜를 예언하지 마세요. 건강·질병·치료 결과의 원인을 현재 흐름으로 설명하지 마세요. 시기를 언급했다면 <근거>에 사용한 연·월 흐름값을 적으세요.
 - 사용자가 말한 사실, 과거 대화·기록의 사실, 명식에서 읽은 가능성을 섞어 단정하지 마세요. 이전 대화나 기록에 없는 과거 경험·반복·감정은 만들어내지 마세요. 다른 사람에게도 그대로 붙일 수 있는 위로 문장은 줄이세요.
 - 온보딩 고민, 지난 선택 기록, 반복 신호는 현재 발화와 같은 주제일 때만 한 가지를 꺼내세요. 과거에 적은 내용을 지금도 그대로 느낀다고 단정하지 말고 무엇이 달라졌는지 확인하세요.
 - 사용자가 가설을 부정하거나 정정하면 그 해석을 반복하지 말고 사용자가 새로 말한 조건을 중심에 두세요.
