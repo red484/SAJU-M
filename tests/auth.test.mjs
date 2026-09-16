@@ -17,7 +17,7 @@ delete process.env.APPLE_PRIVATE_KEY;
 for (const provider of ['google', 'apple']) {
   const url = new URL(loginUrl(provider), 'https://saju.example.com');
   assert.equal(url.searchParams.get('provider'), provider);
-  assert.equal(url.searchParams.get('returnTo'), '/?onboarding=1');
+  assert.equal(url.searchParams.get('returnTo'), '/?auth=success');
 }
 
 const repository = {
@@ -58,7 +58,7 @@ assert.match(res.headers.Location, /redirect_uri=https%3A%2F%2Fsaju\.example\.co
 assert.equal(res.headers['Set-Cookie'].length, 3);
 assert.match(res.headers.Location, /nonce=/);
 res = await call(loginUrl('google'));
-assert.ok(res.headers['Set-Cookie'].some(value => value.startsWith('dalbit_oauth_return=%2F%3Fonboarding%3D1;')));
+assert.ok(res.headers['Set-Cookie'].some(value => value.startsWith('dalbit_oauth_return=%2F%3Fauth%3Dsuccess;')));
 delete process.env.GOOGLE_CLIENT_ID;
 delete process.env.GOOGLE_CLIENT_SECRET;
 delete process.env.AUTH_BASE_URL;

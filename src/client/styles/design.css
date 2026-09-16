@@ -475,7 +475,8 @@ body[data-page=welcome] #app{display:flow-root;min-height:100dvh;background:#081
 .legal-document{display:block;width:100%;overflow-wrap:anywhere}
 .legal-document h1{font-size:1.55rem}
 .legal-document h2{font-size:1.1rem;margin-top:24px}
-header:has(.header-logout){grid-template-columns:52px minmax(0,1fr) 112px}
+header:has(.header-logout){grid-template-columns:72px minmax(0,1fr) 112px}
+header .header-back{white-space:nowrap}
 header .header-logout{white-space:nowrap;font-size:.72rem;padding-inline:4px}
 .welcome-auth .auth-buttons{gap:10px;margin:0}
 .welcome-auth .auth{min-height:48px;border-radius:12px;font-size:.92rem}
