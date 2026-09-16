@@ -16,6 +16,11 @@ await copyFile('assets/ink-waterfall.png','dist/client/assets/ink-waterfall.png'
 await copyFile('assets/chat-mountains.png','dist/client/assets/chat-mountains.png');
 await copyFile('assets/chat-crane.png','dist/client/assets/chat-crane.png');
 await copyFile('assets/element-plate.png','dist/client/assets/element-plate.png');
+await cp('legal','dist/client/legal',{recursive:true});
+for(const page of ['privacy','terms','support','account-deletion']){
+ await mkdir(`dist/client/${page}`,{recursive:true});
+ await copyFile(`legal/${page}.html`,`dist/client/${page}/index.html`);
+}
 // 마루 부리는 직접 호스팅합니다. 구글 폰트를 쓰지 않으므로 외부 요청이 없습니다.
 await mkdir('dist/client/assets/fonts',{recursive:true});
 for(const w of ['Regular','SemiBold','Bold'])await copyFile(`assets/fonts/MaruBuri-${w}.woff2`,`dist/client/assets/fonts/MaruBuri-${w}.woff2`);

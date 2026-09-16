@@ -399,3 +399,14 @@ ensureEngine().catch(()=>{enginePromise=null;engineTry++;});
 Promise.all([coachAvailable(),epicAvailable()]).then(()=>{if(loaded)render();});
 loadAuth();
 load();
+
+// 정책 페이지는 설정 화면에서 항상 쉽게 찾을 수 있어야 합니다.
+document.addEventListener('click',event=>{
+ const button=event.target.closest('[data-nav="settings"]');
+ if(!button)return;
+ setTimeout(()=>{
+  const zone=document.querySelector('.danger-zone');
+  if(!zone||zone.previousElementSibling?.classList.contains('legal-links'))return;
+  zone.insertAdjacentHTML('beforebegin','<section class="card legal-links"><h2>정책과 고객지원</h2><p>달빛 사주가 정보를 다루는 방식과 이용 기준을 확인할 수 있습니다.</p><div class="legal-link-list"><a href="/privacy/" target="_blank" rel="noopener">개인정보 처리방침</a><a href="/terms/" target="_blank" rel="noopener">서비스 이용약관</a><a href="/support/" target="_blank" rel="noopener">고객지원</a><a href="/account-deletion/" target="_blank" rel="noopener">계정 및 데이터 삭제 안내</a></div></section>');
+ },0);
+});

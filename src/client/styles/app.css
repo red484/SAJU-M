@@ -285,3 +285,4 @@ dialog[open]:has(.daysheet) .modal-close{position:absolute;top:10px;right:12px;z
 .account-state b{color:var(--teal)}.account-state span{font-size:.78rem;color:#766f60}
 .auth-buttons{display:grid;gap:9px;margin-top:14px}.auth{width:100%;min-height:48px;border-radius:13px;font-weight:650;font-size:.92rem}
 .auth.apple{background:#171918;color:#fff;border:1px solid #171918}.auth.google{background:#fff;color:#27312e;border:1px solid #d6d9d7}
+.legal-link-list{display:grid;gap:10px;margin-top:14px}.legal-link-list a{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border:1px solid rgba(37,72,65,.18);border-radius:14px;background:rgba(255,255,255,.46);color:var(--ink);text-decoration:none}.legal-link-list a::after{content:'›';color:var(--teal);font-size:1.25em}
