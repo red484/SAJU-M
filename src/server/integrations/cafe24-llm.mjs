@@ -10,6 +10,7 @@ const baseUrl = () => (process.env.CAFE24_LLM_BASE_URL || process.env.LLM_ROUTER
   .replace(/\/+$/, '').replace(/\/api\/v1$/, '') + '/api/v1';
 
 export const model = () => process.env.CAFE24_LLM_MODEL || 'cafe24/auto';
+const reasoningEffort = () => process.env.CAFE24_LLM_REASONING_EFFORT || 'none';
 export const enabled = () => apiKeys().length > 0;
 
 const contentText = content => {
@@ -51,6 +52,10 @@ async function onceWithKey(keyEntry, { messages, maxTokens, temperature, metadat
         messages,
         max_tokens: maxTokens,
         temperature,
+        // Gemini 2.5 Flash는 기본값에서 동적 사고가 켜져 있어 짧은 상담에도
+        // 출력 예산을 전부 사고 토큰으로 쓸 수 있습니다. OpenAI 호환 옵션으로
+        // 이를 끄되, 운영 환경변수로 필요할 때 다시 조절할 수 있게 합니다.
+        reasoning_effort: reasoningEffort(),
         stream: false,
         metadata: { project: 'dalbit-saju', ...metadata }
       }),

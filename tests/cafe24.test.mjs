@@ -39,6 +39,7 @@ try {
   assert.equal(request.url, 'https://llm-router.cafe24.com/api/v1/chat/completions');
   assert.equal(request.options.headers.Authorization, 'Bearer sk-cafe24-test');
   assert.equal(request.body.model, 'cafe24/auto');
+  assert.equal(request.body.reasoning_effort, 'none');
   assert.equal(request.body.stream, false);
   assert.equal(request.body.metadata.project, 'dalbit-saju');
   assert.equal(result.text, '상담 답변');
