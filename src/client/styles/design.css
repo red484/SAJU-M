@@ -464,6 +464,18 @@ body[data-page=today] .daily-image>div{background:none;border:0;outline:0;box-sh
 body[data-page=today] .daily-image>img{filter:none}
 @media(max-width:380px){.balance:has(.element-plate) .element-legend{gap:5px}.balance:has(.element-plate) .element-legend li{border-radius:13px;padding:12px 2px}.balance:has(.element-plate) .element-legend li>span:not(.element-meter){font-size:.7rem}}
 .welcome-auth{width:100%;max-width:350px;text-align:center;margin-top:4px}
+.welcome-auth{background:transparent;color:inherit}
+html:has(body[data-page=welcome]){background:#081a23;scrollbar-color:#455957 #081a23}
+body[data-page=welcome]{min-height:100dvh;margin:0;padding:0;background:#081a23}
+body[data-page=welcome] #app{display:flow-root;min-height:100dvh;background:#081a23;overflow-x:clip}
+.birth-selects{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px}
+.birth-picker{margin:18px 0 8px}
+.birth-selects select{padding-inline:10px}
+.legal-document{display:block;width:100%;overflow-wrap:anywhere}
+.legal-document h1{font-size:1.55rem}
+.legal-document h2{font-size:1.1rem;margin-top:24px}
+header:has(.header-logout){grid-template-columns:52px minmax(0,1fr) 112px}
+header .header-logout{white-space:nowrap;font-size:.72rem;padding-inline:4px}
 .welcome-auth .auth-buttons{gap:10px;margin:0}
 .welcome-auth .auth{min-height:48px;border-radius:12px;font-size:.92rem}
 .welcome-auth .welcome-link{display:block;width:100%;min-height:44px;margin:8px 0;color:#d5dcce;text-decoration:underline;text-underline-offset:4px}

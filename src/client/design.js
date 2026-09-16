@@ -74,6 +74,8 @@ export function dressPage({page, result, profile}) {
       const save = document.querySelector('.save-status');
       const controls = document.createElement('div');
       controls.className = 'header-controls';
+      const logout = header.querySelector('.header-logout');
+      if (logout) controls.append(logout);
       const menu = document.createElement('details');
       menu.className = 'display-menu';
       const summary = document.createElement('summary');
@@ -81,7 +83,7 @@ export function dressPage({page, result, profile}) {
       const items = document.createElement('div');
       items.className = 'display-menu-items';
       items.append(toggle);
-      if (settings) items.append(settings);
+      if (settings) { settings.textContent = '내 보관함'; items.append(settings); }
       menu.append(summary, items);
       if (save) items.append(save);
       controls.append(menu);
