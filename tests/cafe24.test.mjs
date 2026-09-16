@@ -153,6 +153,7 @@ try {
   assert.equal(hasSections(full), true);
   assert.equal(hasSections(full.replace('사주 관점\n', '')), false);
   assert.equal(hasSections('오늘 할 일을 사주 관점으로 현실 확인 했습니다'), false);
+  assert.equal(hasSections('많이 피곤하셨군요.\n\n' + full), false);
 
   // 명리 용어가 본문에 새면 잡아내는지.
   assert.deepEqual(
@@ -196,6 +197,7 @@ try {
   assert.match(faults.join(' '), /맺음이 흐립니다/);
   assert.match(critique('사주 관점\n본문\n현실 확인\n본문\n오늘 할 일\n본문\n추가 확인 (준수)', '값').join(' '), /내부 지시/);
   assert.match(critique('사주 관점\n지금은 어려운 시기로 보입니다.\n현실 확인\n언제부터인가요?\n오늘 할 일\n눈을 붙여보세요.', '값').join(' '), /건강 행동/);
+  assert.match(critique('사주 관점\n타고나기를 강인한 분이에요.\n현실 확인\n혼자서 그 피곤함을 감당하느라 애쓰셨어요.\n오늘 할 일\n그 일 때문에 피곤했는지 적어봐요.', '값').join(' '), /건강 행동/);
 
   // 고친 답에는 지적이 남지 않아야 합니다.
   const solid = ['사주 관점', '한 번 쥐면 끝까지 놓지 않습니다.', '',
