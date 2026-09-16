@@ -465,6 +465,7 @@ body[data-page=today] .daily-image>img{filter:none}
 @media(max-width:380px){.balance:has(.element-plate) .element-legend{gap:5px}.balance:has(.element-plate) .element-legend li{border-radius:13px;padding:12px 2px}.balance:has(.element-plate) .element-legend li>span:not(.element-meter){font-size:.7rem}}
 .welcome-auth{width:100%;max-width:350px;text-align:center;margin-top:4px}
 .welcome-auth{background:transparent;color:inherit}
+.welcome-auth .auth-failure{margin:0 0 12px;color:#fff0ce;font-size:.8rem;line-height:1.6}
 html:has(body[data-page=welcome]){background:#081a23;scrollbar-color:#455957 #081a23}
 body[data-page=welcome]{min-height:100dvh;margin:0;padding:0;background:#081a23}
 body[data-page=welcome] #app{display:flow-root;min-height:100dvh;background:#081a23;overflow-x:clip}

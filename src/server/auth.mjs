@@ -12,7 +12,13 @@ const authToken = req => readCookie(req, 'dalbit_auth');
 const safeReturn = value => String(value || '/settings').startsWith('/') && !String(value).startsWith('//') ? String(value) : '/settings';
 const configured = provider => provider === 'google'
   ? Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
-  : Boolean(process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY);
+  : Boolean(process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && (process.env.APPLE_PRIVATE_KEY_B64 || process.env.APPLE_PRIVATE_KEY));
+
+export function applePrivateKey() {
+  const encoded = process.env.APPLE_PRIVATE_KEY_B64?.trim();
+  if (encoded) return Buffer.from(encoded, 'base64').toString('utf8').trim();
+  return (process.env.APPLE_PRIVATE_KEY || '').trim().replace(/\\n/g, '\n');
+}
 
 function baseUrl(req) {
   if (process.env.AUTH_BASE_URL) return process.env.AUTH_BASE_URL.replace(/\/$/, '');
@@ -21,7 +27,7 @@ function baseUrl(req) {
 }
 
 async function appleSecret() {
-  const key = await importPKCS8(process.env.APPLE_PRIVATE_KEY.replace(/\\n/g, '\n'), 'ES256');
+  const key = await importPKCS8(applePrivateKey(), 'ES256');
   return new SignJWT({}).setProtectedHeader({ alg: 'ES256', kid: process.env.APPLE_KEY_ID })
     .setIssuer(process.env.APPLE_TEAM_ID).setSubject(process.env.APPLE_CLIENT_ID)
     .setAudience('https://appleid.apple.com').setIssuedAt().setExpirationTime('5m').sign(key);
@@ -79,7 +85,7 @@ export function createAuthRoutes(repository) {
         const location = decodeURIComponent(readCookie(req, 'dalbit_oauth_return') || '%2Fsettings');
         res.writeHead(302, { Location: safeReturn(location), 'Set-Cookie': [sessionCookie(req, session), cookie('dalbit_auth', signed.token, req, 2_592_000), cookie('dalbit_oauth_state', '', req, 0), cookie('dalbit_oauth_nonce', '', req, 0), cookie('dalbit_oauth_return', '', req, 0)] });
         return res.end();
-      } catch (error) { console.error(JSON.stringify({ event: 'auth.failed', provider, error: error.message })); res.writeHead(302, { Location: '/settings?auth=failed' }); return res.end(); }
+      } catch (error) { console.error(JSON.stringify({ event: 'auth.failed', provider, error: error.message })); res.writeHead(302, { Location: '/?auth=failed' }); return res.end(); }
     }
     if (url.pathname === '/api/auth/logout' && req.method === 'POST') {
       if (!validateOrigin(req)) return sendJson(res, { error: '이 사이트에서 다시 시도해 주세요.' }, 403);

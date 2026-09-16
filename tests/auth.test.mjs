@@ -1,6 +1,18 @@
 import assert from 'node:assert/strict';
-import { createAuthRoutes } from '../src/server/auth.mjs';
+import { generateKeyPairSync } from 'node:crypto';
+import { importPKCS8 } from 'jose';
+import { applePrivateKey, createAuthRoutes } from '../src/server/auth.mjs';
 import { loginUrl } from '../src/client/api/auth.js';
+
+const {privateKey} = generateKeyPairSync('ec', {namedCurve:'P-256'});
+const pem = privateKey.export({type:'pkcs8',format:'pem'}).toString().trim();
+process.env.APPLE_PRIVATE_KEY_B64 = Buffer.from(pem).toString('base64');
+assert.equal(applePrivateKey(), pem);
+await importPKCS8(applePrivateKey(), 'ES256');
+delete process.env.APPLE_PRIVATE_KEY_B64;
+process.env.APPLE_PRIVATE_KEY = pem.replace(/\n/g, '\\n');
+assert.equal(applePrivateKey(), pem);
+delete process.env.APPLE_PRIVATE_KEY;
 
 for (const provider of ['google', 'apple']) {
   const url = new URL(loginUrl(provider), 'https://saju.example.com');
@@ -17,8 +29,8 @@ const route = createAuthRoutes(repository);
 function response() {
   return { status: 0, headers: {}, body: '', writeHead(status, headers = {}) { this.status = status; this.headers = headers; }, end(body = '') { this.body = body; } };
 }
-async function call(path, { method = 'GET', cookie = '', origin = '' } = {}) {
-  const req = { method, headers: { host: 'saju.example.com', cookie, ...(origin ? { origin } : {}) }, socket: { encrypted: true }, async *[Symbol.asyncIterator]() {} };
+async function call(path, { method = 'GET', cookie = '', origin = '', body = '' } = {}) {
+  const req = { method, headers: { host: 'saju.example.com', cookie, ...(origin ? { origin } : {}) }, socket: { encrypted: true }, async *[Symbol.asyncIterator]() { if (body) yield Buffer.from(body); } };
   const res = response();
   await route(req, res, new URL(path, 'https://saju.example.com'));
   return res;
@@ -50,5 +62,23 @@ assert.ok(res.headers['Set-Cookie'].some(value => value.startsWith('dalbit_oauth
 delete process.env.GOOGLE_CLIENT_ID;
 delete process.env.GOOGLE_CLIENT_SECRET;
 delete process.env.AUTH_BASE_URL;
+
+process.env.APPLE_CLIENT_ID = 'saju.web';
+process.env.APPLE_TEAM_ID = 'TESTTEAM';
+process.env.APPLE_KEY_ID = 'TESTKEY';
+process.env.APPLE_PRIVATE_KEY = 'malformed';
+const originalError = console.error;
+try {
+  console.error = () => {};
+  res = await call('/api/auth/callback/apple', {
+    method: 'POST', cookie: 'dalbit_oauth_state=abc; dalbit_oauth_nonce=xyz',
+    body: 'state=abc&code=sample'
+  });
+} finally {
+  console.error = originalError;
+  for (const name of ['APPLE_CLIENT_ID', 'APPLE_TEAM_ID', 'APPLE_KEY_ID', 'APPLE_PRIVATE_KEY']) delete process.env[name];
+}
+assert.equal(res.status, 302);
+assert.equal(res.headers.Location, '/?auth=failed');
 
 console.log('PASS: auth provider status, current user, logout cookies and Google OAuth redirect.');
