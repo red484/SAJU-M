@@ -289,3 +289,10 @@ dialog[open]:has(.daysheet) .modal-close{position:absolute;top:10px;right:12px;z
 .welcome-login{position:absolute;z-index:4;top:calc(18px + env(safe-area-inset-top));left:18px;min-height:42px;padding:8px 15px;border:1px solid #e7d7a05c;border-radius:999px;background:#08172073;color:#f4ecd8;font-size:.82rem;backdrop-filter:blur(10px)}
 .header-back{justify-self:start;display:flex;align-items:center;gap:4px;min-height:44px;padding:7px 9px;border:0;background:transparent;color:var(--teal);font-size:.86rem}.header-back span{font-size:1.7rem;line-height:0;transform:translateY(-1px)}header .brand{justify-self:center}.header-settings,.header-spacer{justify-self:end;min-width:58px}.header-spacer{display:block}
 @media(max-width:850px){header{display:grid;grid-template-columns:72px 1fr 72px;padding-inline:12px}header .brand{font-size:1.05rem;white-space:nowrap}.brand img{width:30px;height:30px}.header-settings{padding-inline:7px}}
+
+/* 이전 상담 목록은 대화 진입 영역과 삭제 동작을 분리해 오조작을 막습니다. */
+.conversation-list{margin-top:10px}
+.conversation-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;border-bottom:1px solid var(--line)}
+.conversation-row .record-row{min-width:0;border-bottom:0}
+.conversation-delete{border:1px solid #b67d6766;border-radius:18px;background:transparent;color:#8c4f3f;padding:7px 11px;font-size:.75rem;white-space:nowrap}
+.conversation-delete:hover{background:#f4e7e1}
