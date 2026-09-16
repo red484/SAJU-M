@@ -10,6 +10,7 @@ await rm('dist',{recursive:true,force:true});await mkdir('dist/client/assets',{r
 // splitting still hoists luxon and the lookup tables into a shared chunk.
 await build({entryPoints:['src/client/app.js','src/client/engine.js'],bundle:true,minify:true,format:'esm',splitting:true,outdir:'dist/client',chunkNames:'chunk-[hash]',target:['es2022']});
 await copyFile('THIRD_PARTY_NOTICES.txt','dist/client/THIRD_PARTY_NOTICES.txt');
+await copyFile('native/offline.html','dist/client/offline.html');
 await writeFile('dist/client/app.css',(await readFile('src/client/styles/app.css','utf8'))+'\n'+(await readFile('src/client/styles/design.css','utf8')));await copyFile('index.html','dist/client/index.html');
 for(const name of ['splash','mark','mentorAvatar','mentorHeader','todayRest','todayTalk','todayDeal','todayDuty','todayStart','hanji','compassCore','branchPine','element-wood','element-fire','element-earth','element-metal',...['wood','fire','earth','metal'].flatMap(e=>[0,1,3].map(n=>`element-${e}-${n}`))])await copyFile(`assets/${name}.webp`,`dist/client/assets/${name}.webp`);
 await copyFile('assets/ink-waterfall.png','dist/client/assets/ink-waterfall.png');

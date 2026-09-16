@@ -296,3 +296,5 @@ dialog[open]:has(.daysheet) .modal-close{position:absolute;top:10px;right:12px;z
 .conversation-row .record-row{min-width:0;border-bottom:0}
 .conversation-delete{border:1px solid #b67d6766;border-radius:18px;background:transparent;color:#8c4f3f;padding:7px 11px;font-size:.75rem;white-space:nowrap}
 .conversation-delete:hover{background:#f4e7e1}
+.native-app header{height:calc(74px + env(safe-area-inset-top));padding-top:env(safe-area-inset-top)}
+.native-app.is-offline body::before{content:'오프라인 · 연결을 확인해 주세요';position:fixed;z-index:120;top:env(safe-area-inset-top);left:50%;transform:translateX(-50%);padding:7px 13px;border-radius:0 0 12px 12px;background:#8f493c;color:#fff;font-size:.75rem;box-shadow:0 4px 16px #0003}

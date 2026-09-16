@@ -1,0 +1,25 @@
+{
+  "appId": "com.ashwoodfriends.dalbitsaju",
+  "appName": "달빛 사주",
+  "webDir": "dist/client",
+  "backgroundColor": "#081720",
+  "server": {
+    "url": "https://saju.ashwoodfriends.com",
+    "cleartext": false,
+    "errorPath": "offline.html",
+    "allowNavigation": [
+      "saju.ashwoodfriends.com",
+      "accounts.google.com",
+      "appleid.apple.com"
+    ]
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "launchAutoHide": true,
+      "backgroundColor": "#081720",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP"
+    }
+  }
+}

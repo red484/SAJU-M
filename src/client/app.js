@@ -8,6 +8,7 @@ import {mergeJournal} from './journal-merge.js';
 import {getJournal,putJournal,deleteJournal} from './api/journal.js';
 import {coachStatus,requestCoachWithRetry,epicStatus,requestEpic} from './api/readings.js';
 import {authProviders,currentUser,logout,deleteAccount,loginUrl} from './api/auth.js';
+import {nativeApp,setupNativeShell,shareNativeFile} from './native-shell.js';
 // The 만세력 tables are ~323KB of the bundle and are not needed until a chart
 // is actually cast, so engine.js loads on demand. E is null until then.
 let E=null,enginePromise=null,engineTry=0;
@@ -150,6 +151,7 @@ function refreshSave(){const changed=badgeShown!==saveState;badgeShown=saveState
  paint(settled);
  if(saveState==='saved'&&changed)badgeTimer=setTimeout(()=>paint(true),1800);}
 async function nav(to){if(['choice','records'].includes(to)){notice('선택·기록 메뉴는 준비 중입니다.');return;}capturing=null;plusOpen=false;if(!loaded&&to!=='welcome'&&to!=='settings'){notice('저장소 연결이 필요합니다. 잠시 후 다시 시도해 주세요.');return;}if(!p()&&ENGINE_PAGES.includes(to))to='birth';if(ENGINE_PAGES.includes(to)&&!await engineReady())return;page=to;render();}
+async function nativeBack(){const back={birth:'welcome',topic:'birth',settings:p()?'result':'welcome',today:'result',chat:'result',choice:'result',records:'result',result:'welcome'}[page];if(!back)return false;await nav(back);return true;}
 function header(){const back={birth:'welcome',topic:'birth',settings:p()?'result':'welcome',today:'result',chat:'result',choice:'result',records:'result',result:'welcome'}[page]||'welcome';return `<header><button class="header-back" data-nav="${back}" aria-label="이전 화면으로 돌아가기"><span aria-hidden="true">‹</span>뒤로</button><button class="brand" data-nav="welcome"><img src="/assets/mark.webp" alt="">달빛 사주</button>${authUser?'<button class="plain header-logout" data-action="logout">로그아웃</button>':''}${page==='settings'?'':'<button class="plain header-settings" data-nav="settings" aria-label="개인정보와 저장 설정">설정</button>'}</header>`;}
 function saveBanner(){return `<section id="save-error" class="save-error" role="alert" ${saveState==='error'?'':'hidden'}><p>${esc(saveError||'저장하지 못했습니다. 현재 화면의 내용은 남아 있습니다.')}</p><div><button type="button" data-action="backup">현재 내용 파일로 보관</button><button type="button" data-action="retry">다시 저장</button></div></section>`;}
 function navBar(){return `<nav aria-label="주요 메뉴">${[['today','오늘'],['result','사주'],['chat','상담'],['choice','선택'],['records','기록']].map(([id,label])=>`<button data-nav="${id}" ${page===id?'aria-current="page"':''}><span aria-hidden="true">${icon[id]}</span>${label}</button>`).join('')}</nav>`;}
@@ -194,7 +196,7 @@ function chatHistoryModal(){
  });
 }
 function recordDetail(id){const r=data.records.find(r=>r.id===id);if(!r)return;openModal(`<p class="eyebrow">${dateLabel(r.date)}의 선택</p><h2>${esc(r.title)}</h2><section class="compare"><div><span>선택 당시</span><p>${esc(r.expectation||'예상을 남기지 않았어요.')}</p><small>확신 ${r.confidence} / 100</small></div><div><span>그날의 해석</span><p>${esc(r.advice||'이전 버전의 기록입니다.')}</p></div></section><form id="edit-record" data-id="${id}"><label>선택 제목<input name="title" maxlength="100" value="${esc(r.title)}" required></label><label>실제 결과<select name="result">${['pending','good','neutral','rethink'].map(v=>`<option value="${v}" ${r.result===v?'selected':''}>${resultLabel(v)}</option>`).join('')}</select></label><label>돌아본 마음<select name="mood"><option value="">아직 선택하지 않음</option>${['기뻐요','편안해요','보통이에요','아쉬워요','속상해요'].map(v=>`<option ${r.mood===v?'selected':''}>${v}</option>`).join('')}</select></label><label>예상과 실제는 어떻게 달랐나요?<textarea name="actual" maxlength="1500">${esc(r.actual||'')}</textarea></label><label>회고 날짜<input type="date" name="due" value="${r.due}"></label><div class="form-error" role="alert" hidden></div><button class="primary">수정 내용 저장</button></form><button class="secondary" data-calendar="${id}">회고 일정 캘린더에 등록하기</button><p class="hint">캘린더 파일을 가져와야 일정·알림이 등록됩니다. 알림 허용 여부는 캘린더 앱에서 확인하세요.</p><button class="danger" data-delete-record="${id}">이 기록 삭제</button>`);}
-function download(name,content,type='text/plain;charset=utf-8'){const u=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
+async function download(name,content,type='text/plain;charset=utf-8'){const blob=new Blob([content],{type});try{if(await shareNativeFile(blob,name,'달빛 사주 파일')){notice('공유·저장할 앱을 선택해 주세요.');return;}}catch(e){if(e?.name==='AbortError'||/cancel/i.test(e?.message||''))return;notice('파일 공유창을 열지 못했어요.');return;}const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
 document.addEventListener('click',e=>{const button=e.target.closest('[data-login]');if(button)location.href=loginUrl(button.dataset.login);});
 document.addEventListener('click',e=>{
  if(e.target.closest('[data-auth-refresh]')){authStatus='loading';render();loadAuth();}
@@ -347,6 +349,7 @@ function captureGuide(){
 // 눌러도 딴 일을 하는 버튼을 두느니, 못 하는 기기에서는 아예 감춥니다.
 const canCopyImage=()=>typeof ClipboardItem!=='undefined'&&!!navigator.clipboard?.write;
 function canShareFiles(){
+ if(nativeApp)return true;
  try{return !!navigator.canShare?.({files:[new File([new Uint8Array(1)],'a.png',{type:'image/png'})]});}
  catch{return false;}
 }
@@ -362,6 +365,8 @@ async function saveCapture(how){
   if(how==='copy'){
    await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
    notice('이미지를 복사했어요.');
+  }else if((how==='share'||how==='save')&&nativeApp){
+   await shareNativeFile(blob,'달빛사주-상담.png','달빛 사주 상담');
   }else if(how==='share'){
    await navigator.share({files:[new File([blob],'달빛사주-상담.png',{type:'image/png'})],title:'달빛 사주 상담'});
   }else{
@@ -431,6 +436,7 @@ ensureEngine().catch(()=>{enginePromise=null;engineTry++;});
 Promise.all([coachAvailable(),epicAvailable()]).then(()=>{if(loaded)render();});
 loadAuth();
 load();
+setupNativeShell({back:nativeBack,notify:notice});
 
 // 정책 문서는 현재 화면 위에서 열고 닫습니다. 입력 중인 내용은 유지합니다.
 document.addEventListener('click',async event=>{
