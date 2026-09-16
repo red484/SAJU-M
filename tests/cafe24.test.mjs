@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { chatCompletion, enabled, model, parseJsonReply } from '../src/server/integrations/cafe24-llm.mjs';
-import { hasSections, jargonLeaks, critique, readBasis, stripBasis, realtimeSystemPrompt, coachReply } from '../src/server/services/coach-service.mjs';
+import { hasSections, normalizeSectionHeadings, jargonLeaks, critique, readBasis, stripBasis, realtimeSystemPrompt, coachReply } from '../src/server/services/coach-service.mjs';
 import { signalsOf, calculate, flow } from '../src/client/engine.js';
 
 const oldKey = process.env.CAFE24_LLM_API_KEY;
@@ -154,6 +154,8 @@ try {
   assert.equal(hasSections(full.replace('사주 관점\n', '')), false);
   assert.equal(hasSections('오늘 할 일을 사주 관점으로 현실 확인 했습니다'), false);
   assert.equal(hasSections('많이 피곤하셨군요.\n\n' + full), true);
+  assert.equal(normalizeSectionHeadings('### 사주 관점\n본문\n\n**현실 확인**\n본문\n\n오늘 할 일:\n본문'), full);
+  assert.equal(normalizeSectionHeadings('사주 관점은 중요해요.\n현실 확인\n본문'), '사주 관점은 중요해요.\n현실 확인\n본문');
 
   // 명리 용어가 본문에 새면 잡아내는지.
   assert.deepEqual(
@@ -253,6 +255,26 @@ try {
   assert.match(sentMessages[1].content,/현 직장을 유지할지/);
   assert.equal(sentMessages.at(-1).content,'이직 제안을 받았어요');
   assert.match(sentMessages[0].content,new RegExp(periodFlow[0].pillar));
+
+  // 첫 답변의 제목 누락은 같은 요청 안에서 형식 지시를 보강해 다시 생성한다.
+  let firstTurnCalls = 0;
+  globalThis.fetch = async (_url, options) => {
+    firstTurnCalls++;
+    const messages = JSON.parse(options.body).messages;
+    if (firstTurnCalls === 2) assert.match(messages[0].content, /형식 재확인/);
+    const content = firstTurnCalls === 1
+      ? '많이 지치셨군요. 언제가 가장 벅찬가요?\n<근거>일간 임</근거>'
+      : '### 사주 관점\n여러 가능성을 넓게 보는 편이에요.\n\n**현실 확인**\n하루 중 언제 가장 벅찬가요?\n\n오늘 할 일:\n그 시각을 한 번 적어 주세요. 언제였나요?\n<근거>일간 임</근거>';
+    return new Response(JSON.stringify({choices:[{message:{content},finish_reason:'stop'}]}),{
+      status:200,headers:{'Content-Type':'application/json'}
+    });
+  };
+  const repaired = await coachReply({chart:{...chart,turnIndex:1},messages:[{role:'user',text:'요즘 많이 피곤해요'}]});
+  assert.equal(firstTurnCalls, 2);
+  assert.equal(repaired.source, 'cafe24');
+  assert.equal(repaired.shape.sections, true);
+  assert.match(repaired.text, /^사주 관점\n/);
+  assert.doesNotMatch(repaired.text, /###|\*\*|<근거>/);
 
   // 일상어와 겹치는 소재를 신호로 잘못 세지 않는지.
   assert.deepEqual(signalsOf([{ messages: [

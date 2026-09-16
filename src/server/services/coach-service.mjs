@@ -309,7 +309,23 @@ ${period ? `\n현재 흐름 (기준일 ${chart.flowAsOf||'미확인'}, 연·월�
 - 구체적인 선택과 조건이 충분할 때만 <기록>{"title":"행동형 제목","topic":"진로|연애|재물|건강|가족","expectation":"사용자가 말한 조건"}</기록>을 붙이세요.
 - 필수 제목과 본문, 근거 태그 외에는 아무것도 출력하지 마세요. 규칙 설명, 준수 여부, 자체 평가, 추가 확인을 절대 출력하지 마세요.
 
-필수 제목: ${headings}`;
+필수 제목: ${headings}
+
+출력 형식이 가장 중요합니다. 인사말보다 첫 제목을 먼저 쓰세요. 제목을 빼거나 다른 말로 바꾸지 마세요.
+${chart.turnIndex >= 2 ? `현실 확인
+사용자의 이번 말에 맞춘 답변
+
+오늘 할 일
+오늘 끝낼 작은 행동과 질문` : `사주 관점
+계산값에서 읽은 행동 성향 한 가지
+
+현실 확인
+사용자의 이번 말에 맞춘 답변
+
+오늘 할 일
+오늘 끝낼 작은 행동과 질문`}
+<근거>본문에 실제로 사용한 계산값</근거>
+위 예시 문장은 복사하지 말고 각 제목 아래를 실제 답변으로 채우세요.`;
 }
 
 // 근거 블록은 사용자에게 보이지 않습니다. 어느 값을 읽고 쓴 말인지
@@ -319,6 +335,14 @@ export const readBasis = text => (String(text).match(BASIS)?.[1] || '').trim().s
 export const stripBasis = text => String(text).replace(/<근거>[\s\S]*?(?:\\?<\/근거>|$)/g, '').trim();
 
 export const SECTIONS = ['사주 관점', '현실 확인', '오늘 할 일'];
+// 모델이 제목만 Markdown/구두점으로 감싼 경우 본문을 바꾸지 않고 정규화합니다.
+// 제목 자체가 빠졌다면 여기서 만들어내지 않고 재생성 또는 폴백합니다.
+export function normalizeSectionHeadings(text) {
+  return String(text).split('\n').map(line => {
+    const candidate = line.trim().replace(/^#{1,6}\s*/, '').replace(/^\*\*(.*?)\*\*$/, '$1').replace(/\s*[:：]\s*$/, '').trim();
+    return SECTIONS.includes(candidate) ? candidate : line;
+  }).join('\n');
+}
 // 제목은 줄 맨 앞에 그대로 서 있어야 합니다. 본문 속에 우연히 같은 말이
 // 섞인 경우를 제목으로 세지 않도록 줄 시작만 봅니다.
 const head = h => new RegExp('^\\s*' + h + '\\s*$', 'm');
@@ -393,8 +417,8 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   // 모바일 상담은 첫 응답 시간을 우선합니다. 규칙 답은 이미 화면에 있으므로
   // AI가 20초 안에 끝내지 못하면 즉시 폴백을 유지합니다.
   const deadlineAt = Date.now() + 20_000;
-  let res = await chatCompletion({
-    messages: base,
+  const generate = messages => chatCompletion({
+    messages,
     // Gemini 2.5 Flash는 내부 추론 토큰도 completion 사용량에 포함합니다.
     // 700에서는 본문을 쓰기 전에 상한에 닿을 수 있어, 짧은 출력 지시는
     // 유지하면서 추론 여유만 확보합니다.
@@ -404,18 +428,25 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
     continueOnLength: false,
     deadlineAt
   });
-  // 형식 보정을 위한 두 번째 LLM 호출은 최악의 대기 시간을 크게 늘립니다.
-  // 검증만 수행하고 어긋난 답은 즉시 규칙 코칭으로 넘깁니다.
+  let res = await generate(base);
   const turn = chart.turnIndex;
-  const faults = critique(res.text, readBasis(res.text), turn);
-  const basis = readBasis(res.text);
+  let normalized = normalizeSectionHeadings(res.text);
+  // 첫 턴에서 세 제목을 빠뜨리는 출력은 같은 요청 안에서 한 번만 다시 받습니다.
+  // 기존 20초 상한을 공유해 모바일 화면의 대기 시간이 끝없이 늘지 않게 합니다.
+  if (turn === 1 && !res.truncated && !hasSections(normalized, turn) && Date.now() + 3_000 < deadlineAt) {
+    const corrected = [{...base[0], content: base[0].content + '\n\n[형식 재확인] 첫 줄을 반드시 "사주 관점"으로 시작하고, "현실 확인", "오늘 할 일"을 각각 독립된 줄에 순서대로 쓰세요. 각 제목 아래에 실제 내용이 있어야 합니다. 마지막에 <근거>를 붙이세요.'}, ...base.slice(1)];
+    res = await generate(corrected);
+    normalized = normalizeSectionHeadings(res.text);
+  }
+  const basis = readBasis(normalized);
+  const faults = critique(normalized, basis, turn);
   const shape = { model: res.model, keyLabel: res.keyLabel, usage: res.usage, finishReason: res.finishReason, truncated: res.truncated,
-    continuations: res.continuations, turn, sections: hasSections(res.text, turn), leaks: jargonLeaks(stripBasis(res.text)), faults: faults.length, basis };
+    continuations: res.continuations, turn, sections: hasSections(normalized, turn), leaks: jargonLeaks(stripBasis(normalized)), faults: faults.length, basis };
   if (shape.truncated) return { error: 'AI 답변이 생성 중에 끊겼습니다.', status: 502, shape };
   if (!shape.sections) return { error: '답변 형식이 어긋났습니다.', status: 502, shape };
   if (faults.length) return { error: 'AI 답변이 품질 검사를 통과하지 못했습니다.', status: 502, shape };
 
-  let text = res.text;
+  let text = normalized;
   // 모델이 붙인 기록 제안 블록을 본문에서 떼어내 구조화합니다. 형식이
   // 어긋나면 조용히 버립니다 — 본문은 그대로 읽히므로 손해가 없습니다.
   let offer = null;
