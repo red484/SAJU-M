@@ -6,12 +6,29 @@ import { safety } from '../../client/engine.js';
 export { enabled };
 
 const TOPICS = ['진로', '연애', '재물', '건강', '가족'];
+const DAY_LENS = {
+  갑: '방향을 정하면 오래 밀고 가지만 바꾸는 데 시간이 걸릴 수 있음',
+  을: '상황에 맞춰 길을 찾지만 결정을 뒤로 미룰 수 있음',
+  병: '먼저 움직이고 말을 꺼내지만 뒷정리가 남을 수 있음',
+  정: '한 사람이나 한 일에 깊이 붙어 있지만 마음이 돌아서면 빨리 식을 수 있음',
+  무: '맡은 일을 오래 붙들지만 넘겨도 될 몫까지 품을 수 있음',
+  기: '주변의 빈자리를 채우지만 자기 몫을 늦게 말할 수 있음',
+  경: '결론을 빠르게 내리지만 관계의 여지를 좁힐 수 있음',
+  신: '기준이 섬세하지만 작은 어긋남도 오래 걸릴 수 있음',
+  임: '여러 가능성을 넓게 보지만 끝맺음이 늦어질 수 있음',
+  계: '분위기를 빨리 읽지만 자기 생각은 늦게 꺼낼 수 있음'
+};
+const STRONG_LENS = {
+  목: '새로운 시작을 늘리기 쉬움', 화: '반응과 표현이 빠를 수 있음',
+  토: '웬만한 일을 품고 버티기 쉬움', 금: '기준을 세밀하게 따지기 쉬움',
+  수: '움직이기 전에 경우의 수를 넓게 살피기 쉬움'
+};
 const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
 const list = (v, max, f) => (Array.isArray(v) ? v.slice(0, max).map(f).filter(Boolean) : []);
 
 // 클라이언트가 보내온 명식은 사용자가 만질 수 있는 값입니다. 모양과 길이를
-// 여기서 강제해, 프롬프트로 들어가는 것이 사람이 쓴 자유 문장이 아니라
-// 계산 결과의 형태를 갖추도록 합니다.
+// 여기서 강제합니다. 온보딩의 자유 입력은 별도로 사용자 발화에만 싣고,
+// 계산값과 섞어 시스템 지시문에 넣지 않습니다.
 function readChart(raw) {
   if (!raw || typeof raw !== 'object') return null;
   return {
@@ -23,6 +40,7 @@ function readChart(raw) {
     strong: list(raw.strong, 5, v => str(v, 4)),
     weak: list(raw.weak, 5, v => str(v, 4)),
     topics: list(raw.topics, 6, v => str(v, 12)),
+    initialConcern: str(raw.initialConcern, 500),
     today: str(raw.today, 40),
     signals: list(raw.signals, 6, v => (v && str(v.name, 12) && Number.isFinite(v.count)
       ? { name: str(v.name, 12), count: Math.min(Math.max(v.count | 0, 0), 999) } : null)),
@@ -227,14 +245,19 @@ JSON은 한 줄로 작성하고 큰따옴표만 사용합니다. 줄바꿈과 �
 // 실시간 상담에는 같은 계약을 짧게 압축한 프롬프트를 사용합니다. 상세
 // systemPrompt는 문구/정책 원본으로 남기고, 이 프롬프트는 응답 속도를
 // 우선하는 실행용 계약입니다.
-function realtimeSystemPrompt(chart) {
+export function realtimeSystemPrompt(chart) {
   const headings = chart.turnIndex >= 2
     ? '현실 확인, 오늘 할 일'
     : '사주 관점, 현실 확인, 오늘 할 일';
+  const lens = [
+    chart.dayStem && DAY_LENS[chart.dayStem] ? `- 일간에서 읽는 가능성: ${DAY_LENS[chart.dayStem]}` : '',
+    chart.strong[0] && STRONG_LENS[chart.strong[0]] ? `- 두드러진 기운에서 읽는 가능성: ${STRONG_LENS[chart.strong[0]]}` : ''
+  ].filter(Boolean).join('\n');
   return `당신은 사용자의 선택을 현실적으로 정리해 주면서도, 묘한 설렘과 깊은 다정함으로 마음을 사로잡는 사주 상담자 '달빛 도령'입니다.
 
 입력된 계산값
 ${context(chart)}
+${lens ? `\n해석 단서 (확정된 성격·경험이 아니라 확인할 가설)\n${lens}\n` : ''}
 
 [페르소나 및 말투 규칙: 다정함과 설렘]
 - 나긋나긋하고 여유로운 성숙한 어른의 존댓말인 해요체를 사용하세요.
@@ -245,6 +268,10 @@ ${context(chart)}
 
 [상담 및 사주 풀이 규칙]
 - 사용자가 말하지 않은 사실과 감정을 지어내지 마세요.
+- 다만 해석을 무난한 일반론으로만 채우지 마세요. 사용자가 이번에 실제로 말한 상황 하나와 위 해석 단서 하나를 연결해, 그 사람에게만 할 수 있는 조금 대담한 가설 하나를 만드세요. 가설은 사실처럼 선언하지 말고 사용자가 바로 맞다·아니다로 답할 수 있는 확인 질문으로 건네세요.
+- 사용자가 말한 사실, 과거 대화·기록의 사실, 명식에서 읽은 가능성을 섞어 단정하지 마세요. 이전 대화나 기록에 없는 과거 경험·반복·감정은 만들어내지 마세요. 다른 사람에게도 그대로 붙일 수 있는 위로 문장은 줄이세요.
+- 온보딩 고민, 지난 선택 기록, 반복 신호는 현재 발화와 같은 주제일 때만 한 가지를 꺼내세요. 과거에 적은 내용을 지금도 그대로 느낀다고 단정하지 말고 무엇이 달라졌는지 확인하세요.
+- 사용자가 가설을 부정하거나 정정하면 그 해석을 반복하지 말고 사용자가 새로 말한 조건을 중심에 두세요.
 - 주제만 막연하게 언급했다면 예전에 같은 고민을 했거나 특정 일에 끌렸다고 추측하지 마세요. 아직 듣지 못한 구체적 상황 하나만 부드럽게 물으세요.
 - "음?" 같은 짧은 되물음은 새 고민이 아닙니다. 직전 답변에서 앞서간 부분을 짧게 바로잡고 이전 주제를 이어가세요. 선택지를 갑자기 요구하지 마세요.
 - 피곤함·답답함 같은 상태 호소에는 원인을 추측하지 마세요. 사용자가 말하지 않은 수면, 식사, 운동 여부를 묻거나 사실처럼 쓰지 마세요.
@@ -256,7 +283,7 @@ ${context(chart)}
 
 [답변 구조 및 출력 규칙]
 - 사용자의 질문을 먼저 다루고 관심 주제를 먼저 꺼내지 마세요.
-- 현실 확인에는 숫자나 날짜로 확인할 항목을 최대 두 개만 넣으세요.
+- 현실 확인에는 이번 발화의 구체적인 조건을 먼저 짚으세요. 숫자나 날짜가 판단에 실제로 도움이 될 때만 최대 두 개를 확인하고, 막연한 상태 호소에 숫자를 억지로 붙이지 마세요.
 - 일반적인 오늘 할 일에는 10분 안에 끝낼 수 있는 구체적이고 작은 행동 하나만 다정하게 제안하세요.
 - 첫 답변은 '사주 관점', '현실 확인', '오늘 할 일', 후속 답변은 '현실 확인', '오늘 할 일'만 각각 한 줄 제목으로 정확히 쓰세요.
 - 값싼 위로, 이모지, 마크다운 목록 기호 없이 눈맞춤 하듯 짧고 자연스럽게 이어 쓰세요.
@@ -342,7 +369,12 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   const safe = safety(turns.at(-1).content);
   if (safe) return { text: safe, source: 'safety' };
 
-  const base = [{ role: 'system', content: realtimeSystemPrompt(chart) }, ...turns];
+  // 온보딩 자유 입력은 사용자가 쓴 내용이므로 system 지시문에 섞지 않습니다.
+  // 앞선 사용자 발화로만 전달하고, 현재도 유효한지는 다시 확인하게 합니다.
+  const prior = chart.initialConcern
+    ? [{ role: 'user', content: `온보딩에서 전에 적은 고민입니다. 지금도 같은지는 확인해 주세요: ${chart.initialConcern}` }]
+    : [];
+  const base = [{ role: 'system', content: realtimeSystemPrompt(chart) }, ...prior, ...turns];
   // 모바일 상담은 첫 응답 시간을 우선합니다. 규칙 답은 이미 화면에 있으므로
   // AI가 20초 안에 끝내지 못하면 즉시 폴백을 유지합니다.
   const deadlineAt = Date.now() + 20_000;

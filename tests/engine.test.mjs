@@ -79,6 +79,7 @@ const confusion=coach(a,base,{messages:[{role:'user',text:'건강 관련해서 �
 assert.equal(confusion.phase,'clarify');assert.match(confusion.text,/앞서갔네요/);assert.doesNotMatch(confusion.text,/선택지/);
 const career=coach(a,base,{messages:[{role:'user',text:'진로에 대한 고민도 있어요'}],topic:'건강'},'진로에 대한 고민도 있어요');
 assert.equal(career.phase,'clarify');assert.equal(career.topic,'진로');assert.doesNotMatch(career.text,/여전|선택지|이미|즐거움/);
+assert.match(career.text,/납득할 기준/,'막연한 진로 고민에도 명식에서 읽은 확인형 가설을 건넨다');
 assert.equal(flow(a,'2026-09-10').length,3);assert.equal(monthly([],'2026-09').list.length,0);
 
 // ── 만세력 · 대운 ──────────────────────────────────────────────

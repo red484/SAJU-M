@@ -264,7 +264,7 @@ export function dressPage({page, result, profile}) {
     if (storage) storage.textContent = '프로필·상담·선택 기록·저장한 답변은 서버 저장 공간에 보관되고, 이 브라우저의 보안 쿠키로 연결됩니다. 운영 서버에 영구 저장소가 연결되지 않았다면 재시작·재배포 때 기록이 사라질 수 있으니 중요한 내용은 내보내기로 보관하세요.';
     const privacy = [...document.querySelectorAll('.narrow .card:first-of-type p')]
       .find(p => p.textContent.startsWith('외부 AI'));
-    if (privacy) privacy.textContent = 'AI 상담이 연결된 경우 계산된 사주 정보와 대화 내용이 답변 생성을 위해 카페24 LLM Router와 선택된 AI 제공사로 전송됩니다. 운영 서버 관리자 접근을 막는 종단간 암호화 서비스는 아닙니다.';
+    if (privacy) privacy.textContent = 'AI 상담이 연결된 경우 계산된 사주 정보, 현재 대화와 관련된 과거 대화·선택 기록·온보딩 고민이 답변 생성을 위해 카페24 LLM Router와 선택된 AI 제공사로 전송될 수 있습니다. 운영 서버 관리자 접근을 막는 종단간 암호화 서비스는 아닙니다.';
     const connection = [...document.querySelectorAll('.narrow .card')]
       .find(card => card.querySelector('h2')?.textContent === '연결 상태')?.querySelector('p');
     if (connection) connection.innerHTML = connection.innerHTML.replace('실제 AI 상담: 연결됨', 'AI 키: 연결됨 (실제 답변은 상담 화면에서 확인)');

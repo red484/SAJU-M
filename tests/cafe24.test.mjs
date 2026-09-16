@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { chatCompletion, enabled, model, parseJsonReply } from '../src/server/integrations/cafe24-llm.mjs';
-import { hasSections, jargonLeaks, critique, readBasis, stripBasis } from '../src/server/services/coach-service.mjs';
+import { hasSections, jargonLeaks, critique, readBasis, stripBasis, realtimeSystemPrompt, coachReply } from '../src/server/services/coach-service.mjs';
 import { signalsOf } from '../src/client/engine.js';
 
 const oldKey = process.env.CAFE24_LLM_API_KEY;
@@ -227,6 +227,26 @@ try {
     { role: 'user', text: '팀장 때문에 힘들어요', at: at(5) },
     { role: 'user', text: '창업도 생각해요', at: at(6) }] }]);
   assert.deepEqual(sig, [{ name: '상사', count: 2 }, { name: '수면', count: 2 }]);
+
+  const chart = {name:'주연',gender:'female',pillars:['辛巳','己亥','壬辰','丙午'],dayStem:'임',element:'수',strong:['화'],weak:['목'],topics:['진로'],today:'계사일',signals:[],records:[],turnIndex:2};
+  const personalized = realtimeSystemPrompt(chart);
+  assert.match(personalized,/여러 가능성을 넓게 보지만 끝맺음이 늦어질 수 있음/);
+  assert.match(personalized,/이번에 실제로 말한 상황 하나.*해석 단서 하나/);
+  assert.match(personalized,/가설을 부정하거나 정정하면 그 해석을 반복하지 말고/);
+  assert.match(personalized,/확정된 성격·경험이 아니라 확인할 가설/);
+  assert.doesNotMatch(realtimeSystemPrompt({...chart,dayStem:'무',strong:['금']}),/여러 가능성을 넓게 보지만/,'명식에 따라 해석 단서가 달라진다');
+  let sentMessages;
+  globalThis.fetch = async (_url, options) => {
+    sentMessages = JSON.parse(options.body).messages;
+    return new Response(JSON.stringify({choices:[{message:{content:later},finish_reason:'stop'}]}),{
+      status:200,headers:{'Content-Type':'application/json'}
+    });
+  };
+  const coached = await coachReply({chart:{...chart,initialConcern:'전에는 현 직장을 유지할지 고민했어요'},messages:[{role:'user',text:'이직 제안을 받았어요'}]});
+  assert.equal(coached.source,'cafe24');
+  assert.doesNotMatch(sentMessages[0].content,/현 직장을 유지할지/,'자유 입력은 system 지시문에 섞지 않는다');
+  assert.match(sentMessages[1].content,/현 직장을 유지할지/);
+  assert.equal(sentMessages.at(-1).content,'이직 제안을 받았어요');
 
   // 일상어와 겹치는 소재를 신호로 잘못 세지 않는지.
   assert.deepEqual(signalsOf([{ messages: [

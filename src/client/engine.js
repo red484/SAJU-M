@@ -38,6 +38,13 @@ const TRAITS=[
  ['흐름을 안정시키고 책임지는 힘','한번 맡은 일을 차근차근 정리하는 편','다른 사람의 책임까지 혼자 안는 패턴','역할과 약속이 분명하고 신뢰가 쌓이는 환경','내가 맡을 일과 함께 나눌 일을 한 가지씩 구분해보세요.'],
  ['기준을 세우고 결론을 내리는 힘','모호한 상황에서 핵심을 분별하는 편','완벽한 답을 찾느라 자신에게 엄격해지는 패턴','기준과 피드백이 명확한 환경','꼭 지킬 기준 하나와 양보할 조건 하나를 적어보세요.'],
  ['깊이 살피고 유연하게 적응하는 힘','바로 반응하기보다 맥락을 이해하는 편','생각이 길어져 첫 행동을 미루는 패턴','혼자 생각할 시간과 유연한 선택권이 있는 환경','생각 중인 일을 10분 안에 할 수 있는 행동으로 줄여보세요.']];
+const CAREER_QUESTION=[
+ '새로운 가능성이 여러 갈래라 어느 일부터 시작할지 고민이신가요?',
+ '마음이 가는 일은 있지만 오래 이어갈 방식이 걸리시나요?',
+ '지금 맡은 일을 놓기 어려워 다음 방향을 고르기 망설여지시나요?',
+ '어느 길이 맞는지보다 납득할 기준이 아직 모자란 쪽인가요?',
+ '여러 가능성을 살피느라 첫 선택을 고르기 어려운 쪽인가요?'
+];
 export function topicReading(r,t){const a=TOPIC[t]||TOPIC.진로,trait=TRAITS[r.strong[0]];return {title:a[0],body:`사주에서는 ${trait[1]}으로 읽혀요. ${t}에서는 ${trait[3]}이 나와 잘 맞는지 천천히 살펴보세요. ${a[1]}`,action:a[2]};}
 export function reading(r,p){const e=r.strong[0],w=r.weak[0];return {summary:`${p.name}님의 일간은 ${ELEMENTS[r.element]}입니다. ${r.total}글자에서 ${r.strong.length>1?'가장 많이 나타난 기운 중':'가장 많이 나타난'} ${ELEMENTS[e]}은 ${TRAITS[e][0]}으로 읽어볼 수 있어요.`,strength:TRAITS[e][0],caution:TRAITS[e][2],environment:TRAITS[e][3],balance:`${ELEMENTS[w]}은 ${r.cnt[w]}개로 상대적으로 적게 나타납니다. ${TRAITS[w][0]}을 일상의 습관으로 보완해보는 관점입니다. 없는 기운이 곧 결핍이나 불운이라는 뜻은 아니에요.`,action:topicReading(r,p.topics?.[0]||'진로').action};}
 // 흐름 카드. 천간은 십성으로 주제를, 지지는 십이운성으로 세기를 말하고,
@@ -127,7 +134,7 @@ export function signalsOf(conversations,limit=5){
 export function coach(r,p,conversation,text){const safe=safety(text);if(safe)return {text:safe,phase:'safety'};const user=conversation.messages.filter(m=>m.role==='user');const previous=user.at(-2)?.text||'';let topic=conversation.topic||p.topics?.[0]||'진로',named=false;
  if(/^(?:음|응|뭐|네|예|무슨\s*뜻)(?:[?？!…\.\s]*)$/.test(text.trim())&&previous){const aboutHealth=/건강|몸|아프|통증|증상|병원/.test(previous);return {text:aboutHealth?'제가 너무 앞서갔네요. 아직 어떤 점이 걱정되는지 듣지 못했어요. 편한 만큼만 말씀해 주실래요?':'제가 질문을 너무 크게 드렸네요. 지금 마음에 걸리는 상황 하나만 말씀해 주실래요?',topic:aboutHealth?'건강':topic,context:null,phase:'clarify'};}
  if(/건강\s*(?:관련|문제|때문|이)?.{0,12}(?:고민|걱정)|(?:고민|걱정).{0,12}건강/.test(text)&&!/(?:흉통|호흡\s*곤란|진단|처방|치료)/.test(text))return {text:'건강 때문에 마음이 쓰이시는군요. 아직 어떤 점이 걱정되는지는 듣지 못했어요. 편한 만큼만 말씀해 주실래요?',topic:'건강',context:null,phase:'clarify'};
- if(/진로\s*(?:에\s*대한|때문|관련)?.{0,10}(?:고민|걱정)|(?:고민|걱정).{0,10}진로/.test(text)&&!/(?:이직|퇴사|직장|회사|취업|전공|진학|제안|선택|연봉|업무)/.test(text))return {text:'진로 이야기도 같이 해요. 아직 어떤 상황인지 듣지 못해서 제가 짐작하진 않을게요. 지금 가장 마음에 걸리는 일 하나만 들려주실래요?',topic:'진로',context:null,phase:'clarify'};
+ if(/진로\s*(?:에\s*대한|때문|관련)?.{0,10}(?:고민|걱정)|(?:고민|걱정).{0,10}진로/.test(text)&&!/(?:이직|퇴사|직장|회사|취업|전공|진학|제안|선택|연봉|업무)/.test(text))return {text:`진로 이야기도 같이 해요. ${CAREER_QUESTION[r.strong[0]]||'지금 가장 마음에 걸리는 장면은 무엇인가요?'}`,topic:'진로',context:null,phase:'clarify'};
  // 사용자가 직접 꺼낸 주제인지 구분합니다. 프로필에 적어둔 관심사를
  // "진로 이야기를 정리해볼게요"처럼 단정해 버리면 안 한 말을 지어낸 셈입니다.
  if(/연애|짝사랑|(?<![가-힣])사랑|(?<![가-힣])상대|고백/.test(text)){topic='연애';named=true;}
