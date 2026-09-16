@@ -228,7 +228,7 @@ const daysSince=c=>{
  const d=Math.floor((Date.now()-new Date(last).getTime())/86400000);
  return d>=0?d:null;
 };
-const chartFor=c=>({name:p().name,pillars:result.pillars.map(v=>v.gz),dayStem:SK[result.day],
+const chartFor=c=>({name:p().name,gender:p().gender||'',pillars:result.pillars.map(v=>v.gz),dayStem:SK[result.day],
  element:ELEMENTS[result.element],strong:result.strong.map(i=>ELEMENTS[i]),weak:result.weak.map(i=>ELEMENTS[i]),
  topics:p().topics,today:E.dayName(today()).name+' '+E.dayName(today()).label+'일',
  // 도령이 명식을 설명하는 대신 먼저 짚을 거리들입니다.
