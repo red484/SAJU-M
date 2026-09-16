@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict';
 import { createAuthRoutes } from '../src/server/auth.mjs';
+import { loginUrl } from '../src/client/api/auth.js';
+
+for (const provider of ['google', 'apple']) {
+  const url = new URL(loginUrl(provider), 'https://saju.example.com');
+  assert.equal(url.searchParams.get('provider'), provider);
+  assert.equal(url.searchParams.get('returnTo'), '/?onboarding=1');
+}
 
 const repository = {
   async userFromToken(token) { return token === 'signed-in' ? { id: 'u1', display_name: '달빛', email: 'moon@example.com' } : null; },
@@ -38,6 +45,8 @@ assert.match(res.headers.Location, /^https:\/\/accounts\.google\.com\/o\/oauth2\
 assert.match(res.headers.Location, /redirect_uri=https%3A%2F%2Fsaju\.example\.com%2Fapi%2Fauth%2Fcallback%2Fgoogle/);
 assert.equal(res.headers['Set-Cookie'].length, 3);
 assert.match(res.headers.Location, /nonce=/);
+res = await call(loginUrl('google'));
+assert.ok(res.headers['Set-Cookie'].some(value => value.startsWith('dalbit_oauth_return=%2F%3Fonboarding%3D1;')));
 delete process.env.GOOGLE_CLIENT_ID;
 delete process.env.GOOGLE_CLIENT_SECRET;
 delete process.env.AUTH_BASE_URL;

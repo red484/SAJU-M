@@ -463,22 +463,16 @@ body[data-page=today] .daily-image:after{content:'';background:linear-gradient(1
 body[data-page=today] .daily-image>div{background:none;border:0;outline:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;border-radius:0}
 body[data-page=today] .daily-image>img{filter:none}
 @media(max-width:380px){.balance:has(.element-plate) .element-legend{gap:5px}.balance:has(.element-plate) .element-legend li{border-radius:13px;padding:12px 2px}.balance:has(.element-plate) .element-legend li>span:not(.element-meter){font-size:.7rem}}
-/* 첫 진입: 브랜드 소개와 계정 선택을 하나의 흐름으로 배치합니다. */
-.welcome.welcome-entry{height:auto;min-height:100svh;display:flex;flex-direction:column;padding:calc(36px + env(safe-area-inset-top)) 24px calc(20px + env(safe-area-inset-bottom));isolation:isolate}
-.welcome-entry .landscape{opacity:.64}
-.welcome-entry:after{background:linear-gradient(180deg,#0c18204d,#0c182073 45%,#0c1820f5 85%);z-index:-1}
-.welcome-entry .landscape{z-index:-2}
-.entry-brand{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:330px;padding:40px 0;text-align:center}
-.entry-brand .mark{margin-bottom:16px;width:64px;height:64px}
-.welcome-entry .entry-name{color:#e6d6ab;font-size:1rem;letter-spacing:.16em;margin:0 0 20px}
-.welcome-entry h1{font-size:clamp(1.7rem,6vw,2.2rem);margin:0 0 18px;line-height:1.55}
-.entry-brand>p:last-child{font-size:.85rem;line-height:1.8;margin:0;color:#e0dfd5;max-width:260px;word-break:keep-all}
-.entry-actions{width:100%;position:relative;text-align:center;padding-top:20px}
-.entry-actions .auth-buttons{gap:12px;margin:0}
-.entry-actions .auth{min-height:54px;border-radius:14px;font-size:1rem}
-.entry-actions .auth:disabled{opacity:.65;cursor:default}
-.entry-actions .welcome-link{display:block;width:100%;min-height:48px;margin:14px 0 8px;color:#e0dfd5;font-size:.85rem}
-.welcome-entry .entry-account{font-size:.85rem;color:#e6d6ab;margin:0 0 16px}
-.welcome-entry .entry-legal{display:flex;justify-content:center;gap:12px;margin:14px 0 0;font-size:.7rem;color:#aab6b3;line-height:1.7}
-.entry-legal a{color:inherit;text-underline-offset:3px}
-@media(min-width:851px){.welcome.welcome-entry{max-width:480px}}
+.welcome-auth{width:100%;max-width:350px;text-align:center;margin-top:4px}
+.welcome-auth .auth-buttons{gap:10px;margin:0}
+.welcome-auth .auth{min-height:48px;border-radius:12px;font-size:.92rem}
+.welcome-auth .welcome-link{display:block;width:100%;min-height:44px;margin:8px 0;color:#d5dcce;text-decoration:underline;text-underline-offset:4px}
+.welcome-legal{display:flex;justify-content:center;gap:10px;margin-top:8px;font-size:.68rem;color:#b6bfaa}
+.welcome-legal a{color:inherit;text-underline-offset:3px}
+@media(max-width:850px){.welcome-with-auth{height:auto;min-height:100svh;overflow:visible}.welcome-with-auth .welcome-copy{min-height:max(740px,100svh);padding-bottom:calc(20px + env(safe-area-inset-bottom));padding-top:350px}.welcome-with-auth h1{margin-bottom:18px}.welcome-with-auth p{margin-bottom:22px}.welcome-auth{max-width:400px}}
+/* Three fixed header slots; settings and save state must never create a second row. */
+header{display:grid;grid-template-columns:72px minmax(0,1fr) 72px;align-items:center}
+header .header-back{grid-column:1;grid-row:1}
+header .brand{grid-column:2;grid-row:1;white-space:nowrap;min-width:0}
+header .header-controls{grid-column:3;grid-row:1;justify-self:end}
+header .display-menu-items .save-status{max-width:none;text-align:left}

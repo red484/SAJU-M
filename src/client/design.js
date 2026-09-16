@@ -83,7 +83,7 @@ export function dressPage({page, result, profile}) {
       items.append(toggle);
       if (settings) items.append(settings);
       menu.append(summary, items);
-      if (save) controls.append(save);
+      if (save) items.append(save);
       controls.append(menu);
       header.append(controls);
       menu.addEventListener('keydown', event => {
