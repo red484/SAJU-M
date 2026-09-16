@@ -10,6 +10,7 @@ const before=calculate({...base,birth:'2024-02-04',time:'17:20'}),after=calculat
 assert.equal(calculate({...base,birth:'2024-02-04',unknown:true}).boundary,true);
 assert.throws(()=>calculate({...base,birth:'2024-03-10',time:'02:30',zone:'America/New_York'}));assert.throws(()=>calculate({...base,birth:'2024-11-03',time:'01:30',zone:'America/New_York'}));
 assert.notEqual(topicReading(a,'진로').body,topicReading(a,'연애').body);
+assert.doesNotMatch(topicReading(a,'진로').body,/[목화토금수]\s*기운/);
 const c={messages:[{role:'user',text:'이직 고민'}],topic:'진로'};const q=coach(a,base,c,'이직 고민');assert.equal(q.phase,'question');Object.assign(c,q);c.messages.push({role:'user',text:'연봉과 안정성'});const adv=coach(a,base,c,'연봉은 20% 높지만 회사가 작은 게 걱정돼요.');
 assert.match(adv.text,/사주 관점[\s\S]*현실 확인[\s\S]*오늘 할 일/);
 // Conditions are named from the user's own words, with the figure kept.

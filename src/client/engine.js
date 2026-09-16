@@ -38,7 +38,7 @@ const TRAITS=[
  ['흐름을 안정시키고 책임지는 힘','한번 맡은 일을 차근차근 정리하는 편','다른 사람의 책임까지 혼자 안는 패턴','역할과 약속이 분명하고 신뢰가 쌓이는 환경','내가 맡을 일과 함께 나눌 일을 한 가지씩 구분해보세요.'],
  ['기준을 세우고 결론을 내리는 힘','모호한 상황에서 핵심을 분별하는 편','완벽한 답을 찾느라 자신에게 엄격해지는 패턴','기준과 피드백이 명확한 환경','꼭 지킬 기준 하나와 양보할 조건 하나를 적어보세요.'],
  ['깊이 살피고 유연하게 적응하는 힘','바로 반응하기보다 맥락을 이해하는 편','생각이 길어져 첫 행동을 미루는 패턴','혼자 생각할 시간과 유연한 선택권이 있는 환경','생각 중인 일을 10분 안에 할 수 있는 행동으로 줄여보세요.']];
-export function topicReading(r,t){const a=TOPIC[t]||TOPIC.진로;return {title:a[0],body:`${ELEMENTS[r.strong[0]]} 기운을 ${TRAITS[r.strong[0]][0]}으로 읽으면, ${t}에서도 ${TRAITS[r.strong[0]][3]}이 맞는지 살펴볼 수 있어요. ${a[1]}`,action:a[2]};}
+export function topicReading(r,t){const a=TOPIC[t]||TOPIC.진로,trait=TRAITS[r.strong[0]];return {title:a[0],body:`사주에서는 ${trait[1]}으로 읽혀요. ${t}에서는 ${trait[3]}이 나와 잘 맞는지 천천히 살펴보세요. ${a[1]}`,action:a[2]};}
 export function reading(r,p){const e=r.strong[0],w=r.weak[0];return {summary:`${p.name}님의 일간은 ${ELEMENTS[r.element]}입니다. ${r.total}글자에서 ${r.strong.length>1?'가장 많이 나타난 기운 중':'가장 많이 나타난'} ${ELEMENTS[e]}은 ${TRAITS[e][0]}으로 읽어볼 수 있어요.`,strength:TRAITS[e][0],caution:TRAITS[e][2],environment:TRAITS[e][3],balance:`${ELEMENTS[w]}은 ${r.cnt[w]}개로 상대적으로 적게 나타납니다. ${TRAITS[w][0]}을 일상의 습관으로 보완해보는 관점입니다. 없는 기운이 곧 결핍이나 불운이라는 뜻은 아니에요.`,action:topicReading(r,p.topics?.[0]||'진로').action};}
 // 흐름 카드. 천간은 십성으로 주제를, 지지는 십이운성으로 세기를 말하고,
 // 원국 지지와 부딪히면 그 자리도 함께 짚습니다. 예전에는 천간을 오행 다섯
@@ -140,7 +140,7 @@ export function coach(r,p,conversation,text){const safe=safety(text);if(safe)ret
  const t=topicReading(r,topic),earlier=user.slice(0,-1).map(m=>m.text).join(' '),found=readFactors(text,earlier),nums=figures([earlier,text].join(' '));
  // Nothing named yet: ask for the options themselves instead of restating the
  // question back, which is what made earlier replies feel like an echo.
- if(!found.length)return {text:`사주 관점\n${t.body}\n\n현실 확인\n아직 비교할 조건이 잡히지 않았어요. 놓고 고민 중인 선택지를 두 개로 적어주시고, 각각에서 얻는 것과 잃는 것을 한 줄씩 붙여주세요.\n\n오늘 할 일\n${t.action}`,topic,context:conversation.context,phase:'advice'};
+ if(!found.length)return {text:`사주 관점\n${t.body}\n\n현실 확인\n아직 고민의 범위가 넓어요. 지금 그대로 가져가고 싶은 것과 가장 바꾸고 싶은 것을 하나씩 알려주세요.\n\n오늘 할 일\n메모장에 ‘유지할 것’과 ‘바꿀 것’을 적고 각각 한 줄만 채워보세요.`,topic,context:conversation.context,phase:'advice'};
  const nth=user.length,fresh=found.filter(f=>f.fresh),labels=found.map(f=>f.label);
  // Newest concerns first, and never more than three at once: a list that grows
  // every turn stops being a comparison and becomes a wall.
