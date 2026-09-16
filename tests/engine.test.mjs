@@ -70,6 +70,15 @@ for(const d of gd)assert.equal(d.score,d.parts.reduce((t,p)=>t+p.score,0));
 assert.deepEqual(goodDays('2026-09','이사').map(d=>d.score),gd.map(d=>d.score));
 
 assert.match(safety('죽고 싶어요'),/109/);assert.match(safety('코인 투자'),/예측하지/);
+assert.equal(safety('건강 관련해서 고민하고 있어요'),null,'막연한 건강 고민에는 응급 안내를 내지 않는다');
+assert.match(safety('갑자기 흉통이 있어요'),/119/,'응급 신호에는 도움을 안내한다');
+const health=coach(a,base,{messages:[{role:'user',text:'건강 관련해서 고민하고 있어요'}],topic:'진로',context:'이전 진로 고민'},'건강 관련해서 고민하고 있어요');
+assert.equal(health.phase,'clarify');assert.equal(health.topic,'건강');assert.equal(health.context,null);
+assert.doesNotMatch(health.text,/선택지|흉통|임신/);
+const confusion=coach(a,base,{messages:[{role:'user',text:'건강 관련해서 고민하고 있어요'},{role:'assistant',text:health.text,source:'rules'},{role:'user',text:'음?'}],topic:'건강'},'음?');
+assert.equal(confusion.phase,'clarify');assert.match(confusion.text,/앞서갔네요/);assert.doesNotMatch(confusion.text,/선택지/);
+const career=coach(a,base,{messages:[{role:'user',text:'진로에 대한 고민도 있어요'}],topic:'건강'},'진로에 대한 고민도 있어요');
+assert.equal(career.phase,'clarify');assert.equal(career.topic,'진로');assert.doesNotMatch(career.text,/여전|선택지|이미|즐거움/);
 assert.equal(flow(a,'2026-09-10').length,3);assert.equal(monthly([],'2026-09').list.length,0);
 
 // ── 만세력 · 대운 ──────────────────────────────────────────────

@@ -386,9 +386,10 @@ async function sendMessage(text){text=text.trim();if(!text)return;if(text.length
  // 나가므로 사용자는 빈 화면을 보지 않습니다.
  persist(); // AI를 기다리는 중 창을 닫아도 사용자의 질문은 먼저 남깁니다.
  const fallback=E.coach(result,p(),c,text);
- Object.assign(c,{topic:fallback.topic||c.topic,context:fallback.context||c.context});
+ if(fallback.topic)c.topic=fallback.topic;
+ if(Object.hasOwn(fallback,'context'))c.context=fallback.context;
  let reply=fallback.text,source='rules',aiFailure=null;
- if(fallback.phase!=='safety'&&await coachAvailable()){
+ if(!['safety','clarify'].includes(fallback.phase)&&await coachAvailable()){
   const turns=c.messages.filter(m=>m.role!=='system'&&m.source!=='rules').slice(-8).map(m=>({role:m.role,text:m.text}));
   const draft={id:uid(),role:'assistant',text:thinkingText(text),source:'pending',streaming:true,at:new Date().toISOString()};
   c.messages.push(draft);c.pending=true;render();

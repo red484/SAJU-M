@@ -65,7 +65,7 @@ function groundClash(r,b){
  }
  return null;
 }
-export function safety(text){if(/자살|죽고\s*싶|죽을|자해|목숨|살기\s*싫|해치고\s*싶/.test(text))return '지금은 사주보다 안전이 먼저예요. 혼자 견디지 말고 믿을 수 있는 사람에게 지금의 상황을 알려주세요. 즉시 위험하다면 한국에서는 119 또는 112에 연락하거나 가까운 응급실로 가세요. 자살예방상담전화 109는 24시간 연결됩니다. 해외라면 현지 긴급전화나 위기상담 서비스를 이용해 주세요. 지금 혼자 계신가요?';if(/건강|증상|병원|진단|통증|약|임신|암|의료/.test(text))return '사주로 질환·임신·치료 결과를 판단할 수 없어요. 증상과 복용 중인 약, 지속된 기간을 정리해 의료 전문가와 상의하세요. 심한 흉통·호흡곤란 등 긴급한 증상은 즉시 응급 도움을 받으세요. 오늘은 몸 상태를 한 줄로 남기고 필요한 진료를 확인해보세요.';if(/투자|주식|코인|매수|매도|대출|재무|수익/.test(text))return '사주로 투자 수익이나 매매 시점을 예측하지 않습니다. 손실을 감당할 수 있는 범위, 수수료와 부채를 먼저 확인하세요. 구체적인 투자·대출 결정은 자격 있는 금융 전문가와 상의하고, 오늘은 자산과 지출을 정리하는 데 집중해보세요.';if(/법률|소송|고소|이혼|계약|재판|변호사/.test(text))return '사주는 법률 판단이나 사건 결과를 예측하는 근거가 아닙니다. 계약서·관련 자료와 기한을 정리하고 변호사 또는 공인된 법률상담기관에 확인하세요. 오늘은 놓치면 안 되는 기한 하나를 확인해보세요.';return null;}
+export function safety(text){if(/자살|죽고\s*싶|죽을|자해|목숨|살기\s*싫|해치고\s*싶/.test(text))return '지금은 사주보다 안전이 먼저예요. 혼자 견디지 말고 믿을 수 있는 사람에게 지금의 상황을 알려주세요. 즉시 위험하다면 한국에서는 119 또는 112에 연락하거나 가까운 응급실로 가세요. 자살예방상담전화 109는 24시간 연결됩니다. 해외라면 현지 긴급전화나 위기상담 서비스를 이용해 주세요. 지금 혼자 계신가요?';if(/흉통|호흡\s*곤란|(?:가슴|흉부).{0,8}(?:아프|통증|조이)|숨(?:이)?\s*(?:안\s*쉬|못\s*쉬|막히)/.test(text))return '지금 가슴 통증이나 호흡 곤란을 겪고 있다면 사주 상담을 멈추고 즉시 119 또는 가까운 응급실에 도움을 요청해 주세요.';if(/진단|처방|치료|임신|질환|무슨\s*병|어떤\s*병|약을|약\s*먹|복용|암\s*(?:인가|일까|진단|치료)/.test(text))return '사주로 질병이나 치료 결과를 판단할 수 없어요. 어떤 점이 걱정되는지 정리해 의료 전문가에게 확인해 주세요. 지금 가장 궁금한 점은 무엇인가요?';if(/투자|주식|코인|매수|매도|대출|재무|수익/.test(text))return '사주로 투자 수익이나 매매 시점을 예측하지 않습니다. 손실을 감당할 수 있는 범위, 수수료와 부채를 먼저 확인하세요. 구체적인 투자·대출 결정은 자격 있는 금융 전문가와 상의하고, 오늘은 자산과 지출을 정리하는 데 집중해보세요.';if(/법률|소송|고소|이혼|계약|재판|변호사/.test(text))return '사주는 법률 판단이나 사건 결과를 예측하는 근거가 아닙니다. 계약서·관련 자료와 기한을 정리하고 변호사 또는 공인된 법률상담기관에 확인하세요. 오늘은 놓치면 안 되는 기한 하나를 확인해보세요.';return null;}
 // Conditions people actually weigh, each with the checks that turn a feeling
 // into something comparable. A factor is claimed only when the user's own
 // words name it, so a reply never invents a concern they did not raise.
@@ -124,7 +124,10 @@ export function signalsOf(conversations,limit=5){
   .sort((a,b)=>b.last-a.last).slice(0,limit).map(({name,count})=>({name,count}));
 }
 
-export function coach(r,p,conversation,text){const safe=safety(text);if(safe)return {text:safe,phase:'safety'};const user=conversation.messages.filter(m=>m.role==='user');let topic=conversation.topic||p.topics?.[0]||'진로',named=false;
+export function coach(r,p,conversation,text){const safe=safety(text);if(safe)return {text:safe,phase:'safety'};const user=conversation.messages.filter(m=>m.role==='user');const previous=user.at(-2)?.text||'';let topic=conversation.topic||p.topics?.[0]||'진로',named=false;
+ if(/^(?:음|응|뭐|네|예|무슨\s*뜻)(?:[?？!…\.\s]*)$/.test(text.trim())&&previous){const aboutHealth=/건강|몸|아프|통증|증상|병원/.test(previous);return {text:aboutHealth?'제가 너무 앞서갔네요. 아직 어떤 점이 걱정되는지 듣지 못했어요. 편한 만큼만 말씀해 주실래요?':'제가 질문을 너무 크게 드렸네요. 지금 마음에 걸리는 상황 하나만 말씀해 주실래요?',topic:aboutHealth?'건강':topic,context:null,phase:'clarify'};}
+ if(/건강\s*(?:관련|문제|때문|이)?.{0,12}(?:고민|걱정)|(?:고민|걱정).{0,12}건강/.test(text)&&!/(?:흉통|호흡\s*곤란|진단|처방|치료)/.test(text))return {text:'건강 때문에 마음이 쓰이시는군요. 아직 어떤 점이 걱정되는지는 듣지 못했어요. 편한 만큼만 말씀해 주실래요?',topic:'건강',context:null,phase:'clarify'};
+ if(/진로\s*(?:에\s*대한|때문|관련)?.{0,10}(?:고민|걱정)|(?:고민|걱정).{0,10}진로/.test(text)&&!/(?:이직|퇴사|직장|회사|취업|전공|진학|제안|선택|연봉|업무)/.test(text))return {text:'진로 이야기도 같이 해요. 아직 어떤 상황인지 듣지 못해서 제가 짐작하진 않을게요. 지금 가장 마음에 걸리는 일 하나만 들려주실래요?',topic:'진로',context:null,phase:'clarify'};
  // 사용자가 직접 꺼낸 주제인지 구분합니다. 프로필에 적어둔 관심사를
  // "진로 이야기를 정리해볼게요"처럼 단정해 버리면 안 한 말을 지어낸 셈입니다.
  if(/연애|짝사랑|(?<![가-힣])사랑|(?<![가-힣])상대|고백/.test(text)){topic='연애';named=true;}
