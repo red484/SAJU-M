@@ -179,6 +179,7 @@ try {
   const withBasis = '사주 관점\n한 번 쥐면 놓지 않습니다.\n<근거>일간 무토, 많은 기운 금</근거>';
   assert.equal(readBasis(withBasis), '일간 무토, 많은 기운 금');
   assert.equal(stripBasis(withBasis), '사주 관점\n한 번 쥐면 놓지 않습니다.');
+  assert.equal(stripBasis('본문\n<근거>내부 점검\\</근거>'), '본문');
   assert.equal(readBasis('근거 없는 답'), null);
 
   // 근거 블록 안의 용어는 누출이 아닙니다. 거기 적으라고 만든 자리입니다.
@@ -193,6 +194,7 @@ try {
   assert.match(faults.join(' '), /근거/);
   assert.match(faults.join(' '), /건강 검진/);
   assert.match(faults.join(' '), /맺음이 흐립니다/);
+  assert.match(critique('사주 관점\n본문\n현실 확인\n본문\n오늘 할 일\n본문\n추가 확인 (준수)', '값').join(' '), /내부 지시/);
 
   // 고친 답에는 지적이 남지 않아야 합니다.
   const solid = ['사주 관점', '한 번 쥐면 끝까지 놓지 않습니다.', '',

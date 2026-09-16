@@ -237,6 +237,8 @@ function realtimeSystemPrompt(chart) {
 ${context(chart)}
 규칙
 - 사용자가 말하지 않은 사실과 감정을 지어내지 마세요.
+- 피곤함·답답함 같은 상태 호소에는 원인을 추측하지 마세요. 사용자가 말하지 않은 수면, 식사, 운동 여부를 묻거나 사실처럼 쓰지 마세요.
+- 상태 호소에는 먼저 그 상태를 짧게 받고, 언제부터인지 또는 하루 중 언제 심한지 질문 하나만 하세요.
 - 사주는 판단 재료일 뿐이며 미래, 합격, 수명, 질병, 투자수익을 단정하지 마세요.
 - 명리 용어와 목화토금수라는 표현을 본문에 쓰지 말고 실제 행동 장면으로 번역하세요.
 - 위로, 이모지, 마크다운 목록 없이 담담한 존댓말로 짧게 쓰세요.
@@ -247,15 +249,16 @@ ${context(chart)}
 - 전체 본문은 450자 이내로 쓰고 질문 하나로 끝내세요.
 - 마지막에 사용자에게 보이지 않을 <근거>실제로 사용한 입력값</근거>를 붙이세요.
 - 구체적인 선택과 조건이 충분할 때만 <기록>{"title":"행동형 제목","topic":"진로|연애|재물|건강|가족","expectation":"사용자가 말한 조건"}</기록>을 붙이세요.
+- 필수 제목과 본문, 근거 태그 외에는 아무것도 출력하지 마세요. 규칙 설명, 준수 여부, 자체 평가, 추가 확인을 절대 출력하지 마세요.
 
 필수 제목: ${headings}`;
 }
 
 // 근거 블록은 사용자에게 보이지 않습니다. 어느 값을 읽고 쓴 말인지
 // 로그에 남겨, 사주 관점이 명식과 무관해지는 것을 뒤늦게라도 알아챕니다.
-const BASIS = /<근거>([\s\S]*?)<\/근거>/;
+const BASIS = /<근거>([\s\S]*?)\\?<\/근거>/;
 export const readBasis = text => (String(text).match(BASIS)?.[1] || '').trim().slice(0, 120) || null;
-export const stripBasis = text => String(text).replace(new RegExp(BASIS, 'g'), '').trim();
+export const stripBasis = text => String(text).replace(/<근거>[\s\S]*?(?:\\?<\/근거>|$)/g, '').trim();
 
 export const SECTIONS = ['사주 관점', '현실 확인', '오늘 할 일'];
 // 제목은 줄 맨 앞에 그대로 서 있어야 합니다. 본문 속에 우연히 같은 말이
@@ -279,6 +282,8 @@ export const jargonLeaks = text => [...new Set(JARGON.flatMap(re => String(text)
 const HEDGE = /것이 좋습니다|것도 방법입니다|볼 수 있습니다|수도 있습니다|때입니다|듯합니다|같습니다/g;
 // 진료 권유는 한 문장이면 충분합니다. 검사 항목까지 들면 우리가 할 말이 아닙니다.
 const MEDICAL = /건강\s*검진|혈액\s*검사|검사\s*결과|진단|처방|약을|영양제/g;
+// 모델의 자체 점검이나 시스템 지시가 본문으로 새는 경우입니다.
+const META = /추가\s*확인|준수\)|글자\s*수\s*제한|필수\s*제목|입력된\s*계산값|규칙\s*설명|자체\s*평가|를\s*붙이세요/g;
 
 // 답을 되돌려주기 전에 스스로 읽어 봅니다. 걸린 것이 있으면 무엇이 걸렸는지
 // 짚어서 한 번만 다시 받습니다. 프롬프트에 적어두는 것만으로는 지켜지지 않습니다.
@@ -296,6 +301,8 @@ export function critique(raw, basis, turn = 1) {
   if (!basis) out.push('<근거> 블록이 없습니다. 사주 관점을 쓸 때 명식에서 실제로 읽은 값을 적어야 합니다.');
   const med = text.match(MEDICAL) || [];
   if (med.length) out.push(`검사 항목이나 진단 이야기(${[...new Set(med)].join('·')})는 빼세요. 이어지면 진료로 확인하라는 한 문장까지입니다.`);
+  const meta = [...new Set(text.match(META) || [])];
+  if (meta.length) out.push(`내부 지시나 자체 점검(${meta.join('·')})이 본문에 노출되었습니다.`);
   const hedge = [...new Set(text.match(HEDGE) || [])];
   if (hedge.length >= 3) out.push(`맺음이 흐립니다(${hedge.join('·')}). '~하세요', '~입니다'로 끊으세요.`);
   return out;
@@ -326,7 +333,7 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
     // 700에서는 본문을 쓰기 전에 상한에 닿을 수 있어, 짧은 출력 지시는
     // 유지하면서 추론 여유만 확보합니다.
     maxTokens: 1200,
-    temperature: 0.7,
+    temperature: 0.35,
     metadata: { feature: 'coach' },
     continueOnLength: false,
     deadlineAt
@@ -340,6 +347,7 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
     continuations: res.continuations, turn, sections: hasSections(res.text, turn), leaks: jargonLeaks(stripBasis(res.text)), faults: faults.length, basis };
   if (shape.truncated) return { error: 'AI 답변이 생성 중에 끊겼습니다.', status: 502, shape };
   if (!shape.sections) return { error: '답변 형식이 어긋났습니다.', status: 502, shape };
+  if (faults.length) return { error: 'AI 답변이 품질 검사를 통과하지 못했습니다.', status: 502, shape };
 
   let text = res.text;
   // 모델이 붙인 기록 제안 블록을 본문에서 떼어내 구조화합니다. 형식이
