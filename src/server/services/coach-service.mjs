@@ -322,7 +322,10 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   const deadlineAt = Date.now() + 20_000;
   let res = await chatCompletion({
     messages: base,
-    maxTokens: 700,
+    // Gemini 2.5 Flash는 내부 추론 토큰도 completion 사용량에 포함합니다.
+    // 700에서는 본문을 쓰기 전에 상한에 닿을 수 있어, 짧은 출력 지시는
+    // 유지하면서 추론 여유만 확보합니다.
+    maxTokens: 1200,
     temperature: 0.7,
     metadata: { feature: 'coach' },
     continueOnLength: false,
@@ -335,6 +338,7 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   const basis = readBasis(res.text);
   const shape = { model: res.model, keyLabel: res.keyLabel, usage: res.usage, finishReason: res.finishReason, truncated: res.truncated,
     continuations: res.continuations, turn, sections: hasSections(res.text, turn), leaks: jargonLeaks(stripBasis(res.text)), faults: faults.length, basis };
+  if (shape.truncated) return { error: 'AI 답변이 생성 중에 끊겼습니다.', status: 502, shape };
   if (!shape.sections) return { error: '답변 형식이 어긋났습니다.', status: 502, shape };
 
   let text = res.text;
