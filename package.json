@@ -11,10 +11,11 @@
     "dev": "node src/render-server.mjs",
     "start": "node src/render-server.mjs",
     "server": "node server/index.mjs",
-    "test": "node tests/engine.test.mjs && node tests/cafe24.test.mjs && node tests/journal-merge.test.mjs && node tests/file-journal-repository.test.mjs",
+    "test": "node tests/engine.test.mjs && node tests/cafe24.test.mjs && node tests/journal-merge.test.mjs && node tests/file-journal-repository.test.mjs && node tests/auth.test.mjs",
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
+    "jose": "^6.2.12",
     "korean-lunar-calendar": "^0.4.0",
     "lunar-javascript": "^1.7.7",
     "luxon": "^3.7.2",

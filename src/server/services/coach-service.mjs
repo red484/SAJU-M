@@ -289,13 +289,16 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   if (safe) return { text: safe, source: 'safety' };
 
   const base = [{ role: 'system', content: systemPrompt(chart) }, ...turns];
-  const deadlineAt = Date.now() + 55_000;
+  // 모바일 상담은 긴 문장보다 첫 응답 시간을 우선합니다. 화면에는 규칙 답을
+  // 먼저 보여주고, AI는 35초 안에서 한 번만 이어받습니다.
+  const deadlineAt = Date.now() + 35_000;
   let res = await chatCompletion({
     messages: base,
-    maxTokens: 2000,
+    maxTokens: 1400,
     temperature: 0.7,
     metadata: { feature: 'coach' },
     continueOnLength: true,
+    maxContinuations: 1,
     deadlineAt
   });
   // 제목 세 개가 다 오지 않으면 화면의 구조가 무너집니다. 한 번만 더,
@@ -307,10 +310,11 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
       messages: [...base, { role: 'user', content:
         '방금 답에 아래 문제가 있습니다. 같은 내용을 다시 쓰되 이 점만 고치세요.\n' +
         faults.map((f, i) => `${i + 1}. ${f}`).join('\n') }],
-      maxTokens: 2000,
+      maxTokens: 1400,
       temperature: 0.4,
       metadata: { feature: 'coach', retry: 'critique' },
       continueOnLength: true,
+      maxContinuations: 1,
       deadlineAt
     });
     faults = critique(res.text, readBasis(res.text), turn);

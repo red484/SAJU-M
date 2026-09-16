@@ -11,9 +11,12 @@
 | PostgreSQL migration | 구현 완료 | `server/db.mjs`, `server/migrations/001_initial.sql` |
 | 익명 journal CRUD | 완료 | revision 충돌 방지 포함 |
 | Cafe24 다중 키 fallback | 완료 | 일시 오류에 다음 키 사용 |
+| AI 체감 지연 개선 | 완료 | 규칙 답 즉시 표시, 대화 이력 축소, 35초 deadline, 1회 이어쓰기 |
 | 사용량·AI·감사 telemetry | 완료 | 원문 제외 |
 | Cloudflare D1/Render 이중 운영 제거 | 완료 | 운영 경로를 Lightsail로 통일 |
-| 회원가입·로그인 | 미구현 | `app_users`는 미래 연결용 |
+| Apple·Google 로그인 | 구현 완료 | 모바일 웹 OAuth, ID token 검증, 30일 서버 세션 |
+| 익명 기록 계정 연결 | 구현 완료 | 로그인 시 ID 기준 병합, 새 기기에서 계정 기록 조회 |
+| 로그아웃·회원 탈퇴 | 구현 완료 | 로그인/익명 쿠키 분리, 계정 데이터 cascade 삭제 |
 | 결제·이용권·Toss | 범위 제외 | 이번 구조에 포함하지 않음 |
 | 공유 rate limit | 미구현 | 현재 프로세스 메모리 기반 |
 | 실서버 DB migration 실행 | 미검증 | 회사 비밀값과 서버 접근 필요 |
@@ -38,4 +41,4 @@
 3. 익명 쿠키 삭제 시 데이터 복구 정책 결정
 4. 다중 backend가 필요하면 Redis rate limiter 도입
 5. 개인정보 처리방침·이용약관을 실제 수집 항목과 맞춰 법무 검토
-
+6. Apple Developer와 Google Cloud에 운영 callback URL 등록 및 실계정 검증

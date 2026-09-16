@@ -10,7 +10,10 @@
 
 ```mermaid
 erDiagram
+  APP_USERS ||--o{ AUTH_IDENTITIES : "로그인 수단"
+  APP_USERS ||--o{ AUTH_SESSIONS : "로그인 세션"
   APP_USERS o|--o{ ANONYMOUS_SESSIONS : "선택적으로 연결"
+  APP_USERS o|--o| SAJU_JOURNALS : "계정 보관함"
   ANONYMOUS_SESSIONS ||--o| SAJU_JOURNALS : "기록 보유"
   ANONYMOUS_SESSIONS o|--o{ USAGE_SESSIONS : "기능 사용"
   USAGE_SESSIONS o|--o{ LLM_REQUESTS : "AI 결과 기록"
@@ -21,6 +24,21 @@ erDiagram
     text status
     timestamptz created_at
     timestamptz updated_at
+    text display_name
+    text email
+    timestamptz last_login_at
+  }
+  AUTH_IDENTITIES {
+    uuid id PK
+    uuid user_id FK
+    text provider
+    text provider_subject
+    text email
+  }
+  AUTH_SESSIONS {
+    text token_hash PK
+    uuid user_id FK
+    timestamptz expires_at
   }
   ANONYMOUS_SESSIONS {
     text id PK
@@ -31,6 +49,7 @@ erDiagram
   }
   SAJU_JOURNALS {
     text session_id PK,FK
+    uuid user_id FK
     jsonb payload
     integer revision
     timestamptz updated_at
@@ -92,6 +111,31 @@ erDiagram
 | `status` | text | NOT NULL | `active` | 계정 상태 |
 | `created_at` | timestamptz | NOT NULL | `now()` | 생성 시각 |
 | `updated_at` | timestamptz | NOT NULL | `now()` | 변경 시각 |
+| `display_name` | text | NULL | — | 로그인 제공자 표시 이름 |
+| `email` | text | NULL | — | 제공자가 검증한 이메일 |
+| `last_login_at` | timestamptz | NULL | — | 최근 로그인 |
+
+### `auth_identities`
+
+| 컬럼 | 타입 | 키/NULL | 기본값 | 설명 |
+|---|---|---|---|---|
+| `id` | uuid | PK, NOT NULL | — | 로그인 수단 ID |
+| `user_id` | uuid | FK, NOT NULL | — | 앱 사용자 |
+| `provider` | text | UQ 묶음, NOT NULL | — | `apple` 또는 `google` |
+| `provider_subject` | text | UQ 묶음, NOT NULL | — | 제공자의 변경되지 않는 사용자 ID |
+| `email` | text | NULL | — | 제공자 이메일 |
+| `created_at` | timestamptz | NOT NULL | `now()` | 최초 연결 |
+| `last_login_at` | timestamptz | NOT NULL | `now()` | 최근 사용 |
+
+### `auth_sessions`
+
+| 컬럼 | 타입 | 키/NULL | 기본값 | 설명 |
+|---|---|---|---|---|
+| `token_hash` | text | PK, NOT NULL | — | 로그인 토큰의 SHA-256 값 |
+| `user_id` | uuid | FK, NOT NULL | — | 앱 사용자 |
+| `created_at` | timestamptz | NOT NULL | `now()` | 로그인 시각 |
+| `last_seen_at` | timestamptz | NOT NULL | `now()` | 최근 확인 |
+| `expires_at` | timestamptz | NOT NULL | — | 세션 만료 시각 |
 
 ### `anonymous_sessions`
 
@@ -108,6 +152,7 @@ erDiagram
 | 컬럼 | 타입 | 키/NULL | 기본값 | 설명 |
 |---|---|---|---|---|
 | `session_id` | text | PK/FK, NOT NULL | — | 익명 세션 |
+| `user_id` | uuid | FK, NULL, 부분 UQ | — | 로그인 후 연결된 사용자 |
 | `payload` | jsonb | NOT NULL | — | 프로필·선택·대화 묶음 |
 | `revision` | integer | NOT NULL | `0` | 낙관적 잠금 버전 |
 | `updated_at` | timestamptz | NOT NULL | `now()` | 마지막 저장 |
@@ -160,6 +205,9 @@ erDiagram
 | `idx_llm_requests_usage_session` | 한 사용 단위의 AI 결과 조회 |
 | `idx_audit_logs_session_created` | 세션별 감사 추적 |
 | `idx_audit_logs_event_created` | 이벤트 유형별 장애 분석 |
+| `uq_saju_journals_user` | 로그인 사용자당 보관함 하나 보장 |
+| `idx_auth_identities_user` | 사용자의 로그인 수단 조회 |
+| `idx_auth_sessions_user_expires` | 사용자별 활성 로그인 세션 조회 |
 
 - 생년월일, 대화 원문 등 사용자 내용은 `saju_journals.payload`에만 둔다.
 - LLM telemetry에는 프롬프트·답변 원문을 저장하지 않는다.

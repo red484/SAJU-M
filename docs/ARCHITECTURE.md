@@ -48,7 +48,9 @@ backend 시작 시 `server/migrations`를 순서대로 자동 실행합니다.
 
 | 테이블 | 용도 |
 |---|---|
-| `app_users` | 향후 선택적 계정 연결 자리; 현재 로그인 없음 |
+| `app_users` | Apple·Google 로그인으로 연결된 앱 사용자 |
+| `auth_identities` | 공급자와 변경되지 않는 사용자 ID 연결 |
+| `auth_sessions` | 해시된 30일 로그인 세션 |
 | `anonymous_sessions` | 익명 HttpOnly 쿠키의 해시 식별자 |
 | `saju_journals` | 프로필·상담·기록 JSONB와 revision |
 | `usage_sessions` | 상담/대운 호출 단위 상태 |

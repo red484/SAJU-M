@@ -3,6 +3,7 @@ import { createPool, migrate } from './db.mjs';
 import { createApiHandler } from '../src/server/api-handler.mjs';
 import { PostgresJournalRepository } from '../src/server/repositories/postgres-journal-repository.mjs';
 import { TelemetryRepository } from '../src/server/repositories/telemetry-repository.mjs';
+import { AuthRepository } from '../src/server/repositories/auth-repository.mjs';
 
 const port = Number(process.env.PORT || 9090);
 const host = process.env.HOST || '0.0.0.0';
@@ -12,6 +13,7 @@ await migrate(pool);
 const api = createApiHandler({
   journalRepository: new PostgresJournalRepository(pool),
   telemetryRepository: new TelemetryRepository(pool),
+  authRepository: new AuthRepository(pool),
   readiness: async () => { await pool.query('SELECT 1'); }
 });
 

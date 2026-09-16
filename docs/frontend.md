@@ -9,7 +9,7 @@
 | 프레임워크 | 별도 UI 프레임워크 없는 모듈형 JavaScript |
 | 사주 계산 | 브라우저의 순수 산술 엔진 |
 | 서버 통신 | 동일 출처 상대 경로 `/api/*` |
-| 사용자 식별 | 서버가 발급한 HttpOnly 익명 세션 쿠키 |
+| 사용자 식별 | HttpOnly 익명 쿠키, 선택적 Apple·Google 로그인 |
 | 로컬 상태 | 화면 상태와 서버 저장 전 임시 입력 |
 
 ## 디렉터리 역할
@@ -24,6 +24,7 @@
 | `src/client/api/client.js` | timeout과 JSON 응답을 통일한 HTTP 래퍼 |
 | `src/client/api/journal.js` | 선택 기록 동기화 API |
 | `src/client/api/readings.js` | AI 상담·대운 판독 API |
+| `src/client/api/auth.js` | 로그인 상태·로그아웃·회원 탈퇴 API |
 | `src/client/journal-merge.js` | 서버 기록과 화면 기록 병합 |
 | `src/client/capture.js` | 대화 캡처 이미지 생성 |
 | `src/client/styles/*` | 레이아웃·디자인 시스템 |
@@ -42,6 +43,8 @@
 - 익명 세션 식별자 생성·해시
 - AI 사용량, 지연시간, 오류, 감사 로그
 - 데이터베이스 연결 정보
+
+로그인 전에도 전체 기능을 쓸 수 있다. 로그인하면 현재 익명 기록을 계정 기록과 ID 기준으로 합치며, 이후 다른 모바일 브라우저에서도 같은 계정으로 불러온다.
 
 ## API 사용
 
@@ -69,4 +72,3 @@
 - API 키나 DB URL이 `VITE_` 변수 또는 브라우저 번들에 들어가지 않았는지 확인한다.
 - 360px 모바일, 키보드 열림, 긴 상담 답변, 서버 장애 상태를 확인한다.
 - `npm test`와 `npm run build`를 통과시킨다.
-

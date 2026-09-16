@@ -24,6 +24,7 @@ const telemetryDetails = (shape, status, errorCode) => ({
 
 export function createReadingRoutes(telemetry) {
   async function run(req, res, feature, enabled, allowed, execute) {
+    const requestStarted = Date.now();
     if (req.method === 'GET') return sendJson(res, { available: enabled() });
     if (req.method !== 'POST') return sendJson(res, { error: '허용되지 않은 요청입니다.' }, 405);
     if (!validateOrigin(req)) return sendJson(res, { error: '이 사이트에서 다시 시도해 주세요.' }, 403);
@@ -35,15 +36,17 @@ export function createReadingRoutes(telemetry) {
       const out = await execute(JSON.parse(await readBody(req, 100_000)));
       logShape(feature, out.shape);
       await telemetry.finish(usage, telemetryDetails(out.shape, out.error ? 'failed' : 'completed', out.error ? 'UPSTREAM_RESPONSE' : null)).catch(() => {});
-      if (out.error) return sendJson(res, { error: out.error, shape: out.shape }, out.status || 500);
+      const timing = { 'Server-Timing': `ai;dur=${Date.now() - requestStarted}` };
+      if (out.error) return sendJson(res, { error: out.error, shape: out.shape }, out.status || 500, timing);
       return feature === 'coach'
-        ? sendJson(res, { text: out.text, offer: out.offer || null, source: out.source, shape: out.shape })
-        : sendJson(res, { reading: out.reading, shape: out.shape });
+        ? sendJson(res, { text: out.text, offer: out.offer || null, source: out.source, shape: out.shape }, 200, timing)
+        : sendJson(res, { reading: out.reading, shape: out.shape }, 200, timing);
     } catch (error) {
       console.error(JSON.stringify({ event: 'llm.error', feature, error: error?.message, status: error?.status }));
       await telemetry.finish(usage, telemetryDetails(null, 'failed', String(error?.status || 'UPSTREAM_ERROR'))).catch(() => {});
-      if (error?.status === 429) return sendJson(res, { error: `AI ${feature === 'coach' ? '상담' : '판독'} 사용량이 많습니다. 잠시 뒤에 다시 시도해 주세요.` }, 429);
-      return sendJson(res, { error: feature === 'coach' ? '상담을 불러오지 못했어요. 잠시 뒤에 다시 시도해 주세요.' : '판독을 불러오지 못했어요. 잠시 뒤에 다시 시도해 주세요.' }, 502);
+      const timing = { 'Server-Timing': `ai;dur=${Date.now() - requestStarted}` };
+      if (error?.status === 429) return sendJson(res, { error: `AI ${feature === 'coach' ? '상담' : '판독'} 사용량이 많습니다. 잠시 뒤에 다시 시도해 주세요.` }, 429, timing);
+      return sendJson(res, { error: feature === 'coach' ? '상담을 불러오지 못했어요. 잠시 뒤에 다시 시도해 주세요.' : '판독을 불러오지 못했어요. 잠시 뒤에 다시 시도해 주세요.' }, 502, timing);
     }
   }
 

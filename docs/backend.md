@@ -10,7 +10,7 @@
 | 운영 저장소 | PostgreSQL 필수 |
 | 개발 저장소 | `.data` JSON 파일 fallback |
 | 외부 AI | Cafe24 LLM Router, 다중 키 fallback |
-| 인증 | 없음; HttpOnly 익명 세션 쿠키 사용 |
+| 인증 | Apple·Google OAuth, HttpOnly 서버 세션 |
 | 결제 | 없음 |
 
 ## 모듈 구조
@@ -39,6 +39,12 @@
 | POST | `/api/coach` | 계산 결과와 대화로 상담 | `{text, offer, source, shape}` | `403`, `429`, `502`, `503` |
 | GET | `/api/epic` | 대운 판독 연결 여부 | `{available}` | — |
 | POST | `/api/epic` | 계산된 대운 구간 판독 | `{reading, shape}` | `403`, `429`, `502`, `503` |
+| GET | `/api/auth/providers` | 활성 로그인 제공자 | `{google, apple}` | — |
+| GET | `/api/auth/start` | OAuth 로그인 시작 | 제공자 화면으로 이동 | `503` |
+| GET/POST | `/api/auth/callback/:provider` | Google/Apple callback | 설정 화면으로 이동 | `400` |
+| GET | `/api/auth/me` | 현재 로그인 계정 | `{user}` | — |
+| POST | `/api/auth/logout` | 서버 세션 종료 | `{ok:true}` | `403` |
+| DELETE | `/api/auth/account` | 계정·연결 데이터 삭제 | `{ok:true}` | `401`, `403` |
 
 쓰기·AI POST는 동일 출처를 검사한다. AI 요청 본문은 100KB, journal 본문은 1MB로 제한한다.
 
@@ -75,6 +81,10 @@ Browser → external Nginx(HTTPS)
 | `CAFE24_LLM_KEY_LABELS` | 선택 | 비밀값 대신 로그에 남길 라벨 |
 | `CAFE24_LLM_MODEL` | 선택 | 기본 `cafe24/auto` |
 | `CAFE24_LLM_BASE_URL` | 선택 | Router endpoint override |
+| `AUTH_BASE_URL` | 운영 로그인 | 서비스의 HTTPS origin |
+| `GOOGLE_CLIENT_ID/SECRET` | Google 로그인 | Google OAuth 웹 클라이언트 |
+| `APPLE_CLIENT_ID` | Apple 로그인 | Services ID |
+| `APPLE_TEAM_ID/KEY_ID/PRIVATE_KEY` | Apple 로그인 | client secret 서명 자격 |
 
 ## 보안과 한계
 
@@ -82,5 +92,4 @@ Browser → external Nginx(HTTPS)
 - 세션 쿠키는 HttpOnly, SameSite=Lax이며 HTTPS에서는 Secure다.
 - 상담은 세션당 1분 12회, 대운 판독은 10분 4회로 제한한다.
 - 현재 rate limit은 프로세스 메모리다. 다중 backend replica에서는 Redis 같은 공유 제한기로 교체해야 한다.
-- 로그인과 복구 수단이 없어 쿠키가 사라지면 이전 기록을 다시 찾을 수 없다.
-
+- 로그인 전 기록은 쿠키가 사라지면 찾을 수 없다. 로그인 후에는 검증된 공급자 계정으로 복원한다.

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { FileJournalRepository } from './server/repositories/file-journal-repository.mjs';
 import { NullTelemetryRepository } from './server/repositories/telemetry-repository.mjs';
 import { createApiHandler } from './server/api-handler.mjs';
+import { NullAuthRepository } from './server/repositories/auth-repository.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const clientRoot = join(root, 'dist', 'client');
@@ -14,7 +15,8 @@ const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '0.0.0.0';
 const api = createApiHandler({
   journalRepository: new FileJournalRepository(dataRoot),
-  telemetryRepository: new NullTelemetryRepository()
+  telemetryRepository: new NullTelemetryRepository(),
+  authRepository: new NullAuthRepository()
 });
 
 const types = {
