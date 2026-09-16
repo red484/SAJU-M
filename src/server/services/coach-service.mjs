@@ -223,6 +223,34 @@ JSON은 한 줄로 작성하고 큰따옴표만 사용합니다. 줄바꿈과 �
 [Input Triage] D·E·F에 해당하는 응답에는 출력하지 않습니다.`;
 }
 
+// 상담 요청마다 긴 운영 지침 전체를 보내면 라우터의 첫 토큰이 늦어집니다.
+// 실시간 상담에는 같은 계약을 짧게 압축한 프롬프트를 사용합니다. 상세
+// systemPrompt는 문구/정책 원본으로 남기고, 이 프롬프트는 응답 속도를
+// 우선하는 실행용 계약입니다.
+function realtimeSystemPrompt(chart) {
+  const headings = chart.turnIndex >= 2
+    ? '현실 확인, 오늘 할 일'
+    : '사주 관점, 현실 확인, 오늘 할 일';
+  return `당신은 사용자의 선택을 현실적으로 정리하는 사주 상담자 '달빛 도령'입니다.
+
+입력된 계산값
+${context(chart)}
+규칙
+- 사용자가 말하지 않은 사실과 감정을 지어내지 마세요.
+- 사주는 판단 재료일 뿐이며 미래, 합격, 수명, 질병, 투자수익을 단정하지 마세요.
+- 명리 용어와 목화토금수라는 표현을 본문에 쓰지 말고 실제 행동 장면으로 번역하세요.
+- 위로, 이모지, 마크다운 목록 없이 담담한 존댓말로 짧게 쓰세요.
+- 사용자의 질문을 먼저 다루고 관심 주제를 먼저 꺼내지 마세요.
+- 현실 확인에는 숫자나 날짜로 확인할 항목을 최대 두 개만 넣으세요.
+- 오늘 할 일에는 오늘 10분 안에 끝낼 행동 하나만 지시하세요.
+- 첫 답변은 '사주 관점', '현실 확인', '오늘 할 일', 후속 답변은 '현실 확인', '오늘 할 일'만 각각 한 줄 제목으로 정확히 쓰세요.
+- 전체 본문은 450자 이내로 쓰고 질문 하나로 끝내세요.
+- 마지막에 사용자에게 보이지 않을 <근거>실제로 사용한 입력값</근거>를 붙이세요.
+- 구체적인 선택과 조건이 충분할 때만 <기록>{"title":"행동형 제목","topic":"진로|연애|재물|건강|가족","expectation":"사용자가 말한 조건"}</기록>을 붙이세요.
+
+필수 제목: ${headings}`;
+}
+
 // 근거 블록은 사용자에게 보이지 않습니다. 어느 값을 읽고 쓴 말인지
 // 로그에 남겨, 사주 관점이 명식과 무관해지는 것을 뒤늦게라도 알아챕니다.
 const BASIS = /<근거>([\s\S]*?)<\/근거>/;
@@ -277,9 +305,9 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   const chart = readChart(rawChart);
   if (!chart) return { error: '명식 정보가 없습니다.', status: 400 };
 
-  const turns = list(rawMessages, 20, m =>
+  const turns = list(rawMessages, 8, m =>
     m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string'
-      ? { role: m.role, content: m.text.slice(0, 1500) }
+      ? { role: m.role, content: m.text.slice(0, 800) }
       : null);
   while (turns.length && turns[0].role !== 'user') turns.shift();
   if (!turns.length || turns.at(-1).role !== 'user') return { error: '보낼 메시지가 없습니다.', status: 400 };
@@ -288,37 +316,22 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   const safe = safety(turns.at(-1).content);
   if (safe) return { text: safe, source: 'safety' };
 
-  const base = [{ role: 'system', content: systemPrompt(chart) }, ...turns];
-  // 모바일 상담은 긴 문장보다 첫 응답 시간을 우선합니다. 화면에는 규칙 답을
-  // 먼저 보여주고, AI는 35초 안에서 한 번만 이어받습니다.
-  const deadlineAt = Date.now() + 35_000;
+  const base = [{ role: 'system', content: realtimeSystemPrompt(chart) }, ...turns];
+  // 모바일 상담은 첫 응답 시간을 우선합니다. 규칙 답은 이미 화면에 있으므로
+  // AI가 20초 안에 끝내지 못하면 즉시 폴백을 유지합니다.
+  const deadlineAt = Date.now() + 20_000;
   let res = await chatCompletion({
     messages: base,
-    maxTokens: 1400,
+    maxTokens: 700,
     temperature: 0.7,
     metadata: { feature: 'coach' },
-    continueOnLength: true,
-    maxContinuations: 1,
+    continueOnLength: false,
     deadlineAt
   });
-  // 제목 세 개가 다 오지 않으면 화면의 구조가 무너집니다. 한 번만 더,
-  // 형식을 못박아 다시 받아 보고 그래도 어긋나면 규칙 코칭으로 넘깁니다.
+  // 형식 보정을 위한 두 번째 LLM 호출은 최악의 대기 시간을 크게 늘립니다.
+  // 검증만 수행하고 어긋난 답은 즉시 규칙 코칭으로 넘깁니다.
   const turn = chart.turnIndex;
-  let faults = critique(res.text, readBasis(res.text), turn);
-  if (faults.length) {
-    res = await chatCompletion({
-      messages: [...base, { role: 'user', content:
-        '방금 답에 아래 문제가 있습니다. 같은 내용을 다시 쓰되 이 점만 고치세요.\n' +
-        faults.map((f, i) => `${i + 1}. ${f}`).join('\n') }],
-      maxTokens: 1400,
-      temperature: 0.4,
-      metadata: { feature: 'coach', retry: 'critique' },
-      continueOnLength: true,
-      maxContinuations: 1,
-      deadlineAt
-    });
-    faults = critique(res.text, readBasis(res.text), turn);
-  }
+  const faults = critique(res.text, readBasis(res.text), turn);
   const basis = readBasis(res.text);
   const shape = { model: res.model, keyLabel: res.keyLabel, usage: res.usage, finishReason: res.finishReason, truncated: res.truncated,
     continuations: res.continuations, turn, sections: hasSections(res.text, turn), leaks: jargonLeaks(stripBasis(res.text)), faults: faults.length, basis };
