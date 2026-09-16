@@ -132,7 +132,13 @@ export function signalsOf(conversations,limit=5){
 }
 
 export function coach(r,p,conversation,text){const safe=safety(text);if(safe)return {text:safe,phase:'safety'};const user=conversation.messages.filter(m=>m.role==='user');const previous=user.at(-2)?.text||'';let topic=conversation.topic||p.topics?.[0]||'진로',named=false;
- if(/^(?:음|응|뭐|네|예|무슨\s*뜻)(?:[?？!…\.\s]*)$/.test(text.trim())&&previous){const aboutHealth=/건강|몸|아프|통증|증상|병원/.test(previous);return {text:aboutHealth?'제가 너무 앞서갔네요. 아직 어떤 점이 걱정되는지 듣지 못했어요. 편한 만큼만 말씀해 주실래요?':'제가 질문을 너무 크게 드렸네요. 지금 마음에 걸리는 상황 하나만 말씀해 주실래요?',topic:aboutHealth?'건강':topic,context:null,phase:'clarify'};}
+ if(/^(?:음|응|뭐|네|예|무슨\s*뜻)(?:[?？!…\.\s]*)$/.test(text.trim())&&previous){const aboutHealth=/건강|몸|아프|통증|증상|병원|졸리|졸려|졸음/.test(previous);return {text:aboutHealth?'제가 너무 앞서갔네요. 아직 어떤 점이 걱정되는지 듣지 못했어요. 편한 만큼만 말씀해 주실래요?':'제가 질문을 너무 크게 드렸네요. 지금 마음에 걸리는 상황 하나만 말씀해 주실래요?',topic:aboutHealth?'건강':topic,context:null,phase:'clarify'};}
+ const sleepy=/졸리|졸려|졸음|잠(?:이)?\s*쏟아/;
+ if(sleepy.test(text)&&conversation.context!=='sleepiness')return {text:'요즘 자주 졸리시군요. 사주로 원인을 미리 정하진 않을게요. 하루 중 언제 졸음이 가장 몰리나요?',topic:'건강',context:'sleepiness',phase:'clarify'};
+ if(conversation.topic==='건강'&&conversation.context==='sleepiness'&&!/진로|이직|직장|연애|가족|재물|투자/.test(text)){
+  const duration=/\d+\s*(?:일|주|달|개월|년)\s*(?:째|동안|전부터)?|몇\s*(?:주|달|개월)/.test(text);
+  return {text:duration?'그만큼 이어졌군요. 일상에 지장이 있거나 계속 걱정된다면 사주 대신 의료진에게 확인해 주세요. 하루 중 어떤 일이 가장 불편한가요?':'말씀해 주신 때에 졸음이 오는군요. 이런 날이 언제부터 이어졌는지 알려주실래요?',topic:'건강',context:'sleepiness',phase:'listen'};
+ }
  if(/건강\s*(?:관련|문제|때문|이)?.{0,12}(?:고민|걱정)|(?:고민|걱정).{0,12}건강/.test(text)&&!/(?:흉통|호흡\s*곤란|진단|처방|치료)/.test(text))return {text:'건강 때문에 마음이 쓰이시는군요. 아직 어떤 점이 걱정되는지는 듣지 못했어요. 편한 만큼만 말씀해 주실래요?',topic:'건강',context:null,phase:'clarify'};
  if(/진로\s*(?:에\s*대한|때문|관련)?.{0,10}(?:고민|걱정)|(?:고민|걱정).{0,10}진로/.test(text)&&!/(?:이직|퇴사|직장|회사|취업|전공|진학|제안|선택|연봉|업무)/.test(text)){const month=flow(r,DateTime.now().setZone('Asia/Seoul').toISODate())[1];return {text:`진로 이야기도 같이 해요. 이번 달은 ‘${month.title}’ 쪽으로 읽혀요. ${CAREER_QUESTION[r.strong[0]]||'지금 가장 마음에 걸리는 장면은 무엇인가요?'}`,topic:'진로',context:null,phase:'clarify'};}
  // 사용자가 직접 꺼낸 주제인지 구분합니다. 프로필에 적어둔 관심사를

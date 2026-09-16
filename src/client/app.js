@@ -396,7 +396,7 @@ async function sendMessage(text){text=text.trim();if(!text)return;if(text.length
   c.messages.push(draft);c.pending=true;render();
   const out=await requestAi(c,turns);
   if(out.ok){draft.text=out.text;draft.source=out.source;if(out.offer)c.offer=out.offer;}
-  else{draft.text=fallback.text;draft.source='rules';notice('AI 답변을 다시 만들었지만 완료되지 않아 기본 답변을 보여드려요.');}
+  else{draft.text=fallback.text;draft.source='rules';draft.aiFailure=out.reason;notice('AI 답변을 다시 만들었지만 완료되지 않아 기본 답변을 보여드려요.');}
   delete draft.streaming;c.pending=false;persist();render();return;
  }
  c.messages.push({id:uid(),role:'assistant',text:reply,source,aiFailure,at:new Date().toISOString()});persist();render();}
