@@ -11,7 +11,7 @@
     "dev": "node src/render-server.mjs",
     "start": "node src/render-server.mjs",
     "server": "node server/index.mjs",
-    "test": "node tests/engine.test.mjs && node tests/cafe24.test.mjs && node tests/journal-merge.test.mjs && node tests/file-journal-repository.test.mjs && node tests/auth.test.mjs",
+    "test": "node tests/engine.test.mjs && node tests/cafe24.test.mjs && node tests/coach-retry.test.mjs && node tests/journal-merge.test.mjs && node tests/file-journal-repository.test.mjs && node tests/auth.test.mjs",
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {

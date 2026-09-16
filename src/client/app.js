@@ -6,7 +6,7 @@ import {captureMessages} from './capture.js';
 import {now,dateLabel} from './time.js';
 import {mergeJournal} from './journal-merge.js';
 import {getJournal,putJournal,deleteJournal} from './api/journal.js';
-import {coachStatus,requestCoach,epicStatus,requestEpic} from './api/readings.js';
+import {coachStatus,requestCoachWithRetry,epicStatus,requestEpic} from './api/readings.js';
 import {authProviders,currentUser,logout,deleteAccount,loginUrl} from './api/auth.js';
 // The 만세력 tables are ~323KB of the bundle and are not needed until a chart
 // is actually cast, so engine.js loads on demand. E is null until then.
@@ -365,7 +365,7 @@ async function saveCapture(how){
 }
 
 function thinkingText(text){if(/피곤|졸리|졸려|지치|무기력/.test(text))return '지금 느끼는 피로를 어떻게 짚어볼지 살펴보고 있어요.';if(/진로|직장|이직|퇴사|취업/.test(text))return '진로에서 지금 가장 중요한 조건을 함께 살펴보고 있어요.';if(/연애|관계|연락|마음/.test(text))return '관계 속에서 마음에 걸리는 지점을 차분히 살펴보고 있어요.';if(/돈|재물|투자|지출/.test(text))return '돈에 관한 선택에서 먼저 확인할 조건을 살펴보고 있어요.';return '말씀해주신 상황에서 무엇을 먼저 짚을지 살펴보고 있어요.';}
-async function requestAi(c,messages){let last=null;for(let attempt=0;attempt<2;attempt++){try{const {response:r,body:j}=await requestCoach({chart:chartFor(c),messages});if(r.ok&&j.text)return {ok:true,text:j.text,source:j.source,offer:j.offer};last={response:r,body:j};if(r.status!==502)break;}catch(e){return {ok:false,reason:e.name==='AbortError'?'AI가 20초 안에 답하지 못했습니다.':'연결 문제로 AI 답변을 받지 못했습니다.'};}}const r=last?.response,j=last?.body||{};if(r?.status===429)return {ok:false,reason:'AI 사용량이 많습니다.'};if(j.error?.includes('끊겼'))return {ok:false,reason:'AI 답변이 생성 중에 끊겼습니다.'};if(j.error?.includes('형식')||j.error?.includes('품질'))return {ok:false,reason:'AI 답변이 품질 검사를 통과하지 못했습니다.'};return {ok:false,reason:'AI 응답을 받지 못했습니다.'};}
+async function requestAi(c,messages){let response,body;try{({response,body}=await requestCoachWithRetry({chart:chartFor(c),messages}));}catch(e){return {ok:false,reason:e.name==='AbortError'?'AI가 제한 시간 안에 답하지 못했습니다.':'연결 문제로 AI 답변을 받지 못했습니다.'};}if(response?.ok&&body?.text)return {ok:true,text:body.text,source:body.source,offer:body.offer};if(response?.status===429)return {ok:false,reason:'AI 사용량이 많습니다.'};if(body?.error?.includes('끊겼'))return {ok:false,reason:'AI 답변이 생성 중에 끊겼습니다.'};if(body?.error?.includes('형식')||body?.error?.includes('품질'))return {ok:false,reason:'AI 답변이 품질 검사를 통과하지 못했습니다.'};return {ok:false,reason:'AI 응답을 받지 못했습니다.'};}
 async function retryAi(conversationId,messageId){const c=data.conversations.find(v=>v.id===conversationId),index=c?.messages.findIndex(v=>v.id===messageId);if(!c||index!==c.messages.length-1||c.pending||c.profileKey!==profileKey())return;const m=c.messages[index];c.pending=true;render();const turns=c.messages.slice(0,index).filter(v=>v.source!=='rules'&&v.source!=='safety').slice(-12).map(v=>({role:v.role,text:v.text}));const out=await requestAi(c,turns);c.pending=false;if(out.ok){m.text=out.text;m.source=out.source;m.aiFailure=null;if(out.offer)c.offer=out.offer;persist();}else m.aiFailure=out.reason;render();}
 async function sendMessage(text){text=text.trim();if(!text)return;if(text.length>1500){notice('메시지는 1,500자 이내로 입력해 주세요.');return;}const c=currentConversation();if(c.pending){notice('앞선 답변이 끝난 뒤 보내 주세요.');return;}if(c.profileKey!==profileKey()){notice('이전 사주의 상담입니다. 새 상담을 시작해 주세요.');return;}if(!await engineReady())return;c.messages.push({id:uid(),role:'user',text,at:new Date().toISOString()});
  // 직전 답변이 기록을 제안했다면, 수긍 한 마디로 바로 남깁니다.
@@ -396,7 +396,7 @@ async function sendMessage(text){text=text.trim();if(!text)return;if(text.length
   c.messages.push(draft);c.pending=true;render();
   const out=await requestAi(c,turns);
   if(out.ok){draft.text=out.text;draft.source=out.source;if(out.offer)c.offer=out.offer;}
-  else{draft.text=fallback.text;draft.source='rules';draft.aiFailure=out.reason;notice('AI 답변을 다시 만들었지만 완료되지 않아 기본 답변을 보여드려요.');}
+  else{draft.text=fallback.text;draft.source='rules';draft.aiFailure=out.reason;}
   delete draft.streaming;c.pending=false;persist();render();return;
  }
  c.messages.push({id:uid(),role:'assistant',text:reply,source,aiFailure,at:new Date().toISOString()});persist();render();}
