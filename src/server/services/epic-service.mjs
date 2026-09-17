@@ -127,7 +127,7 @@ ${used(d, 'ten', TENARC)}
 
 4. 시제 통제 (Tense Rule)
 위 배열의 표시를 기준으로 시제를 나눕니다. 이 구분을 어기면 서사 전체가 어긋납니다.
-[지나옴] 구간: 완료형으로 씁니다. 그 시간을 통과한 사람의 자리에서 씁니다.
+[지나옴] 구간: 지나온 시간의 관점에서 쓰되, 실제로 겪었는지 모르는 사건·행동을 완료된 사실로 서술하지 않습니다.
 [지금] 구간: 현재형으로 씁니다. 아직 끝나지 않았음을 문장 안에 남깁니다.
 [앞으로] 구간: 사건을 예고하지 않고 '놓이게 되는 지형'으로만 씁니다. "~하게 됩니다"로 못박지 말고 "~하는 자리입니다"처럼 지형을 묘사합니다.
 
@@ -140,6 +140,8 @@ ${used(d, 'ten', TENARC)}
 
 7. 포맷팅 제한
 이모지, 마크다운 강조(*, **), 느낌표(!)를 쓰지 않습니다.
+en 필드만 영어로 씁니다. 한국어 필드(idx, pull, kr, gate, body, essay, closing)에 영어 단어나 영어로 된 초안 표시(Previously, Slowly 등)를 절대 섞지 않습니다.
+과거 구간도 실제로 겪은 일을 알 수 없습니다. 배우거나 잃거나 결정했다는 식의 개인사를 완료된 사실로 쓰지 말고, 그 시기에 돌아볼 수 있는 행동 경향이나 질문으로만 씁니다.
 
 8. 일반론 배제
 누구에게나 들어맞는 문장을 쓰지 않습니다. 그 구간의 십이운성이나 십성을 다른 값으로 바꿔도 문장이 그대로 성립한다면 삭제하고 다시 씁니다.
@@ -185,6 +187,21 @@ function readOutput(raw) {
   return out.en && out.kr && out.idx && out.pull && out.closing && chapters.length === 3 ? out : null;
 }
 
+// JSON 형식이 맞아도 모델의 영어 초안이나 확인할 수 없는 개인사가
+// 본문에 남을 수 있습니다. 그런 응답은 사용자에게 보내지 않습니다.
+export function epicQualityIssues(out) {
+  if (!out) return ['schema'];
+  const issues = [];
+  const koreanFields = [out.kr, out.idx, out.pull, out.closing,
+    ...out.chapters.flatMap(c => [c.kr, c.gate, c.body, c.essay])];
+  if (koreanFields.some(v => /[A-Za-z]{2,}/.test(v))) issues.push('latin-in-korean-text');
+  // 시제는 계산할 수 있지만 실제로 무엇을 했는지는 입력받지 않았습니다.
+  const prose = [out.pull, out.closing, ...out.chapters.flatMap(c => [c.body, c.essay])];
+  if (prose.some(v => /(?:했|였|았|었|됐|셨|냈|웠|겼|났|렀|갔|왔|졌|봤)습니다|(?:했|였|았|었|됐|셨)던/.test(v)))
+    issues.push('unverified-past-fact');
+  return issues;
+}
+
 export async function epicReading(raw) {
   const d = readInput(raw);
   if (!d) return { error: '대운 정보가 부족합니다.', status: 400 };
@@ -197,22 +214,22 @@ export async function epicReading(raw) {
     json: true
   });
   const read = r => { try { return readOutput(parseJsonReply(r.text)); } catch { return null; } };
-  let out = read(res);
+  let out = read(res), issues = epicQualityIssues(out);
   // 한 편을 통째로 받는 호출이라 어긋나면 화면에 아무것도 못 띄웁니다.
   // 무엇이 틀렸는지 짚어 한 번만 다시 받습니다.
-  if (!out) {
+  if (issues.length) {
     res = await chatCompletion({
       messages: [{ role: 'user', content: prompt(d) },
         { role: 'assistant', content: res.text.slice(0, 4000) },
-        { role: 'user', content: 'JSON이 규격에 맞지 않습니다. 코드 펜스와 머리말 없이 객체 하나만, en·kr·idx·pull·closing을 모두 채우고 chapters를 정확히 세 개로 다시 출력하세요. 각 chapter에는 age·en·kr·pillar·gate·body·essay가 모두 있어야 합니다.' }],
+        { role: 'user', content: `이전 답변은 검증에 실패했습니다(${issues.join(', ')}). JSON 객체 하나를 다시 출력하세요. en 필드 외에는 영어 단어를 쓰지 마세요. 실제로 겪었는지 알 수 없는 과거 사건·행동을 사실처럼 말하지 마세요. 필수 필드를 모두 채우고 chapters는 정확히 세 개로 쓰세요.` }],
       maxTokens: 4000, temperature: 0.6,
-      metadata: { feature: 'epic', retry: 'schema' },
+      metadata: { feature: 'epic', retry: 'validation' },
       continueOnLength: true, json: true
     });
-    out = read(res);
+    out = read(res); issues = epicQualityIssues(out);
   }
   const shape = { model: res.model, keyLabel: res.keyLabel, usage: res.usage, finishReason: res.finishReason, truncated: res.truncated,
-    continuations: res.continuations, schema: Boolean(out) };
-  if (!out) return { error: '판독 결과를 읽지 못했어요. 잠시 뒤에 다시 시도해 주세요.', status: 502, shape };
+    continuations: res.continuations, schema: Boolean(out), qualityIssues: issues };
+  if (issues.length) return { error: '판독 문장을 확인하지 못했어요. 잠시 뒤에 다시 시도해 주세요.', status: 502, shape };
   return { reading: out, shape };
 }
