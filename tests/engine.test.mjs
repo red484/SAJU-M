@@ -11,6 +11,9 @@ assert.equal(calculate({...base,birth:'2024-02-04',unknown:true}).boundary,true)
 assert.throws(()=>calculate({...base,birth:'2024-03-10',time:'02:30',zone:'America/New_York'}));assert.throws(()=>calculate({...base,birth:'2024-11-03',time:'01:30',zone:'America/New_York'}));
 assert.notEqual(topicReading(a,'진로').body,topicReading(a,'연애').body);
 assert.doesNotMatch(topicReading(a,'진로').body,/[목화토금수]\s*기운/);
+const loveReading=topicReading(a,'연애','2026-09-16');
+assert.match(loveReading.timing,/이번 달/);assert.match(loveReading.signal,/현실에서는/);assert.ok(loveReading.action.length>20);
+assert.doesNotMatch(Object.values(loveReading).join(' '),/반드시|운명|결혼한다|새 인연이 들어/);
 const c={messages:[{role:'user',text:'이직 고민'}],topic:'진로'};const q=coach(a,base,c,'이직 고민');assert.equal(q.phase,'question');Object.assign(c,q);c.messages.push({role:'user',text:'연봉과 안정성'});const adv=coach(a,base,c,'연봉은 20% 높지만 회사가 작은 게 걱정돼요.');
 assert.match(adv.text,/사주 관점[\s\S]*현실 확인[\s\S]*오늘 할 일/);
 // Conditions are named from the user's own words, with the figure kept.
@@ -77,6 +80,10 @@ assert.equal(health.phase,'clarify');assert.equal(health.topic,'건강');assert.
 assert.doesNotMatch(health.text,/선택지|흉통|임신/);
 const confusion=coach(a,base,{messages:[{role:'user',text:'건강 관련해서 고민하고 있어요'},{role:'assistant',text:health.text,source:'rules'},{role:'user',text:'음?'}],topic:'건강'},'음?');
 assert.equal(confusion.phase,'clarify');assert.match(confusion.text,/앞서갔네요/);assert.doesNotMatch(confusion.text,/선택지/);
+const love=coach(a,base,{messages:[{role:'user',text:'연애 고민이 있어요'}],topic:'진로',context:'이전 진로 고민'},'연애 고민이 있어요');
+assert.equal(love.phase,'clarify');assert.equal(love.topic,'연애');assert.match(love.text,/솔로·썸·연애 중·재회/);assert.doesNotMatch(love.text,/선택지/);
+const marriage=coach(a,base,{messages:[{role:'user',text:'결혼을 고민 중이에요'}],topic:'진로'},'결혼을 고민 중이에요');
+assert.equal(marriage.topic,'연애');
 const career=coach(a,base,{messages:[{role:'user',text:'진로에 대한 고민도 있어요'}],topic:'건강'},'진로에 대한 고민도 있어요');
 assert.equal(career.phase,'clarify');assert.equal(career.topic,'진로');assert.doesNotMatch(career.text,/여전|선택지|이미|즐거움/);
 assert.match(career.text,/납득할 기준/,'막연한 진로 고민에도 명식에서 읽은 확인형 가설을 건넨다');

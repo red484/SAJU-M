@@ -241,6 +241,8 @@ try {
   assert.match(personalized,/현재 흐름 \(기준일 2026-09-16, 연·월은 절기 기준/);
   assert.match(personalized,new RegExp(periodFlow[1].pillar));
   assert.match(personalized,/건강·질병·치료 결과의 원인을 현재 흐름으로 설명하지 마세요/);
+  assert.match(personalized,/솔로·썸·연애 중·재회·결혼 고민/);
+  assert.match(personalized,/상대의 숨은 마음을 사주로 알아냈다고 말하지 마세요/);
   assert.doesNotMatch(realtimeSystemPrompt({...chart,dayStem:'무',strong:['금']}),/여러 가능성을 넓게 보지만/,'명식에 따라 해석 단서가 달라진다');
   let sentMessages;
   globalThis.fetch = async (_url, options) => {

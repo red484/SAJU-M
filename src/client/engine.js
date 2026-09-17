@@ -45,7 +45,38 @@ const CAREER_QUESTION=[
  '어느 길이 맞는지보다 납득할 기준이 아직 모자란 쪽인가요?',
  '여러 가능성을 살피느라 첫 선택을 고르기 어려운 쪽인가요?'
 ];
-export function topicReading(r,t){const a=TOPIC[t]||TOPIC.진로,trait=TRAITS[r.strong[0]];return {title:a[0],body:`사주에서는 ${trait[1]}으로 읽혀요. ${t}에서는 ${trait[3]}이 나와 잘 맞는지 천천히 살펴보세요. ${a[1]}`,action:a[2]};}
+const LOVE_STYLE=[
+ ['호감이 생기면 관계를 앞으로 움직여 보고 싶은 편이에요. 다만 가능성을 빠르게 키우느라 상대의 실제 속도를 앞서가지 않는지 살펴보세요.','먼저 연락하는 쪽이 한쪽에만 쏠리지 않는지','다음 만남을 제안하되 답을 재촉하지 말고 상대가 구체적인 날짜로 화답하는지 보세요.'],
+ ['말과 반응을 주고받을 때 마음이 선명해지는 편이에요. 초반의 강한 표현보다 시간이 지나도 온도가 이어지는지가 더 중요해요.','말한 호감과 약속을 지키는 행동이 함께 가는지','서운함을 돌려 말하지 말고 “나는 이럴 때 안심돼요”라는 문장 하나로 전해보세요.'],
+ ['천천히 쌓이는 신뢰와 일상의 안정감을 중요하게 여기는 편이에요. 관계를 지키려다 상대 몫까지 혼자 책임지지 않는지 살펴보세요.','연락·약속·배려가 서로 오가는지','이번 주 관계에서 내가 한 노력과 상대가 한 노력을 한 줄씩 적어 균형을 확인하세요.'],
+ ['관계의 뜻과 기준이 분명해야 마음을 놓는 편이에요. 확실한 답을 얻으려다 아직 자라는 관계를 너무 빨리 판정하지 않는지가 관건이에요.','애매한 말보다 관계를 대하는 태도와 경계가 분명한지','꼭 확인할 기준 하나만 정해 부드럽고 직접적인 질문으로 물어보세요.'],
+ ['상대의 맥락을 오래 살피고 마음을 천천히 여는 편이에요. 이해하려는 시간이 길어져 내 의사를 보여줄 때를 놓치지 않는지 살펴보세요.','대화 뒤에 다음 연락이나 만남으로 이어지는 구체성이 있는지','해석만 이어가기보다 내가 원하는 관계의 속도를 한 문장으로 밝혀보세요.']
+];
+const LOVE_FLOW={
+ '비견':['서로의 속도와 주도권을 맞춰보는 흐름이에요','연락과 약속을 누가 먼저 시작하는지'],
+ '겁재':['주변 분위기보다 두 사람의 기준을 다시 확인할 때예요','비교나 경쟁 없이 내 관계에 집중할 수 있는지'],
+ '식신':['부담 없는 대화와 만남으로 친밀감을 쌓기 좋아요','편안한 대화가 다음 만남으로 자연스럽게 이어지는지'],
+ '상관':['참았던 말을 꺼내기 쉬운 만큼 표현의 온도를 조절할 때예요','솔직한 대화 뒤에도 존중과 연락이 이어지는지'],
+ '편재':['새로운 접점이나 다양한 만남을 열어두기 쉬운 흐름이에요','호감 표현이 일회성이 아니라 다시 약속으로 이어지는지'],
+ '정재':['관계를 꾸준히 이어갈 생활 리듬을 확인할 때예요','바쁜 날에도 약속과 연락의 기본선이 지켜지는지'],
+ '편관':['관계를 빠르게 규정하고 싶은 압박이 생길 수 있어요','상대가 부담을 피하지 않고 의사를 분명히 말하는지'],
+ '정관':['서로 기대하는 관계의 모양을 정리하기 좋아요','말한 기준과 실제 행동이 일치하는지'],
+ '편인':['상대의 속뜻을 추측하기보다 잠시 거리를 두고 사실을 볼 때예요','질문했을 때 회피하지 않고 구체적으로 답하는지'],
+ '정인':['안심과 돌봄을 주고받는 방식을 확인할 때예요','힘든 날에도 배려가 일방향이 아닌지']
+};
+function loveTopicReading(r,iso){
+ const style=LOVE_STYLE[r.strong[0]],month=flow(r,iso)[1],[timing,signal]=LOVE_FLOW[month.god];
+ const active=['장생','목욕','관대','건록','제왕'].includes(month.stage)
+  ? '마음만 재기보다 작은 표현으로 상대의 반응을 확인해도 좋아요.'
+  : '결론을 서두르기보다 지금까지 반복된 행동을 차분히 확인하세요.';
+ const timingText=`이번 달은 ${timing} ${active}`;
+ const signalText=`현실에서는 ${signal}, 그리고 ${style[1]}를 함께 보세요.`;
+ return {title:'마음의 거리와 타이밍',core:style[0],body:`${style[0]} 가까운 흐름으로는 ${timingText} ${signalText}`,timing:timingText,signal:signalText,action:style[2],basis:`이번 달 ${month.p.gz}의 ${month.god} 흐름과 ${month.stage}의 속도`};
+}
+export function topicReading(r,t,iso=DateTime.now().setZone('Asia/Seoul').toISODate()){
+ if(t==='연애')return loveTopicReading(r,iso);
+ const a=TOPIC[t]||TOPIC.진로,trait=TRAITS[r.strong[0]];return {title:a[0],body:`사주에서는 ${trait[1]}으로 읽혀요. ${t}에서는 ${trait[3]}이 나와 잘 맞는지 천천히 살펴보세요. ${a[1]}`,action:a[2]};
+}
 export function reading(r,p){const e=r.strong[0],w=r.weak[0];return {summary:`${p.name}님의 일간은 ${ELEMENTS[r.element]}입니다. ${r.total}글자에서 ${r.strong.length>1?'가장 많이 나타난 기운 중':'가장 많이 나타난'} ${ELEMENTS[e]}은 ${TRAITS[e][0]}으로 읽어볼 수 있어요.`,strength:TRAITS[e][0],caution:TRAITS[e][2],environment:TRAITS[e][3],balance:`${ELEMENTS[w]}은 ${r.cnt[w]}개로 상대적으로 적게 나타납니다. ${TRAITS[w][0]}을 일상의 습관으로 보완해보는 관점입니다. 없는 기운이 곧 결핍이나 불운이라는 뜻은 아니에요.`,action:topicReading(r,p.topics?.[0]||'진로').action};}
 // 흐름 카드. 천간은 십성으로 주제를, 지지는 십이운성으로 세기를 말하고,
 // 원국 지지와 부딪히면 그 자리도 함께 짚습니다. 예전에는 천간을 오행 다섯
@@ -84,7 +115,7 @@ const FACTOR=[
  ['시간',/워라밸|야근|근무 ?시간|주말|휴가|퇴근/,'실제 퇴근 시각과 주말 근무 빈도','휴가 사용률'],
  ['함께 일할 사람',/상사|팀|동료|대표|문화|사람들/,'함께 일할 팀의 최근 이직','결정이 내려지는 방식'],
  ['거리',/출퇴근|통근|이사|재택|원격/,'편도 통근 시간','재택이 가능한 일수'],
- ['관계 거리',/연락|만남|고백|헤어|사귀|썸/,'서로 표현한 의사와 경계','다음에 만나기로 한 시점'],
+ ['관계 거리',/연락|만남|소개팅|고백|헤어|이별|재회|결혼|사귀|연인|애인|남친|여친|썸/,'서로 표현한 의사와 경계','다음에 만나기로 한 시점'],
  ['지출 구조',/지출|저축|대출|생활비|비상금?/,'고정 지출과 비상 자금의 개월 수','줄일 수 있는 항목 한 가지']];
 const figures=t=>[...t.matchAll(/(\d+(?:\.\d+)?)\s*(%|퍼센트|배|만 ?원|억|개월|달|년|주|시간)/g)].map(m=>m[1]+m[2].replace(/\s/g,'').replace('퍼센트','%'));
 const batchim=w=>{const c=w.charCodeAt(w.length-1);return c>=0xAC00&&c<=0xD7A3&&(c-0xAC00)%28!==0;};
@@ -141,9 +172,10 @@ export function coach(r,p,conversation,text){const safe=safety(text);if(safe)ret
  }
  if(/건강\s*(?:관련|문제|때문|이)?.{0,12}(?:고민|걱정)|(?:고민|걱정).{0,12}건강/.test(text)&&!/(?:흉통|호흡\s*곤란|진단|처방|치료)/.test(text))return {text:'건강 때문에 마음이 쓰이시는군요. 아직 어떤 점이 걱정되는지는 듣지 못했어요. 편한 만큼만 말씀해 주실래요?',topic:'건강',context:null,phase:'clarify'};
  if(/진로\s*(?:에\s*대한|때문|관련)?.{0,10}(?:고민|걱정)|(?:고민|걱정).{0,10}진로/.test(text)&&!/(?:이직|퇴사|직장|회사|취업|전공|진학|제안|선택|연봉|업무)/.test(text)){const month=flow(r,DateTime.now().setZone('Asia/Seoul').toISODate())[1];return {text:`진로 이야기도 같이 해요. 이번 달은 ‘${month.title}’ 쪽으로 읽혀요. ${CAREER_QUESTION[r.strong[0]]||'지금 가장 마음에 걸리는 장면은 무엇인가요?'}`,topic:'진로',context:null,phase:'clarify'};}
+ if(/연애\s*(?:에\s*대한|때문|관련)?.{0,10}(?:고민|걱정)|(?:고민|걱정).{0,10}연애/.test(text)&&!/(?:짝사랑|썸|소개팅|연락|만남|고백|사귀|연인|애인|남친|여친|재회|결혼|이별|헤어)/.test(text))return {text:'연애 이야기라면 먼저 지금의 관계부터 알아야 마음을 함부로 단정하지 않을 수 있어요. 현재는 솔로·썸·연애 중·재회 고민 중 어디에 가장 가까우신가요?',topic:'연애',context:null,phase:'clarify'};
  // 사용자가 직접 꺼낸 주제인지 구분합니다. 프로필에 적어둔 관심사를
  // "진로 이야기를 정리해볼게요"처럼 단정해 버리면 안 한 말을 지어낸 셈입니다.
- if(/연애|짝사랑|(?<![가-힣])사랑|(?<![가-힣])상대|고백/.test(text)){topic='연애';named=true;}
+ if(/연애|짝사랑|소개팅|썸|연인|애인|남친|여친|고백|이별|재회|결혼|(?<![가-힣])사랑|(?<![가-힣])상대/.test(text)){topic='연애';named=true;}
  else if(/이직|퇴사|직장|진로|회사/.test(text)){topic='진로';named=true;}
  else if(/돈|재물|지출/.test(text)){topic='재물';named=true;}
  else if(/가족|부모|자녀|(?<![가-힣])아이(?![디폰스티콘])/.test(text)){topic='가족';named=true;}
@@ -156,7 +188,10 @@ export function coach(r,p,conversation,text){const safe=safety(text);if(safe)ret
  const t=topicReading(r,topic),earlier=user.slice(0,-1).map(m=>m.text).join(' '),found=readFactors(text,earlier),nums=figures([earlier,text].join(' '));
  // Nothing named yet: ask for the options themselves instead of restating the
  // question back, which is what made earlier replies feel like an echo.
- if(!found.length)return {text:`사주 관점\n${t.body}\n\n현실 확인\n아직 고민의 범위가 넓어요. 지금 그대로 가져가고 싶은 것과 가장 바꾸고 싶은 것을 하나씩 알려주세요.\n\n오늘 할 일\n메모장에 ‘유지할 것’과 ‘바꿀 것’을 적고 각각 한 줄만 채워보세요.`,topic,context:conversation.context,phase:'advice'};
+ if(!found.length){
+  if(topic==='연애')return {text:`사주 관점\n${t.core}\n\n현실 확인\n${t.timing} ${t.signal}\n\n오늘 할 일\n${t.action}`,topic,context:conversation.context,phase:'advice'};
+  return {text:`사주 관점\n${t.body}\n\n현실 확인\n아직 고민의 범위가 넓어요. 지금 그대로 가져가고 싶은 것과 가장 바꾸고 싶은 것을 하나씩 알려주세요.\n\n오늘 할 일\n메모장에 ‘유지할 것’과 ‘바꿀 것’을 적고 각각 한 줄만 채워보세요.`,topic,context:conversation.context,phase:'advice'};
+ }
  const nth=user.length,fresh=found.filter(f=>f.fresh),labels=found.map(f=>f.label);
  // Newest concerns first, and never more than three at once: a list that grows
  // every turn stops being a comparison and becomes a wall.
