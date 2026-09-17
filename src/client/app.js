@@ -319,17 +319,18 @@ async function loadEpic(){
 
 function epicBlock(){
  if(!aiEpic&&!epic)return '';
- if(epic&&epicCollapsed)return `<section class="block" id="epic"><h2 class="block-title">대운 판독</h2><p class="hint">읽어둔 판독을 다시 펼쳐볼 수 있어요.</p><button class="secondary" data-epic-toggle aria-expanded="false">판독 다시 펼치기</button></section>`;
- if(!epic)return `<section class="block" id="epic"><h2 class="block-title">대운 판독</h2><p class="hint">여덟 구간의 대운을 한 편의 서사로 읽어 드려요. 계산된 명식과 십이운성만 재료로 씁니다.</p><button class="secondary" data-action="epic" ${epicBusy?'disabled':''}>${epicBusy?'읽는 중…':'판독 열기'}</button></section>`;
+ if(epic&&epicCollapsed)return `<section class="block" id="epic"><h2 class="block-title">10년 흐름</h2><p class="hint">나이대별 핵심 흐름과 현실 신호를 다시 확인할 수 있어요.</p><button class="secondary" data-epic-toggle aria-expanded="false">10년 흐름 다시 보기</button></section>`;
+ if(!epic)return `<section class="block" id="epic"><h2 class="block-title">대운 · 10년의 흐름</h2><p class="hint">긴 설명보다 먼저, 나이대별 핵심 흐름과 현실에서 확인할 신호를 보여드려요.</p><button class="secondary" data-action="epic" ${epicBusy?'disabled':''}>${epicBusy?'10년 흐름 읽는 중…':'10년 흐름 자세히 보기'}</button></section>`;
  const e=epic;
- return `<section class="block epic" id="epic"><div class="epic-toolbar"><h2 class="block-title">대운 판독</h2><button class="plain" data-epic-toggle aria-expanded="true">판독 닫기</button></div>
+ const guide=c=>{const ten=c.pillar.split('·')[1]?.trim();if(/비견|겁재/.test(ten))return ['맡는 일과 관계의 주도권이 한쪽에만 쏠리는지','내가 책임질 몫과 함께 나눌 몫을 먼저 구분하세요.'];if(/식신|상관/.test(ten))return ['생각과 표현이 실제 결과물이나 대화로 이어지는지','완벽하게 준비하기보다 보여줄 수 있는 작은 결과 하나를 만드세요.'];if(/편재|정재/.test(ten))return ['기회가 늘면서 시간과 지출도 함께 커지는지','새 제안을 받으면 얻는 것과 유지 비용을 한 줄씩 비교하세요.'];if(/편관|정관/.test(ten))return ['역할과 책임은 커지는데 내 선택권도 함께 있는지','수락하기 전에 지켜야 할 기준과 거절할 조건을 하나씩 정하세요.'];return ['배우고 생각하는 시간이 실제 생활의 변화로 이어지는지','더 알아보기 전에 지금 확인할 사실 하나를 직접 물어보세요.'];};
+ return `<section class="block epic" id="epic"><div class="epic-toolbar"><h2 class="block-title">10년 흐름 상세</h2><button class="plain" data-epic-toggle aria-expanded="true">사주 결과로 돌아가기</button></div>
   <div class="epic-head"><span class="epic-en">${esc(e.en)}</span><b class="epic-kr">${esc(e.kr)}</b><span class="epic-idx">${esc(e.idx)}</span></div>
   <p class="epic-pull">${esc(e.pull).replace(/\n/g,'<br>')}</p>
-  ${e.chapters.map(c=>`<article class="epic-ch"><div class="epic-ch-head"><span>${esc(c.age)}</span><span class="epic-en">${esc(c.en)}</span><b>${esc(c.kr)}</b></div>
+  ${e.chapters.map(c=>{const [signal,action]=guide(c);return `<article class="epic-ch"><div class="epic-ch-head"><span>${esc(c.age)}</span><span class="epic-en">${esc(c.en)}</span><b>${esc(c.kr)}</b></div>
    <p class="epic-pillar">${esc(c.pillar)}</p><p class="epic-gate">${esc(c.gate)}</p>
-   <p class="epic-body">${esc(c.body)}</p><p class="epic-essay">${esc(c.essay)}</p></article>`).join('')}
+   <span class="epic-label">핵심 흐름</span><p class="epic-body">${esc(c.body)}</p><div class="epic-guide"><p><b>현실에서 볼 신호</b>${esc(signal)}</p><p><b>추천 행동</b>${esc(action)}</p></div><details class="epic-story"><summary>이 시기의 이야기 읽기</summary><p class="epic-essay">${esc(c.essay)}</p></details></article>`}).join('')}
   <p class="epic-close">${esc(e.closing)}</p>
-  <div class="epic-actions"><button class="secondary" data-epic-toggle aria-expanded="true">판독 닫기</button><button class="text-link" data-action="epic" ${epicBusy?'disabled':''}>${epicBusy?'읽는 중…':'새로 판독하기'}</button></div></section>`;}
+  <div class="epic-actions"><button class="secondary" data-epic-toggle aria-expanded="true">사주 결과로 돌아가기</button><button class="text-link" data-action="epic" ${epicBusy?'disabled':''}>${epicBusy?'읽는 중…':'10년 흐름 새로 읽기'}</button></div></section>`;}
 
 // 카카오톡처럼 범위로 고릅니다. 시작 말풍선과 끝 말풍선을 찍으면 사이가
 // 전부 담깁니다. capturing은 {a,b} — 아직 안 찍었으면 null입니다.
