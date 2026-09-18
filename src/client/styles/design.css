@@ -479,7 +479,8 @@ header:has(.header-logout){grid-template-columns:72px minmax(0,1fr) 112px}
 header .header-back{white-space:nowrap}
 header .header-logout{white-space:nowrap;font-size:.72rem;padding-inline:4px}
 .welcome-auth .auth-buttons{gap:10px;margin:0}
-.welcome-auth .auth{min-height:48px;border-radius:12px;font-size:.92rem}
+.welcome-auth .auth{min-height:48px;border-radius:12px}
+.welcome-auth .auth.apple{font-size:.92rem}
 .welcome-auth .welcome-link{display:block;width:100%;min-height:44px;margin:8px 0;color:#d5dcce;text-decoration:underline;text-underline-offset:4px}
 .welcome-legal{display:flex;justify-content:center;gap:10px;margin-top:8px;font-size:.68rem;color:#b6bfaa}
 .welcome-legal a{color:inherit;text-underline-offset:3px}

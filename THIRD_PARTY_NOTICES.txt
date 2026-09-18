@@ -63,3 +63,12 @@ https://hangeul.naver.com/font
 서브셋한 woff2 파일이 포함되어 있습니다 (assets/fonts/).
 글꼴 자체의 저작권은 네이버에 있으며, 배포처의 라이선스를 따릅니다.
 원본 글꼴 파일과 라이선스 전문은 위 배포처에서 확인하세요.
+
+Roboto Medium
+Copyright 2011 The Roboto Project Authors (https://github.com/googlefonts/roboto-classic)
+Font distributed under the SIL Open Font License, Version 1.1.
+Full license: assets/fonts/OFL-Roboto.txt
+
+Google G logo
+Official Google Identity sign-in branding asset.
+https://developers.google.com/identity/branding-guidelines
