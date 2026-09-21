@@ -28,6 +28,19 @@ PostgreSQL API만 직접 실행하려면 `DATABASE_URL`을 설정합니다.
 DATABASE_URL=postgresql://... npm run server  # http://localhost:9090
 ```
 
+앱인토스 업로드 번들은 다음 명령으로 생성합니다. 일반 `npm run build`에는 Toss 로그인 UI가 포함되지 않습니다.
+
+```bash
+npm run build:ait
+# 프로젝트 루트에 dalbitsaju.ait 생성
+```
+
+Toss 로그인은 서버에서 mTLS로 인가 코드를 교환합니다. Toss 콘솔에서 받은 인증서와 키를
+`secrets/toss/`에 두고 `.env.production`의 `TOSS_MTLS_CERT_PATH`,
+`TOSS_MTLS_KEY_PATH`, `TOSS_MTLS_KEY_PASSWORD`를 설정합니다. 앱인토스 WebView의
+Origin은 `TOSS_ALLOWED_ORIGINS`에 쉼표로 등록하며, 고정 Origin을 확인하기 전에는 `*`로
+테스트할 수 있습니다.
+
 ### 테스트
 
 ```sh

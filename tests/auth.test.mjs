@@ -22,15 +22,16 @@ for (const provider of ['google', 'apple']) {
 
 const repository = {
   async userFromToken(token) { return token === 'signed-in' ? { id: 'u1', display_name: '달빛', email: 'moon@example.com' } : null; },
-  async logout(token) { this.loggedOut = token; }
+  async logout(token) { this.loggedOut = token; },
+  async signIn(identity, anonymousId) { this.identity = identity; this.anonymousId = anonymousId; return { token: 'toss-token', userId: 'toss-user' }; }
 };
 const route = createAuthRoutes(repository);
 
 function response() {
   return { status: 0, headers: {}, body: '', writeHead(status, headers = {}) { this.status = status; this.headers = headers; }, end(body = '') { this.body = body; } };
 }
-async function call(path, { method = 'GET', cookie = '', origin = '', body = '' } = {}) {
-  const req = { method, headers: { host: 'saju.example.com', cookie, ...(origin ? { origin } : {}) }, socket: { encrypted: true }, async *[Symbol.asyncIterator]() { if (body) yield Buffer.from(body); } };
+async function call(path, { method = 'GET', cookie = '', origin = '', body = '', headers = {} } = {}) {
+  const req = { method, headers: { host: 'saju.example.com', cookie, ...(origin ? { origin } : {}), ...headers }, socket: { encrypted: true }, async *[Symbol.asyncIterator]() { if (body) yield Buffer.from(body); } };
   const res = response();
   await route(req, res, new URL(path, 'https://saju.example.com'));
   return res;
@@ -38,15 +39,30 @@ async function call(path, { method = 'GET', cookie = '', origin = '', body = '' 
 
 let res = await call('/api/auth/providers');
 assert.equal(res.status, 200);
-assert.deepEqual(JSON.parse(res.body), { google: false, apple: false });
+assert.deepEqual(JSON.parse(res.body), { google: false, apple: false, toss: false });
 
 res = await call('/api/auth/me', { cookie: 'dalbit_auth=signed-in' });
 assert.equal(JSON.parse(res.body).user.email, 'moon@example.com');
+res = await call('/api/auth/me', { headers: { authorization: 'Bearer signed-in' } });
+assert.equal(JSON.parse(res.body).user.id, 'u1');
 
 res = await call('/api/auth/logout', { method: 'POST', cookie: 'dalbit_auth=signed-in', origin: 'https://saju.example.com' });
 assert.equal(res.status, 200);
 assert.equal(repository.loggedOut, 'signed-in');
 assert.equal(Array.isArray(res.headers['Set-Cookie']), true);
+
+process.env.TOSS_LOGIN_MOCK = 'true';
+process.env.TOSS_ALLOWED_ORIGINS = '*';
+const tossSession = 'a'.repeat(64);
+res = await call('/api/auth/toss', { method: 'POST', origin: 'https://miniapp.toss.im',
+  headers: { 'x-dalbit-session': tossSession },
+  body: JSON.stringify({ authorizationCode: 'mock', referrer: 'LOCAL', mockUserKey: 'toss-1234' }) });
+delete process.env.TOSS_LOGIN_MOCK;
+delete process.env.TOSS_ALLOWED_ORIGINS;
+assert.equal(res.status, 200);
+assert.equal(JSON.parse(res.body).token, 'toss-token');
+assert.deepEqual(repository.identity, { provider: 'toss', subject: 'toss-1234', email: null, name: '토스 사용자 1234' });
+assert.equal(repository.anonymousId.length, 64);
 
 process.env.GOOGLE_CLIENT_ID = 'client-id';
 process.env.GOOGLE_CLIENT_SECRET = 'client-secret';

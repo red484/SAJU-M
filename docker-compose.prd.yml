@@ -42,6 +42,14 @@ services:
       APPLE_KEY_ID: ${APPLE_KEY_ID:-}
       APPLE_PRIVATE_KEY: ${APPLE_PRIVATE_KEY:-}
       APPLE_PRIVATE_KEY_B64: ${APPLE_PRIVATE_KEY_B64:-}
+      TOSS_API_BASE: ${TOSS_API_BASE:-https://apps-in-toss-api.toss.im}
+      TOSS_MTLS_CERT_PATH: ${TOSS_MTLS_CERT_PATH:-}
+      TOSS_MTLS_KEY_PATH: ${TOSS_MTLS_KEY_PATH:-}
+      TOSS_MTLS_KEY_PASSWORD: ${TOSS_MTLS_KEY_PASSWORD:-}
+      TOSS_LOGIN_MOCK: ${TOSS_LOGIN_MOCK:-false}
+      TOSS_ALLOWED_ORIGINS: ${TOSS_ALLOWED_ORIGINS:-}
+    volumes:
+      - ./secrets/toss:/app/secrets/toss:ro
     expose:
       - "9090"
     ports:

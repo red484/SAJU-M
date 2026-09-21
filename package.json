@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "node build.mjs",
+    "build:ait": "APPS_IN_TOSS=true DALBIT_API_BASE=https://saju.ashwoodfriends.com node build.mjs && ait build",
     "dev": "node src/render-server.mjs",
     "start": "node src/render-server.mjs",
     "server": "node server/index.mjs",
@@ -19,6 +20,7 @@
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
+    "@apps-in-toss/web-framework": "^3.5.0",
     "@capacitor/app": "^8.1.1",
     "@capacitor/browser": "^8.0.4",
     "@capacitor/core": "^8.5.2",

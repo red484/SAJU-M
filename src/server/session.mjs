@@ -6,6 +6,8 @@ export function secureCookie(req) {
 }
 
 export function getSession(req) {
+  const header = String(req.headers['x-dalbit-session'] || '');
+  if (/^[a-f0-9]{64}$/.test(header)) return { token: header, fresh: false };
   const match = req.headers.cookie?.match(/(?:^|;\s*)dalbit_session=([a-f0-9]{64})(?:;|$)/);
   if (match) return { token: match[1], fresh: false };
   return { token: randomBytes(32).toString('hex'), fresh: true };

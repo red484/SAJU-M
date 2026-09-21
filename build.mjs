@@ -8,7 +8,10 @@ await rm('dist',{recursive:true,force:true});await mkdir('dist/client/assets',{r
 // import that fails is cached against its specifier forever, so the retry has
 // to request a fresh one (?r=N), which only works with a URL we control.
 // splitting still hoists luxon and the lookup tables into a shared chunk.
-await build({entryPoints:['src/client/app.js','src/client/engine.js'],bundle:true,minify:true,format:'esm',splitting:true,outdir:'dist/client',chunkNames:'chunk-[hash]',target:['es2022']});
+await build({entryPoints:['src/client/app.js','src/client/engine.js'],bundle:true,minify:true,format:'esm',splitting:true,outdir:'dist/client',chunkNames:'chunk-[hash]',target:['es2022'],define:{
+ '__APPS_IN_TOSS__':JSON.stringify(process.env.APPS_IN_TOSS==='true'),
+ '__DALBIT_API_BASE__':JSON.stringify((process.env.DALBIT_API_BASE||'').replace(/\/$/,''))
+}});
 await copyFile('THIRD_PARTY_NOTICES.txt','dist/client/THIRD_PARTY_NOTICES.txt');
 await copyFile('native/offline.html','dist/client/offline.html');
 await writeFile('dist/client/app.css',(await readFile('src/client/styles/app.css','utf8'))+'\n'+(await readFile('src/client/styles/design.css','utf8')));await copyFile('index.html','dist/client/index.html');

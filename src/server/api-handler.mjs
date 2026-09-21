@@ -8,6 +8,19 @@ export function createApiHandler({ journalRepository, telemetryRepository, authR
   const readings = createReadingRoutes(telemetryRepository);
   const auth = createAuthRoutes(authRepository);
   return async function apiHandler(req, res) {
+    const origin = String(req.headers.origin || '');
+    const allowed = String(process.env.TOSS_ALLOWED_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean);
+    if (origin && (allowed.includes('*') || allowed.includes(origin))) {
+      const cors = {
+        'Access-Control-Allow-Origin': allowed.includes('*') ? '*' : origin,
+        'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Dalbit-Session',
+        'Vary': 'Origin'
+      };
+      const writeHead = res.writeHead.bind(res);
+      res.writeHead = (status, headers = {}) => writeHead(status, { ...cors, ...headers });
+      if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+    }
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     if (url.pathname === '/health' || url.pathname === '/api/health') {
       return sendJson(res, { ok: true, service: 'dalbit-saju-backend', ai: readings.availability() });

@@ -28,6 +28,8 @@ export async function readBody(req, limit = 1_000_000) {
 export function validateOrigin(req) {
   const origin = req.headers.origin;
   if (!origin) return true;
+  const allowed = String(process.env.TOSS_ALLOWED_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean);
+  if (allowed.includes('*') || allowed.includes(origin)) return true;
   const host = req.headers['x-forwarded-host'] || req.headers.host;
   const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https' : 'http');
   return origin === `${proto}://${host}`;

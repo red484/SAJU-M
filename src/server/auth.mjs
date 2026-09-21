@@ -2,17 +2,23 @@ import { createHash, randomBytes } from 'node:crypto';
 import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from 'jose';
 import { readBody, sendJson, validateOrigin } from './http.mjs';
 import { expiredSessionCookie, getSession, secureCookie, sessionCookie, sessionId } from './session.mjs';
+import { exchangeTossLogin } from './toss-auth.mjs';
 
 const GOOGLE_ISSUERS = ['https://accounts.google.com', 'accounts.google.com'];
 const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
 const appleKeys = createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys'));
 const cookie = (name, value, req, maxAge, sameSite = 'Lax') => `${name}=${value}; HttpOnly; SameSite=${sameSite}; Path=/; Max-Age=${maxAge}${secureCookie(req)}`;
 const readCookie = (req, name) => req.headers.cookie?.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`))?.[1] || '';
-const authToken = req => readCookie(req, 'dalbit_auth');
+const authToken = req => {
+  const bearer = String(req.headers.authorization || '');
+  return bearer.startsWith('Bearer ') ? bearer.slice(7).trim() : readCookie(req, 'dalbit_auth');
+};
 const safeReturn = value => String(value || '/settings').startsWith('/') && !String(value).startsWith('//') ? String(value) : '/settings';
 const configured = provider => provider === 'google'
   ? Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
-  : Boolean(process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && (process.env.APPLE_PRIVATE_KEY_B64 || process.env.APPLE_PRIVATE_KEY));
+  : provider === 'apple'
+    ? Boolean(process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && (process.env.APPLE_PRIVATE_KEY_B64 || process.env.APPLE_PRIVATE_KEY))
+    : provider === 'toss' && (process.env.TOSS_LOGIN_MOCK === 'true' || Boolean(process.env.TOSS_MTLS_CERT_PATH && process.env.TOSS_MTLS_KEY_PATH));
 
 export function applePrivateKey() {
   const encoded = process.env.APPLE_PRIVATE_KEY_B64?.trim();
@@ -53,7 +59,7 @@ async function exchange(provider, code, redirectUri, nonce) {
 
 export function createAuthRoutes(repository) {
   return async function auth(req, res, url) {
-    if (url.pathname === '/api/auth/providers') return sendJson(res, { google: configured('google'), apple: configured('apple') });
+    if (url.pathname === '/api/auth/providers') return sendJson(res, { google: configured('google'), apple: configured('apple'), toss: configured('toss') });
     if (url.pathname === '/api/auth/me') {
       const user = await repository.userFromToken(authToken(req));
       return sendJson(res, { user: user ? { id: user.id, name: user.display_name, email: user.email } : null });
@@ -71,6 +77,24 @@ export function createAuthRoutes(repository) {
       res.writeHead(302, { Location: `${provider === 'google' ? 'https://accounts.google.com/o/oauth2/v2/auth' : 'https://appleid.apple.com/auth/authorize'}?${params}`,
         'Set-Cookie': [cookie('dalbit_oauth_state', state, req, 600, provider === 'apple' ? 'None' : 'Lax'), cookie('dalbit_oauth_nonce', nonce, req, 600, provider === 'apple' ? 'None' : 'Lax'), cookie('dalbit_oauth_return', encodeURIComponent(safeReturn(url.searchParams.get('returnTo'))), req, 600, provider === 'apple' ? 'None' : 'Lax')] });
       return res.end();
+    }
+    if (url.pathname === '/api/auth/toss' && req.method === 'POST') {
+      if (!configured('toss')) return sendJson(res, { error: 'Toss 로그인이 설정되지 않았습니다.' }, 503);
+      if (!validateOrigin(req)) return sendJson(res, { error: '이 앱에서 다시 시도해 주세요.' }, 403);
+      try {
+        const body = JSON.parse(await readBody(req, 20_000) || '{}');
+        if (!body.authorizationCode && process.env.TOSS_LOGIN_MOCK !== 'true') return sendJson(res, { error: 'authorizationCode가 필요합니다.' }, 400);
+        const toss = process.env.TOSS_LOGIN_MOCK === 'true'
+          ? { userKey: String(body.mockUserKey || 'local-dev-user') }
+          : await exchangeTossLogin({ authorizationCode: body.authorizationCode, referrer: body.referrer });
+        const session = getSession(req);
+        const signed = await repository.signIn({ provider: 'toss', subject: toss.userKey,
+          email: null, name: `토스 사용자 ${toss.userKey.slice(-4)}` }, sessionId(session.token));
+        return sendJson(res, { token: signed.token, user: { id: signed.userId, name: `토스 사용자 ${toss.userKey.slice(-4)}`, email: null } });
+      } catch (error) {
+        console.error(JSON.stringify({ event: 'auth.failed', provider: 'toss', error: error.message }));
+        return sendJson(res, { error: error.message || 'Toss 로그인에 실패했습니다.' }, error.status || 500);
+      }
     }
     if (url.pathname.startsWith('/api/auth/callback/')) {
       const provider = url.pathname.split('/').pop();

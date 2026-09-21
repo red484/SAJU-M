@@ -8,3 +8,5 @@ node_modules/
 !.env.production.example
 src/generated-assets.js
 .data/
+secrets/
+*.ait
