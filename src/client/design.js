@@ -1,3 +1,5 @@
+import { appsInToss } from './api/client.js';
+
 // Animate clipped wing layers from the original bitmap, without replacement artwork.
 
 // Presentation only: the reading, calendar and storage remain owned by app.js.
@@ -14,6 +16,17 @@ let jumpObserver = null;
 
 export function dressPage({page, result, profile}) {
   document.body.classList.add('moonbook');
+  if (appsInToss && ['result', 'today', 'chat'].includes(page)) {
+    const host = page === 'chat' ? document.querySelector('.chat-panel') : document.querySelector('main');
+    if (host && !host.querySelector('.ai-disclosure')) {
+      const notice = document.createElement('aside');
+      notice.className = 'ai-disclosure';
+      notice.setAttribute('role', 'note');
+      notice.innerHTML = '<b>AI 생성 콘텐츠</b><span>이 앱의 AI 해석과 상담 답변은 참고용 콘텐츠입니다. 중요한 결정은 현실적인 정보와 본인의 판단을 함께 고려해 주세요.</span>';
+      if (page === 'chat') host.querySelector('.mentor')?.insertAdjacentElement('afterend', notice);
+      else host.prepend(notice);
+    }
+  }
   if (page === 'result') {
     const action = document.querySelector('.action-card');
     if (action && !action.querySelector('.reflection-actions')) {

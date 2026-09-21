@@ -27,6 +27,10 @@
 .fold>section,.fold>:not(summary){margin-top:0}
 .fold[open]>:not(summary){border-top-left-radius:0;border-top-right-radius:0}
 .pill.quiet{border-style:dashed;opacity:.85}
+.ai-disclosure{display:flex;gap:9px;align-items:flex-start;margin:0 0 18px;padding:12px 14px;border:1px solid #c9b98780;border-radius:11px;background:#f4eedddd;color:#5f6258;font-size:.78rem;line-height:1.65}
+.ai-disclosure b{flex:none;color:var(--teal)}
+.ai-disclosure span{min-width:0}
+.chat-panel>.ai-disclosure{margin:0;border-width:0 0 1px;border-radius:0;background:#f2edde;flex:none}
 /* Step indicator for the two-part intake. */
 .steps{display:flex;align-items:center;gap:6px;margin:0 0 14px}
 .steps i{width:26px;height:3px;border-radius:2px;background:var(--line)}
