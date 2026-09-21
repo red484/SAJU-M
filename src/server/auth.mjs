@@ -85,12 +85,14 @@ export function createAuthRoutes(repository) {
         const body = JSON.parse(await readBody(req, 20_000) || '{}');
         if (!body.authorizationCode && process.env.TOSS_LOGIN_MOCK !== 'true') return sendJson(res, { error: 'authorizationCode가 필요합니다.' }, 400);
         const toss = process.env.TOSS_LOGIN_MOCK === 'true'
-          ? { userKey: String(body.mockUserKey || 'local-dev-user') }
+          ? { userKey: String(body.mockUserKey || 'local-dev-user'), name: String(body.mockName || '').trim() || null,
+            email: String(body.mockEmail || '').trim() || null }
           : await exchangeTossLogin({ authorizationCode: body.authorizationCode, referrer: body.referrer });
         const session = getSession(req);
+        const displayName = toss.name || `토스 사용자 ${toss.userKey.slice(-4)}`;
         const signed = await repository.signIn({ provider: 'toss', subject: toss.userKey,
-          email: null, name: `토스 사용자 ${toss.userKey.slice(-4)}` }, sessionId(session.token));
-        return sendJson(res, { token: signed.token, user: { id: signed.userId, name: `토스 사용자 ${toss.userKey.slice(-4)}`, email: null } });
+          email: toss.email || null, name: displayName }, sessionId(session.token));
+        return sendJson(res, { token: signed.token, user: { id: signed.userId, name: displayName, email: toss.email || null } });
       } catch (error) {
         console.error(JSON.stringify({ event: 'auth.failed', provider: 'toss', error: error.message }));
         return sendJson(res, { error: error.message || 'Toss 로그인에 실패했습니다.' }, error.status || 500);

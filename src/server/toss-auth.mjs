@@ -75,5 +75,7 @@ export async function exchangeTossLogin({ authorizationCode, referrer }) {
   const user = success(meResponse.body, 'Toss 사용자 정보 요청에 실패했습니다.');
   const userKey = String(user.userKey || '').trim();
   if (!userKey) throw Object.assign(new Error('Toss 사용자 정보 응답에 userKey가 없습니다.'), { status: 502 });
-  return { userKey };
+  const name = typeof user.name === 'string' ? user.name.trim() : '';
+  const email = typeof user.email === 'string' ? user.email.trim() : '';
+  return { userKey, name: name || null, email: email || null };
 }

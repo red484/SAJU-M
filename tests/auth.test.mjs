@@ -56,12 +56,14 @@ process.env.TOSS_ALLOWED_ORIGINS = '*';
 const tossSession = 'a'.repeat(64);
 res = await call('/api/auth/toss', { method: 'POST', origin: 'https://miniapp.toss.im',
   headers: { 'x-dalbit-session': tossSession },
-  body: JSON.stringify({ authorizationCode: 'mock', referrer: 'LOCAL', mockUserKey: 'toss-1234' }) });
+  body: JSON.stringify({ authorizationCode: 'mock', referrer: 'LOCAL', mockUserKey: 'toss-1234',
+    mockName: '홍길동', mockEmail: 'hong@example.com' }) });
 delete process.env.TOSS_LOGIN_MOCK;
 delete process.env.TOSS_ALLOWED_ORIGINS;
 assert.equal(res.status, 200);
 assert.equal(JSON.parse(res.body).token, 'toss-token');
-assert.deepEqual(repository.identity, { provider: 'toss', subject: 'toss-1234', email: null, name: '토스 사용자 1234' });
+assert.deepEqual(repository.identity, { provider: 'toss', subject: 'toss-1234', email: 'hong@example.com', name: '홍길동' });
+assert.deepEqual(JSON.parse(res.body).user, { id: 'toss-user', name: '홍길동', email: 'hong@example.com' });
 assert.equal(repository.anonymousId.length, 64);
 
 process.env.GOOGLE_CLIENT_ID = 'client-id';
