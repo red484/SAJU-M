@@ -13,13 +13,16 @@ let motionPaused = false;
 let jumpObserver = null;
 
 export function dressPage({page, result, profile}) {
-  document.querySelectorAll('[data-nav="choice"],[data-nav="records"]').forEach(button => {
-    button.disabled = true;
-    button.setAttribute('aria-disabled', 'true');
-    button.title = '준비 중';
-    button.setAttribute('aria-label', `${button.textContent.trim()} · 준비 중`);
-  });
   document.body.classList.add('moonbook');
+  if (page === 'result') {
+    const action = document.querySelector('.action-card');
+    if (action && !action.querySelector('.reflection-actions')) {
+      const actions = document.createElement('div');
+      actions.className = 'reflection-actions button-row';
+      actions.innerHTML = '<button class="secondary" data-nav="choice">질문 정리·선택 기록</button><button class="secondary" data-nav="records">회고하기</button>';
+      action.append(actions);
+    }
+  }
   jumpObserver?.disconnect();
   jumpObserver = null;
   // Keep scenery outside the live log and behind opaque, selectable messages.
