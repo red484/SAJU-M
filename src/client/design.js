@@ -1,4 +1,5 @@
 import { appsInToss } from './api/client.js';
+import { improveBirthForm, collapseChart } from './form-usability.js';
 
 // Animate clipped wing layers from the original bitmap, without replacement artwork.
 
@@ -15,6 +16,7 @@ let motionPaused = false;
 let jumpObserver = null;
 
 export function dressPage({page, result, profile}) {
+  if (page === 'birth') improveBirthForm(profile);
   document.body.classList.add('moonbook');
   if (appsInToss && ['result', 'today', 'chat'].includes(page)) {
     const host = page === 'chat' ? document.querySelector('.chat-panel') : document.querySelector('main');
@@ -91,15 +93,16 @@ export function dressPage({page, result, profile}) {
       const controls = document.createElement('div');
       controls.className = 'header-controls';
       const logout = header.querySelector('.header-logout');
-      if (logout) controls.append(logout);
       const menu = document.createElement('details');
       menu.className = 'display-menu';
       const summary = document.createElement('summary');
-      summary.textContent = '설정';
+      summary.textContent = '☰';
+      summary.setAttribute('aria-label', '메뉴');
       const items = document.createElement('div');
       items.className = 'display-menu-items';
       items.append(toggle);
-      if (settings) { settings.textContent = '내 보관함'; items.append(settings); }
+      if (logout) items.append(logout);
+      if (settings) { settings.textContent = '설정 · 내 보관함'; items.append(settings); }
       menu.append(summary, items);
       if (save) items.append(save);
       controls.append(menu);
@@ -222,6 +225,7 @@ export function dressPage({page, result, profile}) {
       technical.forEach(section => section.classList.add('result-technical'));
     }
 
+    collapseChart();
     const jumpLinks = [...document.querySelectorAll('.jump [data-jump]')];
     const jumpSections = jumpLinks.map(link => document.getElementById(link.dataset.jump)).filter(Boolean);
     if (jumpSections.length && 'IntersectionObserver' in window) {

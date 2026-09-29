@@ -491,3 +491,7 @@ header .header-back{grid-column:1;grid-row:1}
 header .brand{grid-column:2;grid-row:1;white-space:nowrap;min-width:0}
 header .header-controls{grid-column:3;grid-row:1;justify-self:end}
 header .display-menu-items .save-status{max-width:none;text-align:left}
+.chart-disclosure>summary{cursor:pointer;padding:18px 20px;border:1px solid var(--line);border-radius:16px;background:var(--surface);font-weight:700;color:var(--ink)}
+.chart-disclosure>summary:focus-visible{outline:2px solid #b38a35;outline-offset:4px}
+.chart-disclosure[open]>summary{margin-bottom:16px}
+#birth-form label[hidden]{display:none}
