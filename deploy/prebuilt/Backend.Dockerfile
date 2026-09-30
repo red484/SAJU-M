@@ -1,4 +1,5 @@
 ARG BASE
 FROM ${BASE}
-COPY coach-service.mjs /app/src/server/services/coach-service.mjs
+COPY src-server/ /app/src/server/
+COPY server/ /app/server/
 COPY consultation-scope.js /app/src/client/consultation-scope.js

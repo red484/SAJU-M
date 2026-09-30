@@ -3,9 +3,9 @@ import { createJournalRoute } from './routes/journal.mjs';
 import { createReadingRoutes } from './routes/readings.mjs';
 import { createAuthRoutes } from './auth.mjs';
 
-export function createApiHandler({ journalRepository, telemetryRepository, authRepository, readiness = async () => true }) {
+export function createApiHandler({ journalRepository, telemetryRepository, authRepository, coachQuotaRepository, readiness = async () => true }) {
   const journal = createJournalRoute(journalRepository);
-  const readings = createReadingRoutes(telemetryRepository);
+  const readings = createReadingRoutes(telemetryRepository, authRepository, coachQuotaRepository);
   const auth = createAuthRoutes(authRepository);
   return async function apiHandler(req, res) {
     const origin = String(req.headers.origin || '');

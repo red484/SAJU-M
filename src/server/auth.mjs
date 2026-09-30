@@ -9,7 +9,7 @@ const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2
 const appleKeys = createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys'));
 const cookie = (name, value, req, maxAge, sameSite = 'Lax') => `${name}=${value}; HttpOnly; SameSite=${sameSite}; Path=/; Max-Age=${maxAge}${secureCookie(req)}`;
 const readCookie = (req, name) => req.headers.cookie?.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`))?.[1] || '';
-const authToken = req => {
+export const authToken = req => {
   const bearer = String(req.headers.authorization || '');
   return bearer.startsWith('Bearer ') ? bearer.slice(7).trim() : readCookie(req, 'dalbit_auth');
 };
