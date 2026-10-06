@@ -21,6 +21,7 @@ await copyFile('assets/chat-mountains.png','dist/client/assets/chat-mountains.pn
 await copyFile('assets/chat-crane.png','dist/client/assets/chat-crane.png');
 await copyFile('assets/element-plate.png','dist/client/assets/element-plate.png');
 await copyFile('assets/google-g.png','dist/client/assets/google-g.png');
+await copyFile('assets/apple-signin.png','dist/client/assets/apple-signin.png');
 await cp('legal','dist/client/legal',{recursive:true});
 for(const page of ['privacy','terms','support','account-deletion']){
  await mkdir(`dist/client/${page}`,{recursive:true});

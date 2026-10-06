@@ -1,4 +1,10 @@
-# 2026-09-30 account consultation limit release
+# 2026-10-06 Apple review fixes release
+
+Includes Apple button artwork, optional profile nickname, first-authorization
+Apple display-name storage, settings-menu touch fix and tablet layout updates.
+The package includes all built JS/CSS plus assets/apple-signin.png; Web.Dockerfile
+copies this new public asset. No new dependencies or schema changes are introduced.
+Previously implemented account consultation limits remain unchanged.
 
 The checked-in archive contains only locally built public JS/CSS, not environment
 files, keys, user data, or native/Toss builds. It overlays the existing web image

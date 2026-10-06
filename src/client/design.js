@@ -18,6 +18,7 @@ let jumpObserver = null;
 export function dressPage({page, result, profile}) {
   if (page === 'birth') improveBirthForm(profile);
   document.body.classList.add('moonbook');
+  document.body.classList.toggle('apps-in-toss', appsInToss);
   if (appsInToss && ['result', 'today', 'chat'].includes(page)) {
     const host = page === 'chat' ? document.querySelector('.chat-panel') : document.querySelector('main');
     if (host && !host.querySelector('.ai-disclosure')) {
@@ -107,11 +108,22 @@ export function dressPage({page, result, profile}) {
       if (save) items.append(save);
       controls.append(menu);
       header.append(controls);
+      if (appsInToss) {
+        // Toss supplies the navigation bar. Keep account/settings actions in
+        // the page content, without a second brand or back button.
+        summary.textContent = '설정 · 내 보관함';
+        summary.setAttribute('aria-label', '설정 메뉴');
+        controls.className = 'toss-page-settings';
+        document.querySelector('main')?.append(controls);
+        header.remove();
+      }
       menu.addEventListener('keydown', event => {
         if (event.key === 'Escape') { menu.open = false; summary.focus(); }
       });
       menu.addEventListener('focusout', event => {
-        if (!menu.contains(event.relatedTarget)) menu.open = false;
+        // Safari touch can blur the summary with no relatedTarget before
+        // dispatching the button's click. Do not hide that pending target.
+        if (event.relatedTarget && !menu.contains(event.relatedTarget)) menu.open = false;
       });
     }
   }

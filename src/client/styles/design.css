@@ -495,3 +495,26 @@ header .display-menu-items .save-status{max-width:none;text-align:left}
 .chart-disclosure>summary:focus-visible{outline:2px solid #b38a35;outline-offset:4px}
 .chart-disclosure[open]>summary{margin-bottom:16px}
 #birth-form label[hidden]{display:none}
+.apps-in-toss .jump,.apps-in-toss .save-error{top:0}
+.apps-in-toss .block{scroll-margin-top:85px}
+.apps-in-toss .dual aside{top:25px;height:calc(100dvh - 116px)}
+.toss-page-settings{display:flex;justify-content:flex-end;margin:24px 0}
+@media(max-width:850px){body.apps-in-toss[data-page=chat] .dual{height:calc(100dvh - 90px - env(safe-area-inset-bottom))}.apps-in-toss .dual aside{height:100%}}
+/* Keep Apple's supplied artwork intact, with visible contrast on the cover. */
+.auth.apple,.welcome-auth .auth.apple{display:flex;align-items:center;justify-content:center;background:#fff;color:#000;border:1px solid #777;border-radius:8px;padding:0;min-height:50px;overflow:hidden}
+.apple-signin-art{display:block;width: min(320px,100%);height:48px;object-fit:contain}
+.display-menu-items{z-index:50;max-width:calc(100vw - 32px)}
+/* iPad portrait and split view need a single reading column, not a squeezed
+   desktop reading/chat pair. Navigation always keeps the chat reachable. */
+@media(min-width:851px) and (max-width:1180px){
+ .workspace.dual{display:block;max-width:860px;padding-inline:24px}
+ .dual aside{display:none}
+ body[data-page=chat] .dual main{display:none}
+ body[data-page=chat] .dual{padding:16px 24px 110px;height:calc(100dvh - 76px - env(safe-area-inset-top))}
+ body[data-page=chat] .dual aside{display:block;position:static;height:100%;min-height:0}
+ .apps-in-toss[data-page=chat] .dual{height:100dvh}
+}
+.workspace,.dual main,.dual aside{min-width:0}
+.welcome-with-auth{height:auto;min-height:100svh}
+.welcome-with-auth .welcome-copy{height:auto;padding-bottom:max(30px,env(safe-area-inset-bottom))}
+@media(max-width:850px){.native-app body[data-page=chat] .dual{height:calc(100dvh - 146px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}}

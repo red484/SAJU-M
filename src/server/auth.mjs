@@ -3,6 +3,7 @@ import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from 'jose';
 import { readBody, sendJson, validateOrigin } from './http.mjs';
 import { expiredSessionCookie, getSession, secureCookie, sessionCookie, sessionId } from './session.mjs';
 import { exchangeTossLogin } from './toss-auth.mjs';
+import { appleDisplayName } from './apple-profile.mjs';
 
 const GOOGLE_ISSUERS = ['https://accounts.google.com', 'accounts.google.com'];
 const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
@@ -107,6 +108,7 @@ export function createAuthRoutes(repository) {
       const session = getSession(req); const anonymousId = sessionId(session.token);
       try {
         const identity = await exchange(provider, params.get('code'), `${baseUrl(req)}/api/auth/callback/${provider}`, readCookie(req, 'dalbit_oauth_nonce'));
+        if (provider === 'apple') identity.name = appleDisplayName(params.get('user'));
         const signed = await repository.signIn(identity, anonymousId);
         const location = decodeURIComponent(readCookie(req, 'dalbit_oauth_return') || '%2Fsettings');
         res.writeHead(302, { Location: safeReturn(location), 'Set-Cookie': [sessionCookie(req, session), cookie('dalbit_auth', signed.token, req, 2_592_000), cookie('dalbit_oauth_state', '', req, 0), cookie('dalbit_oauth_nonce', '', req, 0), cookie('dalbit_oauth_return', '', req, 0)] });
