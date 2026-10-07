@@ -60,6 +60,13 @@ async function exchange(provider, code, redirectUri, nonce) {
 
 export function createAuthRoutes(repository) {
   return async function auth(req, res, url) {
+    if (url.pathname === '/api/auth/guest' && req.method === 'POST') {
+      if (!validateOrigin(req)) return sendJson(res, { error: '이 앱에서 다시 시도해 주세요.' }, 403);
+      // Anonymous journal identity only: never issue an authenticated account token.
+      const session = getSession(req);
+      return sendJson(res, { guest: { id: sessionId(session.token) } }, 200,
+        { 'Set-Cookie': sessionCookie(req, session) });
+    }
     if (url.pathname === '/api/auth/providers') return sendJson(res, { google: configured('google'), apple: configured('apple'), toss: configured('toss') });
     if (url.pathname === '/api/auth/me') {
       const user = await repository.userFromToken(authToken(req));

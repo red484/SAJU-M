@@ -41,6 +41,19 @@ let res = await call('/api/auth/providers');
 assert.equal(res.status, 200);
 assert.deepEqual(JSON.parse(res.body), { google: false, apple: false, toss: false });
 
+res = await call('/api/auth/guest', { method: 'POST', origin: 'https://evil.example' });
+assert.equal(res.status, 403);
+res = await call('/api/auth/guest', { method: 'POST' });
+assert.equal(res.status, 200);
+assert.match(JSON.parse(res.body).guest.id, /^[a-f0-9]{64}$/);
+assert.equal(JSON.parse(res.body).token, undefined);
+const guestCookie = res.headers['Set-Cookie'].split(';')[0];
+const firstGuest = JSON.parse(res.body).guest.id;
+res = await call('/api/auth/guest', { method: 'POST', cookie: guestCookie });
+assert.equal(JSON.parse(res.body).guest.id, firstGuest);
+res = await call('/api/auth/me', { cookie: guestCookie });
+assert.equal(JSON.parse(res.body).user, null);
+
 res = await call('/api/auth/me', { cookie: 'dalbit_auth=signed-in' });
 assert.equal(JSON.parse(res.body).user.email, 'moon@example.com');
 res = await call('/api/auth/me', { headers: { authorization: 'Bearer signed-in' } });
