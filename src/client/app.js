@@ -1,6 +1,7 @@
 import {DateTime} from 'luxon';
 import {birthPicker,bindBirthPicker} from './birth-picker.js';
-import {installGuestAccess} from "./guest-access.js";
+import {installGuestAccess as installAnonymousGuestAccess} from "./guest-access.js";
+import {installPasswordAccess} from './password-access.js';
 import {dressPage} from './design.js';
 import {topics,CITIES,ELEMENTS,ECHAR,COLORS,SK,PURPOSE} from './constants.js';
 import {captureMessages} from './capture.js';
@@ -27,6 +28,16 @@ let coachQuota=null,coachLoginRequired=true,quotaChecking=false;
 let authUser=null,authOptions={google:false,apple:false,toss:false},authStatus='loading',tossLoginBusy=false;
 const authFailure = new URLSearchParams(location.search).get('auth') === 'failed';
 let afterLogin = new URLSearchParams(location.search).get('auth') === 'success';
+function installGuestAccess(context) {
+ installAnonymousGuestAccess(context);
+ installPasswordAccess({...context, beforeSignIn:async()=>{
+  await saveQueue;
+  if(saveState==='error')throw new Error('기록 저장이 완료되지 않았어요. 저장을 다시 시도한 뒤 로그인해 주세요.');
+ }, signedIn:async()=>{
+  generation++;coachQuota=null;coachLoginRequired=false;
+  await loadAuth();await load();await coachAvailable();nav(p()?'today':'birth');
+ }});
+}
 const uid=()=>crypto.randomUUID(), today=()=>now().toISODate(),ct=()=>data.conversations.find(c=>c.id===activeConversation),p=()=>data.profile;
 // Moon phase as geometry rather than an emoji, so it inherits the page's ink
 // and scales with the type around it. frac is the lit fraction; the terminator

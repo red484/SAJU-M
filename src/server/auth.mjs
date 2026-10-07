@@ -4,6 +4,8 @@ import { readBody, sendJson, validateOrigin } from './http.mjs';
 import { expiredSessionCookie, getSession, secureCookie, sessionCookie, sessionId } from './session.mjs';
 import { exchangeTossLogin } from './toss-auth.mjs';
 import { appleDisplayName } from './apple-profile.mjs';
+import { validPassword } from './password.mjs';
+import { createMemoryRateLimiter } from './rate-limit.mjs';
 
 const GOOGLE_ISSUERS = ['https://accounts.google.com', 'accounts.google.com'];
 const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
@@ -59,7 +61,44 @@ async function exchange(provider, code, redirectUri, nonce) {
 }
 
 export function createAuthRoutes(repository) {
+  const byAddress = createMemoryRateLimiter({ windowMs: 900_000, max: 20 });
+  const byId = createMemoryRateLimiter({ windowMs: 900_000, max: 10 });
+  let passwordWork = 0;
   return async function auth(req, res, url) {
+    if (['/api/auth/password/register', '/api/auth/password/login'].includes(url.pathname)) {
+      if (req.method !== 'POST') return sendJson(res, { error: 'POST 요청이 필요합니다.' }, 405);
+      if (!validateOrigin(req)) return sendJson(res, { error: '이 앱에서 다시 시도해 주세요.' }, 403);
+      if (!repository.registerPassword) return sendJson(res, { error: '아이디 로그인이 준비되지 않았어요.' }, 503);
+      // Use the transport peer, not a client-spoofable forwarding header.
+      if (!byAddress(req.socket.remoteAddress || 'unknown') || passwordWork >= 2)
+        return sendJson(res, { error: '요청이 많아요. 잠시 후 다시 시도해 주세요.' }, 429);
+      passwordWork++;
+      try {
+        const body = JSON.parse(await readBody(req, 4096) || '{}');
+        if (!body || typeof body !== 'object' || Array.isArray(body)) return sendJson(res, { error: '입력 내용을 확인해 주세요.' }, 400);
+        if (!validPassword(body.password)) return sendJson(res, { error: '비밀번호는 12~128자로 입력해 주세요.' }, 400);
+        if (await repository.userFromToken(authToken(req))) return sendJson(res, { error: '이미 로그인되어 있어요. 계정을 바꾸려면 먼저 로그아웃해 주세요.' }, 409);
+        const registering = url.pathname.endsWith('/register');
+        if (registering && body.acknowledgeRecovery !== true) return sendJson(res, { error: '아이디와 비밀번호 보관 안내를 확인해 주세요.' }, 400);
+        const loginId = typeof body.loginId === 'string' ? body.loginId.trim().toLowerCase() : '';
+        if (registering && body.loginId !== undefined && !/^guest-[a-f0-9]{20}$/.test(loginId))
+          return sendJson(res, { error: '발급할 아이디를 확인하지 못했어요. 가입 화면을 다시 열어 주세요.' }, 400);
+        if (!registering && (!/^guest-[a-f0-9]{20}$/.test(loginId) || !byId(loginId)))
+          return sendJson(res, { error: '아이디·비밀번호를 확인하거나 잠시 후 다시 시도해 주세요.' }, 429);
+        const session = getSession(req);
+        const rotatedSession = { token: randomBytes(32).toString('hex'), fresh: true };
+        const signed = registering
+          ? await repository.registerPassword(body.password, sessionId(session.token), sessionId(rotatedSession.token), loginId || undefined)
+          : await repository.loginPassword(loginId, body.password, sessionId(session.token), sessionId(rotatedSession.token));
+        if (!signed) return sendJson(res, { error: '아이디 또는 비밀번호가 맞지 않아요.' }, 401);
+        return sendJson(res, { ok: true, loginId: signed.loginId }, 200, {
+          'Set-Cookie': [sessionCookie(req, rotatedSession), cookie('dalbit_auth', signed.token, req, 2_592_000)]
+        });
+      } catch (error) {
+        if (error.code === '23505') return sendJson(res, { error: '이미 사용 중인 아이디예요. 가입 화면을 다시 열어 새 아이디를 받아 주세요.' }, 409);
+        return sendJson(res, { error: '계정 요청을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.' }, error instanceof SyntaxError ? 400 : error.status === 413 ? 413 : 503);
+      } finally { passwordWork--; }
+    }
     if (url.pathname === '/api/auth/guest' && req.method === 'POST') {
       if (!validateOrigin(req)) return sendJson(res, { error: '이 앱에서 다시 시도해 주세요.' }, 403);
       // Anonymous journal identity only: never issue an authenticated account token.
@@ -70,7 +109,7 @@ export function createAuthRoutes(repository) {
     if (url.pathname === '/api/auth/providers') return sendJson(res, { google: configured('google'), apple: configured('apple'), toss: configured('toss') });
     if (url.pathname === '/api/auth/me') {
       const user = await repository.userFromToken(authToken(req));
-      return sendJson(res, { user: user ? { id: user.id, name: user.display_name, email: user.email } : null });
+      return sendJson(res, { user: user ? { id: user.id, name: user.display_name, email: user.email, loginId: user.login_id || null } : null });
     }
     if (url.pathname === '/api/auth/start') {
       const provider = url.searchParams.get('provider');

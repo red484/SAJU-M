@@ -1,4 +1,4 @@
-import { apiRequest } from './api/client.js';
+import { apiRequest, appsInToss } from './api/client.js';
 
 const modeKey = 'dalbit-guest-mode';
 let guestId = '';
@@ -18,7 +18,8 @@ export function installGuestAccess({ page, user, openModal, navigate, notice }) 
   if (start) {
     const button = document.createElement('button');
     button.className = 'secondary';
-    button.textContent = isGuest() ? '게스트로 이어하기' : '게스트로 시작하기';
+    button.textContent = appsInToss ? (isGuest() ? '게스트로 이어하기' : '게스트로 시작하기') : '게스트 계정 만들기';
+    button.dataset.passwordRegister = '';
     start.before(button);
     button.onclick = async () => {
       button.disabled = true;
