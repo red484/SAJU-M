@@ -2,6 +2,7 @@ import {DateTime} from 'luxon';
 import {birthPicker,bindBirthPicker} from './birth-picker.js';
 import {installGuestAccess as installAnonymousGuestAccess} from "./guest-access.js";
 import {installPasswordAccess} from './password-access.js';
+import {installSubscription} from './subscription.js';
 import {dressPage} from './design.js';
 import {topics,CITIES,ELEMENTS,ECHAR,COLORS,SK,PURPOSE} from './constants.js';
 import {captureMessages} from './capture.js';
@@ -260,8 +261,10 @@ async function refreshCoachQuota(){
  try{const {response,body}=await coachStatus();if(!response.ok)throw new Error();coachLoginRequired=!!body.loginRequired;coachQuota=body.quota;aiCoach=body.available===true;return true;}catch{coachQuota=null;return false;}
 }
 function drawCoachQuota(){
- const form=document.querySelector('#chat-form');if(!form)return;
+ const subscription=()=>installSubscription({page,user:authUser,openModal,notice,navigate:nav,native:nativeApp,toss:isAppsInToss()});
+ const form=document.querySelector('#chat-form');if(!form){subscription();return;}
  const note=document.createElement('p');note.className='coach-quota';note.setAttribute('role','status');note.textContent=quotaText();form.before(note);
+ subscription();
  const blocked=coachLoginRequired||!coachQuota||coachQuota.remaining===0;
  form.querySelector('textarea').disabled=blocked;form.querySelector('.send').disabled=blocked;
  if(coachLoginRequired){const login=document.createElement('button');login.type='button';login.textContent='로그인하기';login.onclick=()=>nav('welcome');note.append(login);}

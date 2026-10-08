@@ -309,5 +309,15 @@ dialog[open]:has(.daysheet) .modal-close{position:absolute;top:10px;right:12px;z
 .conversation-row .record-row{min-width:0;border-bottom:0}
 .conversation-delete{border:1px solid #b67d6766;border-radius:18px;background:transparent;color:#8c4f3f;padding:7px 11px;font-size:.75rem;white-space:nowrap}
 .conversation-delete:hover{background:#f4e7e1}
+.subscription-sheet{line-height:1.7;overflow-wrap:anywhere}
+.subscription-sheet .subscription-price{font-size:1.6rem;font-weight:700;margin:16px 0 8px}
+.subscription-price small{display:block;font-size:.8rem;font-weight:400}
+.subscription-sheet ul{padding-left:22px}
+.subscription-sheet li{margin:8px 0}
+.subscription-notice{padding:14px;border:1px solid #b9c9bd;border-radius:12px;background:#eef3ed;color:#244e43}
+.subscription-details{display:grid;grid-template-columns:1fr 2fr;gap:10px;font-size:.9rem}
+.subscription-details dd{margin:0}
+.subscription-sheet button{margin-top:10px}
+.subscription-sheet button:disabled{opacity:.6;cursor:not-allowed}
 .native-app header{height:calc(74px + env(safe-area-inset-top));padding-top:env(safe-area-inset-top)}
 .native-app.is-offline body::before{content:'오프라인 · 연결을 확인해 주세요';position:fixed;z-index:120;top:env(safe-area-inset-top);left:50%;transform:translateX(-50%);padding:7px 13px;border-radius:0 0 12px 12px;background:#8f493c;color:#fff;font-size:.75rem;box-shadow:0 4px 16px #0003}
