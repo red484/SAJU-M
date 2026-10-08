@@ -26,7 +26,22 @@ export function installSubscription({ page, user, openModal, notice, navigate, n
     bind('subscription-back', overview);
   }
   function overview() {
-    openModal(`<section class="subscription-sheet"><p class="eyebrow">달빛 플러스 · 출시 준비 중</p><h2>궁금한 이야기를 조금 더 깊게</h2><p class="subscription-price">월 ${PLUS_PLAN.price.toLocaleString('ko-KR')}원 <small>부가세 포함 · 예정 요금</small></p><p>AI 상담 ${PLUS_PLAN.answers}회 / 결제 주기</p><ul><li>정상 AI 답변을 받았을 때만 1회 차감</li><li>오류·답변 실패·주제 밖 질문 거절은 차감하지 않음</li><li>횟수는 다음 결제일에 새로 지급되며 이월되지 않음</li><li>모두 사용해도 자동 추가 결제 없음</li></ul><p>기본 사주 결과와 선택 기록·회고는 무료로 이용해요. 계정당 최초 무료 상담 5회가 제공되며, 구독을 해지해도 저장한 기록은 계속 볼 수 있도록 제공할 예정입니다.</p><p class="subscription-notice" role="status">아직 구매할 수 없습니다. 지금은 무료 상담 5회만 이용 가능하며, 아래 안내를 확인해도 구독이 시작되거나 상담 횟수가 늘어나지 않습니다.</p><button class="primary" id="subscription-preview">${user ? '결제 정보 미리보기' : '로그인 방법 보기'}</button><button class="secondary" id="subscription-close">닫기</button></section>`);
+    openModal(`<section class="subscription-sheet purchase-sheet">
+      <p class="eyebrow">조금 더 깊은 나의 이야기</p><h2>결제하시겠습니까?</h2>
+      <article class="purchase-plan" aria-label="달빛 플러스 월 구독 상품">
+        <div class="purchase-plan-heading"><h3>달빛 플러스</h3><span>월 구독</span></div>
+        <p class="purchase-caption">사주를 읽고, 궁금한 순간마다 물어보세요.</p>
+        <div class="purchase-allowance"><b>AI 상담 ${PLUS_PLAN.answers}회</b><span>매월 결제 주기마다 새롭게</span></div>
+        <p class="purchase-amount">${PLUS_PLAN.price.toLocaleString('ko-KR')}<span>원 / 월</span></p>
+        <p class="purchase-tax">부가세 포함 · 출시 예정 요금</p>
+        <ul><li>정상 답변에만 상담 횟수 차감</li><li>한도를 다 써도 자동 추가 결제 없음</li><li>기본 사주·기록·회고는 계속 무료</li></ul>
+        <button class="primary purchase-pay" disabled>월 4,900원 결제하기 · 준비 중</button>
+        <p class="purchase-unavailable" role="status">아직 결제를 지원하지 않습니다.<br>구독이 시작되거나 상담 횟수가 늘어나지 않습니다.</p>
+      </article>
+      <details><summary>이용·해지 조건 확인</summary><p>출시 후 매월 자동 결제 예정입니다. 상담 횟수는 이월되지 않으며 오류·답변 실패·주제 밖 질문 거절은 차감하지 않습니다. 해지 시 다음 결제를 중단하고 이용기간 종료일까지 이용할 수 있도록 준비 중입니다. 환불 기준은 결제 오픈 전에 안내합니다.</p></details>
+      <button class="text-link purchase-account" id="subscription-preview">${user?.loginId ? '게스트 결제 전 확인사항' : user ? '결제 상세 정보 확인' : '로그인 방법 보기'}</button>
+      <button class="secondary" id="subscription-close">나중에 할게요</button>
+    </section>`);
     bind('subscription-preview', () => {
       if (!user) { close(); navigate('welcome'); return; }
       if (user.loginId) guestWarning(); else confirmation();
@@ -43,8 +58,8 @@ export function installSubscription({ page, user, openModal, notice, navigate, n
   const quota = document.querySelector('.coach-quota');
   if (quota) {
     const button = document.createElement('button');
-    button.type = 'button'; button.className = 'secondary';
-    button.textContent = '달빛 플러스 안내 · 준비 중'; button.onclick = overview;
-    quota.after(button);
+    button.type = 'button'; button.className = 'subscription-inline';
+    button.textContent = '결제하시겠습니까?'; button.setAttribute('aria-label', '결제하시겠습니까? 구독 상품 팝업 열기'); button.onclick = overview;
+    quota.append(button);
   }
 }

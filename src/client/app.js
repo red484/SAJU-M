@@ -263,7 +263,8 @@ async function refreshCoachQuota(){
 function drawCoachQuota(){
  const subscription=()=>installSubscription({page,user:authUser,openModal,notice,navigate:nav,native:nativeApp,toss:isAppsInToss()});
  const form=document.querySelector('#chat-form');if(!form){subscription();return;}
- const note=document.createElement('p');note.className='coach-quota';note.setAttribute('role','status');note.textContent=quotaText();form.before(note);
+ const note=document.createElement('div');note.className='coach-quota';
+ const status=document.createElement('span');status.setAttribute('role','status');status.title=quotaText();status.textContent=coachLoginRequired?'로그인 후 무료 5회':coachQuota?`무료 상담 ${coachQuota.remaining}회 남음`:'이용 횟수 확인 중';note.append(status);form.before(note);
  subscription();
  const blocked=coachLoginRequired||!coachQuota||coachQuota.remaining===0;
  form.querySelector('textarea').disabled=blocked;form.querySelector('.send').disabled=blocked;

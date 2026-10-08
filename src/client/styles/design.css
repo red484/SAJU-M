@@ -517,4 +517,41 @@ header .display-menu-items .save-status{max-width:none;text-align:left}
 .workspace,.dual main,.dual aside{min-width:0}
 .welcome-with-auth{height:auto;min-height:100svh}
 .welcome-with-auth .welcome-copy{height:auto;padding-bottom:max(30px,env(safe-area-inset-bottom))}
+.chat-panel .coach-quota{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none;min-height:40px;margin:0;padding:0 18px;background:#fafbf7;border-top:1px solid #e5e9df;font-family:system-ui,sans-serif;font-size:12px;line-height:1.4;color:#68786f}
+.chat-panel .coach-quota>span{min-width:0}
+.chat-panel .coach-quota>span::before{content:'';display:inline-block;width:5px;height:5px;border-radius:50%;background:#799786;margin:0 7px 2px 0}
+.chat-panel .coach-quota button{width:auto;min-height:40px;margin:0;padding:0 4px;border:0;border-radius:0;background:transparent;box-shadow:none;color:#345c51;font:500 12px/1.4 system-ui,sans-serif;white-space:nowrap}
+.chat-panel #chat-form{border-top:0}
+dialog:has(.subscription-sheet){width:min(460px,calc(100% - 28px));padding:24px;background:#fcfbf6;border-color:#dfe5d9;box-shadow:0 24px 80px #102d2830}
+.subscription-sheet{font-family:system-ui,sans-serif}
+.subscription-sheet h2{font-size:1.45rem;line-height:1.45;letter-spacing:-.04em;margin-bottom:22px}
+.subscription-sheet p,.subscription-sheet li{font-size:13px;line-height:1.7}
+.subscription-sheet .subscription-price{padding:22px 24px;margin:12px 0;background:#183f38;color:#fff7e5;border-radius:18px;font:600 32px/1.4 system-ui,sans-serif;letter-spacing:-.04em}
+.subscription-sheet .subscription-price small{color:#c6d5cb;letter-spacing:0;margin-top:5px;font-size:11px}
+.subscription-sheet ul{list-style:none;padding:0;margin:18px 0}
+.subscription-sheet li{position:relative;padding-left:22px;margin:10px 0;color:#40564b}
+.subscription-sheet li::before{content:'✓';position:absolute;left:0;color:#698b74}
+.subscription-sheet .subscription-notice{font-size:12px;background:#f0f2eb;border:0;color:#657264}
+.subscription-sheet details{margin:16px 0;padding:12px 0}
+.subscription-sheet .primary,.subscription-sheet .secondary{font-family:system-ui,sans-serif;font-size:14px;border-radius:14px;min-height:46px;padding:12px}
+.purchase-sheet>h2,.purchase-sheet>.eyebrow{text-align:center}
+.purchase-sheet>h2{margin-bottom:24px}
+.purchase-plan{padding:24px;border:1px solid #47685b;border-radius:22px;background:linear-gradient(145deg,#224c42,#112e28);color:#fff9e9;box-shadow:0 12px 28px #163b2518}
+.purchase-plan-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.purchase-plan-heading h3{font:600 22px/1.4 system-ui,sans-serif;margin:0;letter-spacing:-.04em;color:#fff9e9}
+.purchase-plan-heading>span{border:1px solid #c9bc8150;border-radius:20px;padding:4px 10px;font-size:11px;color:#e8d9aa}
+.purchase-plan .purchase-caption{color:#b8cbbf;margin:8px 0 20px;font-size:12px}
+.purchase-allowance{padding:16px;background:#ffffff09;border:1px solid #ffffff12;border-radius:12px}
+.purchase-allowance b,.purchase-allowance span{display:block}
+.purchase-allowance b{font-size:18px}.purchase-allowance span{font-size:11px;color:#bbcebf;margin-top:4px}
+.purchase-plan .purchase-amount{font:650 38px/1.2 system-ui,sans-serif;letter-spacing:-.06em;margin:24px 0 4px}
+.purchase-amount span{font-size:14px;font-weight:400;letter-spacing:0;margin-left:5px;color:#cad7cb}
+.purchase-plan .purchase-tax{font-size:11px;color:#b7c9bc;margin:0}
+.purchase-plan li{color:#e5ebdf;font-size:12px}.purchase-plan li::before{color:#d9c888}
+.purchase-plan .purchase-pay:disabled{background:#e3d5a3;color:#253e31;opacity:1;cursor:not-allowed;border:0;font-weight:650}
+.purchase-plan .purchase-unavailable{color:#c7d5c9;font-size:11px;text-align:center;margin:10px 0 0}
+.purchase-sheet .purchase-account{display:block;margin:auto;font:12px/1.5 system-ui,sans-serif;border:0;text-decoration:underline;text-underline-offset:4px}
+.purchase-sheet>details summary{font:12px/1.5 system-ui,sans-serif;color:#6b796e}
+.purchase-sheet>details p{font-size:12px}
+@media(max-width:400px){.chat-panel .coach-quota{padding-inline:12px;font-size:11px}.chat-panel .coach-quota button{font-size:11px}dialog:has(.subscription-sheet){padding:20px}}
 @media(max-width:850px){.native-app body[data-page=chat] .dual{height:calc(100dvh - 146px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}}
