@@ -2,11 +2,13 @@ import { sendJson } from './http.mjs';
 import { createJournalRoute } from './routes/journal.mjs';
 import { createReadingRoutes } from './routes/readings.mjs';
 import { createAuthRoutes } from './auth.mjs';
+import { createTossBillingRoute } from './routes/toss-billing.mjs';
 
-export function createApiHandler({ journalRepository, telemetryRepository, authRepository, coachQuotaRepository, readiness = async () => true }) {
+export function createApiHandler({ journalRepository, telemetryRepository, authRepository, coachQuotaRepository, tossBillingRepository, readiness = async () => true }) {
   const journal = createJournalRoute(journalRepository);
   const readings = createReadingRoutes(telemetryRepository, authRepository, coachQuotaRepository);
   const auth = createAuthRoutes(authRepository);
+  const billing = createTossBillingRoute(authRepository, tossBillingRepository);
   return async function apiHandler(req, res) {
     const origin = String(req.headers.origin || '');
     const allowed = String(process.env.TOSS_ALLOWED_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean);
@@ -34,6 +36,7 @@ export function createApiHandler({ journalRepository, telemetryRepository, authR
       }
     }
     if (url.pathname.startsWith('/api/auth/')) return auth(req, res, url);
+    if (url.pathname.startsWith('/api/toss-billing/')) return billing(req, res, url);
     if (url.pathname === '/api/journal') return journal(req, res);
     if (url.pathname === '/api/coach') return readings.coach(req, res);
     if (url.pathname === '/api/epic') return readings.epic(req, res);

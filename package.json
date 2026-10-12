@@ -9,6 +9,7 @@
   "scripts": {
     "build": "node build.mjs",
     "build:ait": "APPS_IN_TOSS=true DALBIT_API_BASE=https://saju.ashwoodfriends.com node build.mjs && ait build",
+    "test:toss-billing": "node --test tests/toss-billing.test.mjs tests/coach-quota.test.mjs tests/subscription.test.mjs",
     "dev": "node src/render-server.mjs",
     "start": "node src/render-server.mjs",
     "server": "node server/index.mjs",

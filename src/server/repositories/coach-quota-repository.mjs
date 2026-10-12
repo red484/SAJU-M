@@ -6,10 +6,13 @@ const quota = used => ({ limit: COACH_LIMIT, used, remaining: Math.max(0, COACH_
 const failure = (status, code, error, extra = {}) => ({ status, code, error, ...extra });
 
 export class CoachQuotaRepository {
-  constructor(pool) { this.pool = pool; }
+  constructor(pool, paid = null) { this.pool = pool; this.paid = paid; }
   async status(userId, client = this.pool) {
     const result = await client.query('SELECT count(*)::int AS used FROM coach_answers WHERE user_id = $1', [userId]);
-    return quota(result.rows[0].used);
+    if (!this.paid) return quota(result.rows[0].used);
+    const paid = await this.paid.allowance(userId, client);
+    const free = quota(Math.max(0, result.rows[0].used - paid.consumed));
+    return { ...free, freeRemaining: free.remaining, paidRemaining: paid.remaining, remaining: free.remaining + paid.remaining };
   }
   async run(userId, payload, execute) {
     if (!/^[a-zA-Z0-9_-]{8,100}$/.test(payload.requestId || ''))
@@ -38,11 +41,22 @@ export class CoachQuotaRepository {
         await client.query('COMMIT');
         return failure(403, 'COACH_LIMIT_REACHED', QUOTA_NOTICE, { quota: allowance });
       }
+      let paidOrder = null;
+      if (this.paid && allowance.freeRemaining === 0) {
+        paidOrder = await this.paid.availableOrder(userId, client);
+        if (!paidOrder) {
+          const updated = await this.status(userId, client);
+          await client.query('COMMIT');
+          return failure(403, 'COACH_LIMIT_REACHED', '사용 가능한 상담 이용권이 없어요.', { quota: updated });
+        }
+      }
       const out = await execute(payload);
       const charge = !out.error && out.source === 'cafe24' && typeof out.text === 'string' && !!out.text.trim();
       if (charge) await client.query('INSERT INTO coach_answers (user_id, request_id, question_hash, response) VALUES ($1, $2, $3, $4::jsonb)', [userId, payload.requestId, hash, JSON.stringify(out)]);
+      if (charge && paidOrder) await this.paid.consume(paidOrder, client);
+      const updated = this.paid ? await this.status(userId, client) : quota(allowance.used + (charge ? 1 : 0));
       await client.query('COMMIT');
-      return { ...out, quota: quota(allowance.used + (charge ? 1 : 0)) };
+      return { ...out, quota: updated };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;

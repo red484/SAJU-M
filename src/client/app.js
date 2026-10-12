@@ -3,6 +3,7 @@ import {birthPicker,bindBirthPicker} from './birth-picker.js';
 import {installGuestAccess as installAnonymousGuestAccess} from "./guest-access.js";
 import {installPasswordAccess} from './password-access.js';
 import {installSubscription} from './subscription.js';
+import {installTossBilling} from './toss-billing.js';
 import {dressPage} from './design.js';
 import {topics,CITIES,ELEMENTS,ECHAR,COLORS,SK,PURPOSE} from './constants.js';
 import {captureMessages} from './capture.js';
@@ -261,11 +262,11 @@ async function refreshCoachQuota(){
  try{const {response,body}=await coachStatus();if(!response.ok)throw new Error();coachLoginRequired=!!body.loginRequired;coachQuota=body.quota;aiCoach=body.available===true;return true;}catch{coachQuota=null;return false;}
 }
 function drawCoachQuota(){
- const subscription=()=>installSubscription({page,user:authUser,openModal,notice,navigate:nav,native:nativeApp,toss:isAppsInToss()});
+ const subscription=()=>isAppsInToss()?installTossBilling({page,user:authUser,openModal,notice,onChanged:async()=>{await refreshCoachQuota();drawCoachQuota();}}):installSubscription({page,user:authUser,openModal,notice,navigate:nav,native:nativeApp,toss:false});
  const form=document.querySelector('#chat-form');if(!form){subscription();return;}
  document.querySelector('.coach-quota')?.remove();
  const note=document.createElement('div');note.className='coach-quota';
- const status=document.createElement('span');status.setAttribute('role','status');status.title=quotaText();status.textContent=coachLoginRequired?'로그인 후 무료 5회':coachQuota?`무료 상담 ${coachQuota.remaining}회 남음`:'이용 횟수 확인 중';note.append(status);form.before(note);
+ const status=document.createElement('span');status.setAttribute('role','status');status.title=quotaText();status.textContent=coachLoginRequired?'로그인 후 무료 5회':coachQuota?.paidRemaining?`무료 ${coachQuota.freeRemaining}회 · 이용권 ${coachQuota.paidRemaining}회 남음`:coachQuota?`무료 상담 ${coachQuota.remaining}회 남음`:'이용 횟수 확인 중';note.append(status);form.before(note);
  subscription();
  // Drafting must remain possible while authentication/quota is unavailable.
  // sendMessage and the server enforce the allowance before generating an answer.

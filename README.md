@@ -41,6 +41,22 @@ Toss 로그인은 서버에서 mTLS로 인가 코드를 교환합니다. Toss �
 Origin은 `TOSS_ALLOWED_ORIGINS`에 쉼표로 등록하며, 고정 Origin을 확인하기 전에는 `*`로
 테스트할 수 있습니다.
 
+### 앱인토스 상담 이용권
+
+`src/shared/toss-product.mjs`의 콘솔 SKU에만 상담 50회(4,895원, 구매 후 30일)를 지급합니다.
+서버는 로그인 계정의 Toss userKey로 mTLS 주문 조회를 수행하며 클라이언트의 금액·SKU·결제 상태를 신뢰하지 않습니다.
+`008_toss_billing.sql`은 서버 시작 시 적용됩니다. 주문번호는 중복 지급을 방지하며 계정 삭제 후에도 재지급 방지용 주문 이력을 유지합니다.
+무료 5회 이후 유효기간이 먼저 끝나는 이용권부터 차감합니다. 유료 답변 전에 주문을 재검증하여 환불된 이용권은 차단하고, 검증 장애 때는 차감하지 않습니다.
+
+새 구매는 기본적으로 비활성화되어 있습니다(`TOSS_IAP_ENABLED=false`). 백엔드 배포 후 이 값을 활성화하고
+콘솔 상품 노출을 켜야 SDK 목록에 상품이 나타납니다. 미결 주문 복원은 새 구매 차단과 별개로 동작합니다.
+기존 웹·네이티브 앱의 결제 UI는 변경하지 않습니다.
+
+검증: `npm run test:toss-billing`. PostgreSQL 호환 PGlite 통합 검증은
+`PGLITE_MODULE=/absolute/path/to/@electric-sql/pglite/dist/index.js npm run test:toss-billing`로 실행합니다.
+출시 전 토스 테스트 기기에서 정상 결제, 사용자 취소, 지급 실패 후 재실행 복원, 동일 계정 재로그인,
+환불 후 이용 차단을 확인해야 합니다. 로컬 자동 테스트만으로 실기기 결제 검증을 대체하지 않습니다.
+
 ### 테스트
 
 ```sh

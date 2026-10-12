@@ -29,13 +29,13 @@ async function mtls() {
   };
 }
 
-async function tossJson(path, { method = 'GET', headers = {}, body } = {}) {
+export async function tossJson(path, { method = 'GET', headers = {}, body, timeout = 60_000 } = {}) {
   const url = new URL(`${apiBase()}${path}`);
   const payload = body === undefined ? null : Buffer.from(JSON.stringify(body));
   const credentials = await mtls();
   return new Promise(resolve => {
     const req = request({ ...credentials, method, hostname: url.hostname, port: url.port || 443,
-      path: `${url.pathname}${url.search}`, timeout: 60_000,
+      path: `${url.pathname}${url.search}`, timeout,
       headers: { 'Content-Type': 'application/json', ...(payload ? { 'Content-Length': String(payload.length) } : {}), ...headers } }, res => {
       const chunks = [];
       res.on('data', chunk => chunks.push(chunk));
