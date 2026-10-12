@@ -26,6 +26,7 @@ rollback() {
   cp -p "$context_dir/env.production" .env.production
   docker tag "$backup" saju-m-backend:latest
   compose up -d --no-deps --no-build backend
+  docker exec saju-web nginx -t && docker exec saju-web nginx -s reload
   echo "Rollback applied: $backup" >&2
 }
 # Preserve every other environment variable without printing credentials.
@@ -41,6 +42,9 @@ until docker exec saju-backend node -e "fetch('http://127.0.0.1:9090/api/ready')
   if [ "$attempt" -ge 12 ]; then rollback; exit 1; fi
   sleep 3
 done
+# nginx resolves the backend container address at configuration load time.
+# Refresh only this app's proxy after replacing its backend container.
+if ! (docker exec saju-web nginx -t && docker exec saju-web nginx -s reload); then rollback; exit 1; fi
 if ! docker exec saju-backend node -e "fetch('http://127.0.0.1:9090/api/toss-billing/product').then(r=>r.json()).then(b=>{console.log(JSON.stringify(b));process.exit(b.enabled===true?0:1)}).catch(()=>process.exit(1))"; then rollback; exit 1; fi
 echo "Toss billing deployed: $release_id"
 echo "Rollback image: $backup"
