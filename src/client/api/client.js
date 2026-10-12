@@ -48,6 +48,13 @@ export async function apiRequest(path, options = {}) {
     });
     const body = await response.json().catch(() => ({}));
     return { response, body };
+  } catch (error) {
+    if (controller.signal.aborted && !requestOptions.signal?.aborted) {
+      const timeoutError = new Error('서버 응답이 지연되고 있어요. 잠시 후 다시 시도해 주세요.');
+      timeoutError.name = 'AbortError';
+      throw timeoutError;
+    }
+    throw error;
   } finally {
     clearTimeout(timer);
   }

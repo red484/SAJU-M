@@ -473,7 +473,7 @@ async function loadAuth(){
   authProviders().then(({response,body})=>{if(!response.ok)throw new Error('providers');authOptions=body;authStatus='ready';}).catch(()=>{authStatus='error';}),
   currentUser().then(({response,body})=>{if(response.ok)authUser=body.user||null;}).catch(()=>{})
  ]);
- if(loaded)render();
+ render();
 }
 render();
 // Warm the 만세력 chunk while the splash is on screen, so the first navigation
