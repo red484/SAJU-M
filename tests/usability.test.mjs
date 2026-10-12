@@ -16,6 +16,11 @@ const chart={name:'테스트',gender:'female',pillars:['辛巳','己亥','壬辰
 const oldFetch=globalThis.fetch;
 globalThis.fetch=()=>{throw new Error('Out-of-scope questions must not call AI');};
 try{
+  for (const text of ['냠냠', 'ㅋㅋㅋㅋ', '테스트', '1234', '🍚']) {
+    assert.ok(unrelatedQuestion(text));
+    const blocked = await coachReply({chart,messages:[{role:'user',text}]});
+    assert.equal(blocked.source, 'scope');
+  }
   const reply=await coachReply({chart,messages:[{role:'user',text:'오늘 날씨 알려줘'}]});
   assert.equal(reply.text,SCOPE_NOTICE);
   assert.equal(reply.source,'scope');

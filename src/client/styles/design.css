@@ -524,6 +524,8 @@ header .display-menu-items .save-status{max-width:none;text-align:left}
 .chat-panel #chat-form{border-top:0}
 dialog:has(.subscription-sheet){width:min(460px,calc(100% - 28px));padding:24px;background:#fcfbf6;border-color:#dfe5d9;box-shadow:0 24px 80px #102d2830}
 .subscription-sheet{font-family:system-ui,sans-serif}
+dialog[open]:has(.purchase-sheet){position:fixed;inset:12px 0;margin:auto;max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box}
+dialog:has(.purchase-sheet) .purchase-sheet{min-height:0}
 .subscription-sheet h2{font-size:1.45rem;line-height:1.45;letter-spacing:-.04em;margin-bottom:22px}
 .subscription-sheet p,.subscription-sheet li{font-size:13px;line-height:1.7}
 .subscription-sheet .subscription-price{padding:22px 24px;margin:12px 0;background:#183f38;color:#fff7e5;border-radius:18px;font:600 32px/1.4 system-ui,sans-serif;letter-spacing:-.04em}
