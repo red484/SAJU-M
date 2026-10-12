@@ -36,7 +36,7 @@ function installGuestAccess(context) {
   if(saveState==='error')throw new Error('기록 저장이 완료되지 않았어요. 저장을 다시 시도한 뒤 로그인해 주세요.');
  }, signedIn:async()=>{
   generation++;coachQuota=null;coachLoginRequired=false;
-  await loadAuth();await load();await coachAvailable();nav(p()?'today':'birth');
+  await loadAuth();await load();await refreshCoachQuota();nav(p()?'today':'birth');
  }});
 }
 const uid=()=>crypto.randomUUID(), today=()=>now().toISODate(),ct=()=>data.conversations.find(c=>c.id===activeConversation),p=()=>data.profile;
@@ -263,11 +263,15 @@ async function refreshCoachQuota(){
 function drawCoachQuota(){
  const subscription=()=>installSubscription({page,user:authUser,openModal,notice,navigate:nav,native:nativeApp,toss:isAppsInToss()});
  const form=document.querySelector('#chat-form');if(!form){subscription();return;}
+ document.querySelector('.coach-quota')?.remove();
  const note=document.createElement('div');note.className='coach-quota';
  const status=document.createElement('span');status.setAttribute('role','status');status.title=quotaText();status.textContent=coachLoginRequired?'로그인 후 무료 5회':coachQuota?`무료 상담 ${coachQuota.remaining}회 남음`:'이용 횟수 확인 중';note.append(status);form.before(note);
  subscription();
- const blocked=coachLoginRequired||!coachQuota||coachQuota.remaining===0;
- form.querySelector('textarea').disabled=blocked;form.querySelector('.send').disabled=blocked;
+ // Drafting must remain possible while authentication/quota is unavailable.
+ // sendMessage and the server enforce the allowance before generating an answer.
+ form.querySelector('textarea').disabled=false;
+ form.querySelector('.send').disabled=!!ct()?.pending;
+ if(!coachQuota&&!coachLoginRequired){status.textContent='이용 횟수를 확인하지 못했어요';const retry=document.createElement('button');retry.type='button';retry.textContent='다시 확인';retry.onclick=async()=>{retry.disabled=true;await refreshCoachQuota();if(form.isConnected)drawCoachQuota();};note.append(retry);}
  if(coachLoginRequired){const login=document.createElement('button');login.type='button';login.textContent='로그인하기';login.onclick=()=>nav('welcome');note.append(login);}
 }
 async function coachAvailable(){
@@ -422,7 +426,7 @@ async function saveCapture(how){
 function thinkingText(text){if(/피곤|졸리|졸려|지치|무기력/.test(text))return '지금 느끼는 피로를 어떻게 짚어볼지 살펴보고 있어요.';if(/진로|직장|이직|퇴사|취업/.test(text))return '진로에서 지금 가장 중요한 조건을 함께 살펴보고 있어요.';if(/연애|관계|연락|마음/.test(text))return '관계 속에서 마음에 걸리는 지점을 차분히 살펴보고 있어요.';if(/돈|재물|투자|지출/.test(text))return '돈에 관한 선택에서 먼저 확인할 조건을 살펴보고 있어요.';return '말씀해주신 상황에서 무엇을 먼저 짚을지 살펴보고 있어요.';}
 async function requestAi(c,messages){let response,body;try{({response,body}=await requestCoachWithRetry({chart:chartFor(c),messages,requestId:c.messages.filter(m=>m.role==='user').at(-1)?.id}));}catch(e){return {ok:false,reason:e.name==='AbortError'?'AI가 제한 시간 안에 답하지 못했습니다.':'연결 문제로 AI 답변을 받지 못했습니다.'};}if(body?.quota)coachQuota=body.quota;if(body?.code==='LOGIN_REQUIRED')coachLoginRequired=true;if(['COACH_LIMIT_REACHED','LOGIN_REQUIRED','QUOTA_UNAVAILABLE','COACH_BUSY'].includes(body?.code))return {ok:false,blocked:true,reason:body.error};if(response?.ok&&body?.text)return {ok:true,text:body.text,source:body.source,offer:body.offer};if(response?.status===429)return {ok:false,reason:'AI 사용량이 많습니다.'};if(body?.error?.includes('끊겼'))return {ok:false,reason:'AI 답변이 생성 중에 끊겼습니다.'};if(body?.error?.includes('형식')||body?.error?.includes('품질'))return {ok:false,reason:'AI 답변이 품질 검사를 통과하지 못했습니다.'};return {ok:false,reason:'AI 응답을 받지 못했습니다.'};}
 async function retryAi(conversationId,messageId){const c=data.conversations.find(v=>v.id===conversationId),index=c?.messages.findIndex(v=>v.id===messageId);if(!c||index!==c.messages.length-1||c.pending||c.profileKey!==profileKey())return;const m=c.messages[index];c.pending=true;render();const turns=c.messages.slice(0,index).filter(v=>v.source!=='rules'&&v.source!=='safety').slice(-12).map(v=>({role:v.role,text:v.text}));const out=await requestAi(c,turns);c.pending=false;if(out.ok){m.text=out.text;m.source=out.source;m.aiFailure=null;if(out.offer)c.offer=out.offer;persist();}else m.aiFailure=out.reason;render();}
-async function sendMessage(text){if(quotaChecking)return;quotaChecking=true;const verified=await refreshCoachQuota();quotaChecking=false;if(!verified){notice('상담 이용 횟수를 확인하지 못했어요. 잠시 뒤 다시 시도해 주세요.');return;}if(coachLoginRequired||!coachQuota||coachQuota.remaining===0){render();notice(quotaText());return;}text=text.trim();if(!text)return;if(text.length>1500){notice('메시지는 1,500자 이내로 입력해 주세요.');return;}const c=currentConversation();if(c.pending){notice('앞선 답변이 끝난 뒤 보내 주세요.');return;}if(c.profileKey!==profileKey()){notice('이전 사주의 상담입니다. 새 상담을 시작해 주세요.');return;}if(!await engineReady())return;c.messages.push({id:uid(),role:'user',text,at:new Date().toISOString()});
+async function sendMessage(text){if(quotaChecking)return;quotaChecking=true;const verified=await refreshCoachQuota();quotaChecking=false;if(!verified){drawCoachQuota();notice('상담 이용 횟수를 확인하지 못했어요. 잠시 뒤 다시 시도해 주세요.');return;}if(coachLoginRequired||!coachQuota||coachQuota.remaining===0){drawCoachQuota();notice(quotaText());return;}text=text.trim();if(!text)return;if(text.length>1500){notice('메시지는 1,500자 이내로 입력해 주세요.');return;}const c=currentConversation();if(c.pending){notice('앞선 답변이 끝난 뒤 보내 주세요.');return;}if(c.profileKey!==profileKey()){notice('이전 사주의 상담입니다. 새 상담을 시작해 주세요.');return;}if(!await engineReady())return;c.messages.push({id:uid(),role:'user',text,at:new Date().toISOString()});
  // 직전 답변이 기록을 제안했다면, 수긍 한 마디로 바로 남깁니다.
  if(c.offer){
   const o=c.offer;c.offer=null;
