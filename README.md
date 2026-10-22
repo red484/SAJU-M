@@ -14,7 +14,7 @@
 
 ## 실행
 
-Node.js 22 이상, npm을 사용합니다.
+Node.js 22.9 이상, npm을 사용합니다.
 
 ```sh
 npm ci
@@ -22,7 +22,10 @@ npm run build
 npm run dev          # http://localhost:3000, 로컬 파일 저장 fallback
 ```
 
-PostgreSQL API만 직접 실행하려면 `DATABASE_URL`을 설정합니다.
+`npm run dev`·`start`·`server`는 프로젝트 루트의 `.env`가 있으면 읽습니다(셸에서 준 값이 우선).
+로컬 파일 모드에는 계정 저장소가 없어 Google·Apple·토스·아이디 로그인은 꺼지고, AI 판독처럼 로그인이 필요 없는 기능만 키로 동작합니다.
+
+PostgreSQL API만 직접 실행하려면 `DATABASE_URL`을 설정합니다. 운영 compose의 `.env`는 `POSTGRES_URL`만 갖고 있으므로 로컬 DB 주소를 따로 줍니다.
 
 ```sh
 DATABASE_URL=postgresql://... npm run server  # http://localhost:9090

@@ -23,6 +23,7 @@ for (const provider of ['google', 'apple']) {
 const repository = {
   async userFromToken(token) { return token === 'signed-in' ? { id: 'u1', display_name: '달빛', email: 'moon@example.com' } : null; },
   async logout(token, anonymousId) { this.loggedOut = token; this.loggedOutSession = anonymousId; },
+  async registerPassword() { throw new Error('not used'); },
   async signIn(identity, anonymousId, destinationId) { this.identity = identity; this.anonymousId = anonymousId; this.destinationId = destinationId; return { token: 'toss-token', userId: 'toss-user' }; }
 };
 const route = createAuthRoutes(repository);
@@ -39,7 +40,7 @@ async function call(path, { method = 'GET', cookie = '', origin = '', body = '',
 
 let res = await call('/api/auth/providers');
 assert.equal(res.status, 200);
-assert.deepEqual(JSON.parse(res.body), { google: false, apple: false, toss: false, password: false });
+assert.deepEqual(JSON.parse(res.body), { google: false, apple: false, toss: false, password: true });
 
 res = await call('/api/auth/guest', { method: 'POST', origin: 'https://evil.example' });
 assert.equal(res.status, 403);
@@ -106,6 +107,15 @@ assert.match(res.headers.Location, /^https:\/\/accounts\.google\.com\/o\/oauth2\
 assert.match(res.headers.Location, /redirect_uri=https%3A%2F%2Fsaju\.example\.com%2Fapi%2Fauth%2Fcallback%2Fgoogle/);
 assert.equal(res.headers['Set-Cookie'].length, 3);
 assert.match(res.headers.Location, /nonce=/);
+assert.doesNotMatch(res.headers.Location, /access_type=offline/, '쓰지 않는 리프레시 토큰은 요청하지 않는다');
+// Without account storage (local file mode) a configured provider still cannot finish signing in.
+const fileMode = createAuthRoutes({ async userFromToken() { return null; }, async logout() {}, async signIn() { throw new Error('no accounts'); } });
+const fileRes = response();
+await fileMode({ method: 'GET', headers: { host: 'saju.example.com' }, socket: {} }, fileRes, new URL('https://saju.example.com/api/auth/providers'));
+assert.deepEqual(JSON.parse(fileRes.body), { google: false, apple: false, toss: false, password: false });
+const fileStart = response();
+await fileMode({ method: 'GET', headers: { host: 'saju.example.com' }, socket: {} }, fileStart, new URL('https://saju.example.com/api/auth/start?provider=google'));
+assert.equal(fileStart.status, 503);
 res = await call(loginUrl('google'));
 assert.ok(res.headers['Set-Cookie'].some(value => value.startsWith('dalbit_oauth_return=%2F%3Fauth%3Dsuccess;')));
 // Browsers read "/\host" like "//host", so only plain same-origin paths survive.

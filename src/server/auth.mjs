@@ -62,6 +62,9 @@ async function exchange(provider, code, redirectUri, nonce) {
 }
 
 export function createAuthRoutes(repository) {
+  // The local file mode has no account storage, so no provider can finish a sign-in there.
+  const accounts = Boolean(repository.registerPassword);
+  const available = provider => accounts && configured(provider);
   const byAddress = createMemoryRateLimiter({ windowMs: 900_000, max: 20 });
   const byId = createMemoryRateLimiter({ windowMs: 900_000, max: 10 });
   let passwordWork = 0;
@@ -106,27 +109,27 @@ export function createAuthRoutes(repository) {
       return sendJson(res, { guest: { id: sessionId(session.token) } }, 200,
         { 'Set-Cookie': sessionCookie(req, session) });
     }
-    if (url.pathname === '/api/auth/providers') return sendJson(res, { google: configured('google'), apple: configured('apple'), toss: configured('toss'), password: Boolean(repository.registerPassword) });
+    if (url.pathname === '/api/auth/providers') return sendJson(res, { google: available('google'), apple: available('apple'), toss: available('toss'), password: accounts });
     if (url.pathname === '/api/auth/me') {
       const user = await repository.userFromToken(authToken(req));
       return sendJson(res, { user: user ? { id: user.id, name: user.display_name, email: user.email, loginId: user.login_id || null } : null });
     }
     if (url.pathname === '/api/auth/start') {
       const provider = url.searchParams.get('provider');
-      if (!['google', 'apple'].includes(provider) || !configured(provider)) return sendJson(res, { error: '로그인 제공자가 설정되지 않았습니다.' }, 503);
+      if (!['google', 'apple'].includes(provider) || !available(provider)) return sendJson(res, { error: '로그인 제공자가 설정되지 않았습니다.' }, 503);
       const state = randomBytes(24).toString('hex');
       const nonce = randomBytes(24).toString('hex');
       const redirectUri = `${baseUrl(req)}/api/auth/callback/${provider}`;
       const params = new URLSearchParams({ client_id: provider === 'google' ? process.env.GOOGLE_CLIENT_ID : process.env.APPLE_CLIENT_ID,
         redirect_uri: redirectUri, response_type: 'code', scope: provider === 'google' ? 'openid email profile' : 'name email', state, nonce });
-      if (provider === 'google') { params.set('access_type', 'offline'); params.set('prompt', 'select_account'); }
+      if (provider === 'google') params.set('prompt', 'select_account');
       else params.set('response_mode', 'form_post');
       res.writeHead(302, { Location: `${provider === 'google' ? 'https://accounts.google.com/o/oauth2/v2/auth' : 'https://appleid.apple.com/auth/authorize'}?${params}`,
         'Set-Cookie': [cookie('dalbit_oauth_state', state, req, 600, provider === 'apple' ? 'None' : 'Lax'), cookie('dalbit_oauth_nonce', nonce, req, 600, provider === 'apple' ? 'None' : 'Lax'), cookie('dalbit_oauth_return', encodeURIComponent(safeReturn(url.searchParams.get('returnTo'))), req, 600, provider === 'apple' ? 'None' : 'Lax')] });
       return res.end();
     }
     if (url.pathname === '/api/auth/toss' && req.method === 'POST') {
-      if (!configured('toss')) return sendJson(res, { error: 'Toss 로그인이 설정되지 않았습니다.' }, 503);
+      if (!available('toss')) return sendJson(res, { error: 'Toss 로그인이 설정되지 않았습니다.' }, 503);
       if (!validateOrigin(req)) return sendJson(res, { error: '이 앱에서 다시 시도해 주세요.' }, 403);
       try {
         const body = JSON.parse(await readBody(req, 20_000) || '{}');
@@ -150,7 +153,7 @@ export function createAuthRoutes(repository) {
     }
     if (url.pathname.startsWith('/api/auth/callback/')) {
       const provider = url.pathname.split('/').pop();
-      if (!['google', 'apple'].includes(provider) || !configured(provider)) return sendJson(res, { error: '로그인 제공자가 설정되지 않았습니다.' }, 503);
+      if (!['google', 'apple'].includes(provider) || !available(provider)) return sendJson(res, { error: '로그인 제공자가 설정되지 않았습니다.' }, 503);
       let params = url.searchParams;
       if (req.method === 'POST') params = new URLSearchParams(await readBody(req, 20_000));
       if (params.get('state') !== readCookie(req, 'dalbit_oauth_state')) return sendJson(res, { error: '로그인 요청을 확인할 수 없습니다.' }, 400);

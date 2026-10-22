@@ -33,6 +33,9 @@ try {
   const invented = structuredClone(clean);
   invented.chapters[0].essay = '그 무렵 모든 것을 잃었습니다.';
   assert.ok(epicQualityIssues(invented).includes('unverified-past-fact'));
+  const descriptive = structuredClone(clean);
+  descriptive.chapters[0].essay = '익숙했던 역할에서 벗어나 새 방향을 살피는 자리입니다.';
+  assert.deepEqual(epicQualityIssues(descriptive), [], '구간을 꾸미는 관형형은 사실 단정이 아니다');
 
   process.env.CAFE24_LLM_API_KEY = 'test-key';
   process.env.CAFE24_LLM_BASE_URL = 'https://llm-router.cafe24.com/api/v1/';
@@ -60,7 +63,23 @@ try {
   assert.equal(rejected.status, 502);
   assert.equal(rejected.reading, undefined);
   assert.ok(rejected.shape.qualityIssues.includes('latin-in-korean-text'));
-  console.log('PASS: epic reading rejects mixed-language and invented-history prose, retries once, then fails closed.');
+  // 남은 시간이 재생성에 모자라면 클라이언트 제한 시간을 넘기지 않도록 바로 실패한다.
+  calls = 0;
+  let requestedModel;
+  process.env.CAFE24_LLM_EPIC_MODEL = 'test/epic-model';
+  globalThis.fetch = async (url, options) => {
+    calls++;
+    requestedModel = JSON.parse(options.body).model;
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(english) }, finish_reason: 'stop' }] }), {
+      status: 200, headers: { 'Content-Type': 'application/json' }
+    });
+  };
+  const hurried = await epicReading(input, { budgetMs: 15_000 });
+  delete process.env.CAFE24_LLM_EPIC_MODEL;
+  assert.equal(calls, 1, '예산이 부족하면 재생성하지 않는다');
+  assert.equal(hurried.status, 502);
+  assert.equal(requestedModel, 'test/epic-model', '판독 전용 모델을 지정할 수 있다');
+  console.log('PASS: epic reading rejects mixed-language and invented-history prose, retries once within its time budget, then fails closed.');
 } finally {
   globalThis.fetch = originalFetch;
   if (originalKey === undefined) delete process.env.CAFE24_LLM_API_KEY;

@@ -104,7 +104,7 @@ ${marked(d)}
 ## Persona & Tone
 - 어조: 감정을 배제한 서늘하고 관조적인 태도로 '~입니다', '~습니다'로 맺습니다.
 - 금지된 태도: 값싼 덕담("잘 될 것입니다"), 위로("힘든 시기였습니다"), 예언("~할 것입니다")을 절대 쓰지 않습니다.
-- 감각적 묘사: 고통이나 성취를 추상적인 명사로 뭉개지 않고 구체적인 감각과 장면으로 묘사합니다. ('힘든 시기' → '쥐고 있던 것을 손가락 하나씩 펴서 놓아야 했던 시간')
+- 감각적 묘사: 고통이나 성취를 추상적인 명사로 뭉개지 않고 구체적인 감각과 장면으로 묘사합니다. ('힘든 시기' → '쥐고 있던 것을 손가락 하나씩 펴서 놓는 시간')
 - 문장 밀도: 한 문장에 한 가지만 담습니다. 수식이 두 개 이상 붙으면 문장을 자릅니다.
 
 ## Interpretation Rules
@@ -127,8 +127,9 @@ ${used(d, 'ten', TENARC)}
 
 4. 시제 통제 (Tense Rule)
 위 배열의 표시를 기준으로 시제를 나눕니다. 이 구분을 어기면 서사 전체가 어긋납니다.
-[지나옴] 구간: 지나온 시간의 관점에서 쓰되, 실제로 겪었는지 모르는 사건·행동을 완료된 사실로 서술하지 않습니다.
-[지금] 구간: 현재형으로 씁니다. 아직 끝나지 않았음을 문장 안에 남깁니다.
+[지나옴] 구간: 이미 지나온 구간이어도 과거형으로 쓰지 않습니다. 실제로 겪었는지 알 수 없으므로 '~하는 자리입니다', '~이 놓인 구간입니다'처럼 그 구간의 결을 현재형 지형 묘사로만 씁니다.
+모든 구간에서 과거형 어미(~했습니다, ~였습니다, ~었습니다, ~했던)를 쓰지 않습니다. 이 어미가 하나라도 있으면 응답 전체가 거절됩니다.
+[지금] 구간: 현재형으로 씁니다. '아직 이어지는 중입니다'처럼 끝나지 않았음을 현재형으로 남깁니다.
 [앞으로] 구간: 사건을 예고하지 않고 '놓이게 되는 지형'으로만 씁니다. "~하게 됩니다"로 못박지 말고 "~하는 자리입니다"처럼 지형을 묘사합니다.
 
 5. 선 긋기
@@ -158,7 +159,7 @@ chapters 배열에는 여덟 대운 중 결이 가장 뚜렷하게 대비되는 
 ## Output Format (Strict JSON)
 반드시 아래 스키마에 맞추어 출력하며, JSON 외의 어떤 인사말이나 부연 설명도 덧붙이지 마세요. 백틱과 코드 펜스를 붙이지 않습니다. 객체 하나만 출력합니다. 문자열 안에서 큰따옴표를 쓰지 않고, 줄바꿈은 \\n 이스케이프로만 넣습니다. 글자 수는 공백과 문장부호를 포함해 세며, 범위를 벗어나면 형용사부터 지우고 다시 맞춥니다.
 
-{"en":"대문자 영단어 1~2개 (묵직한 뉘앙스, 예: SILENT TIDE). 최상위와 chapters를 통틀어 중복 금지","kr":"2~4자 한국어 명사 (예: 정적, 백야). 마찬가지로 중복 금지","idx":"구체 명사 3개를 ' · '로 연결. 손에 잡히는 사물 하나, 장소나 공간 하나, 몸이나 소리에 관한 것 하나. 추상 명사(성장, 균형, 시련) 금지","pull":"25~45자. 반드시 중간에 \\n을 하나 넣어 두 줄로 끊어지는 시적인 문장. 두 줄의 길이를 비슷하게 맞춤","chapters":[{"age":"시작나이–끝나이세 (예: 27–36세). 붙임표는 en dash","en":"대문자 영단어 1~2개","kr":"2~4자 한국어 명사","pillar":"간지 · 십성 · 십이운성 (예: 甲申 · 편관 · 병). 명리 용어는 이 필드에만","gate":"12~20자 명사구. 이 구간으로 들어서는 문. 문장으로 끝맺지 않음","body":"60~90자. 짧고 단호한 줄글 문장. 시제 통제를 따름","essay":"200~260자. 이 구간의 지형을 통과하는 사람의 내면. 사건이 아니라 그 시간에 하던 행동을 씀"}],"closing":"60~100자. 여덟 구간 전체를 한 호흡으로 닫는 줄글 문장. 어느 구간이 좋았다고 정리하지 않고 지형 전체의 모양만 말함"}
+{"en":"대문자 영단어 1~2개 (묵직한 뉘앙스, 예: SILENT TIDE). 최상위와 chapters를 통틀어 중복 금지","kr":"2~4자 한국어 명사 (예: 정적, 백야). 마찬가지로 중복 금지","idx":"구체 명사 3개를 ' · '로 연결. 손에 잡히는 사물 하나, 장소나 공간 하나, 몸이나 소리에 관한 것 하나. 추상 명사(성장, 균형, 시련) 금지","pull":"25~45자. 반드시 중간에 \\n을 하나 넣어 두 줄로 끊어지는 시적인 문장. 두 줄의 길이를 비슷하게 맞춤","chapters":[{"age":"시작나이–끝나이세 (예: 27–36세). 붙임표는 en dash","en":"대문자 영단어 1~2개","kr":"2~4자 한국어 명사","pillar":"간지 · 십성 · 십이운성 (예: 甲申 · 편관 · 병). 명리 용어는 이 필드에만","gate":"12~20자 명사구. 이 구간으로 들어서는 문. 문장으로 끝맺지 않음","body":"60~90자. 짧고 단호한 줄글 문장. 시제 통제를 따름","essay":"200~260자. 이 구간의 지형을 통과하는 사람의 내면. 사건이 아니라 그 구간에 놓이는 행동 경향을 현재형으로 씀"}],"closing":"60~100자. 여덟 구간 전체를 한 호흡으로 닫는 줄글 문장. 어느 구간이 좋았다고 정리하지 않고 지형 전체의 모양만 말함"}
 
 ## Self-Check
 출력 직전에 조용히 확인합니다. 점검 결과를 출력에 포함하지 않습니다.
@@ -168,6 +169,7 @@ chapters가 [Chapter Selection]의 순서를 따랐는가. [지금] 구간이 �
 어느 구간을 좋고 나쁨으로 판정했는가.
 후반 구간이 쇠퇴나 죽음으로 읽히는가. 읽힌다면 다시 씁니다.
 겪지 않았을 사건을 단정했는가.
+과거형 어미(~했습니다, ~였습니다, ~었습니다, ~했던)가 남았는가. 남았다면 현재형 지형 묘사로 고칩니다.
 en과 kr에 중복이 있는가.
 모든 필드가 지정된 글자 수 범위 안에 있는가.
 JSON이 유효하게 닫혔는가. 코드 펜스나 머리말이 붙지 않았는가.`;
@@ -196,35 +198,46 @@ export function epicQualityIssues(out) {
     ...out.chapters.flatMap(c => [c.kr, c.gate, c.body, c.essay])];
   if (koreanFields.some(v => /[A-Za-z]{2,}/.test(v))) issues.push('latin-in-korean-text');
   // 시제는 계산할 수 있지만 실제로 무엇을 했는지는 입력받지 않았습니다.
+  // 사실로 단정하는 것은 문장 끝의 과거형입니다. '익숙했던 역할'처럼 구간을
+  // 꾸미는 관형형까지 막으면 멀쩡한 판독 대부분이 거절됩니다.
   const prose = [out.pull, out.closing, ...out.chapters.flatMap(c => [c.body, c.essay])];
-  if (prose.some(v => /(?:했|였|았|었|됐|셨|냈|웠|겼|났|렀|갔|왔|졌|봤)습니다|(?:했|였|았|었|됐|셨)던/.test(v)))
+  if (prose.some(v => /(?:했|였|았|었|됐|셨|냈|웠|겼|났|렀|갔|왔|졌|봤)습니다/.test(v)))
     issues.push('unverified-past-fact');
   return issues;
 }
 
-export async function epicReading(raw) {
+// 클라이언트는 65초까지 기다립니다. 재생성까지 그 안에 끝나도록 전체 예산을 두고,
+// 남은 시간이 모자라면 다시 받지 않고 바로 실패를 알립니다.
+const EPIC_BUDGET_MS = 58_000;
+const RETRY_MIN_MS = 20_000;
+// 판독은 한국어 문장 품질이 중요해 상담과 다른 모델을 고정할 수 있게 둡니다.
+const epicModel = () => process.env.CAFE24_LLM_EPIC_MODEL || undefined;
+
+export async function epicReading(raw, { budgetMs = EPIC_BUDGET_MS } = {}) {
   const d = readInput(raw);
   if (!d) return { error: '대운 정보가 부족합니다.', status: 400 };
+  const deadlineAt = Date.now() + budgetMs;
   let res = await chatCompletion({
     messages: [{ role: 'user', content: prompt(d) }],
     maxTokens: 4000,
     temperature: 1,
     metadata: { feature: 'epic' },
     continueOnLength: true,
-    json: true
+    json: true,
+    deadlineAt, modelName: epicModel()
   });
   const read = r => { try { return readOutput(parseJsonReply(r.text)); } catch { return null; } };
   let out = read(res), issues = epicQualityIssues(out);
   // 한 편을 통째로 받는 호출이라 어긋나면 화면에 아무것도 못 띄웁니다.
   // 무엇이 틀렸는지 짚어 한 번만 다시 받습니다.
-  if (issues.length) {
+  if (issues.length && deadlineAt - Date.now() > RETRY_MIN_MS) {
     res = await chatCompletion({
       messages: [{ role: 'user', content: prompt(d) },
         { role: 'assistant', content: res.text.slice(0, 4000) },
-        { role: 'user', content: `이전 답변은 검증에 실패했습니다(${issues.join(', ')}). JSON 객체 하나를 다시 출력하세요. en 필드 외에는 영어 단어를 쓰지 마세요. 실제로 겪었는지 알 수 없는 과거 사건·행동을 사실처럼 말하지 마세요. 필수 필드를 모두 채우고 chapters는 정확히 세 개로 쓰세요.` }],
+        { role: 'user', content: `이전 답변은 검증에 실패했습니다(${issues.join(', ')}). JSON 객체 하나를 다시 출력하세요. en 필드 외에는 영어 단어를 쓰지 마세요. 과거형 어미(~했습니다, ~였습니다, ~었습니다, ~했던)를 쓰지 말고 지나온 구간도 현재형 지형 묘사로 쓰세요. 필수 필드를 모두 채우고 chapters는 정확히 세 개로 쓰세요.` }],
       maxTokens: 4000, temperature: 0.6,
       metadata: { feature: 'epic', retry: 'validation' },
-      continueOnLength: true, json: true
+      continueOnLength: true, json: true, deadlineAt, modelName: epicModel()
     });
     out = read(res); issues = epicQualityIssues(out);
   }
