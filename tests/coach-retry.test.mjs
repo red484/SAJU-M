@@ -28,4 +28,14 @@ calls = 0;
 result = await requestCoachWithRetry(payload, async () => {calls++;return reply(502);}, {pauseMs:0});
 assert.equal(calls,2);assert.equal(result.response.status,502,'반복 실패도 두 번에서 멈춘다');
 
-console.log('PASS: coach retries transient and empty responses once, but not permanent errors.');
+// 첫 요청이 클라이언트에서 시간 초과돼도 서버는 답변 중일 수 있어, 같은 요청을 기다렸다가 받아온다.
+const busy = {response:{status:409,ok:false},body:{code:'COACH_BUSY'}};
+calls = 0;
+result = await requestCoachWithRetry(payload, async () => {calls++;if(calls===1)throw new TypeError('timeout');return calls<4?busy:reply(200,'저장된 답변');}, {pauseMs:0,busyPauseMs:0});
+assert.equal(calls,4);assert.equal(result.body.text,'저장된 답변');
+
+calls = 0;
+result = await requestCoachWithRetry(payload, async () => {calls++;return busy;}, {pauseMs:0,busyPauseMs:0});
+assert.equal(calls,1,'다른 기기의 답변이 진행 중이면 첫 응답에서 멈춘다');
+
+console.log('PASS: coach retries transient and empty responses once, waits out its own in-flight answer, but not permanent errors.');

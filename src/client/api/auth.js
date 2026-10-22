@@ -1,4 +1,4 @@
-import { apiRequest, appsInToss, setTossAuthToken } from './client.js';
+import { apiRequest, appsInToss, setTossAuthToken, setTossSessionToken } from './client.js';
 
 export const authProviders = () => apiRequest('/api/auth/providers');
 export const currentUser = () => apiRequest('/api/auth/me');
@@ -16,8 +16,9 @@ export async function loginWithToss() {
   });
   if (!result.response.ok || !result.body.token) throw new Error(result.body.error || '토스 로그인을 완료하지 못했어요.');
   setTossAuthToken(result.body.token);
+  if (result.body.session) setTossSessionToken(result.body.session);
   return result;
 }
 
-export function clearTossLogin() { setTossAuthToken(''); }
+export function clearTossLogin() { setTossAuthToken(''); setTossSessionToken(''); }
 export const isAppsInToss = () => appsInToss;

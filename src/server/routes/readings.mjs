@@ -1,12 +1,14 @@
 import { coachReply, enabled as coachEnabled } from '../services/coach-service.mjs';
 import { epicReading, enabled as epicEnabled } from '../services/epic-service.mjs';
-import { readBody, sendJson, validateOrigin } from '../http.mjs';
+import { clientAddress, readBody, sendJson, validateOrigin } from '../http.mjs';
 import { getSession, sessionId } from '../session.mjs';
 import { createMemoryRateLimiter } from '../rate-limit.mjs';
 import { authToken } from '../auth.mjs';
 
 const coachAllowed = createMemoryRateLimiter({ windowMs: 60_000, max: 12 });
 const epicAllowed = createMemoryRateLimiter({ windowMs: 600_000, max: 4 });
+// A request without a session cookie gets a brand-new session, so the address bounds those too.
+const epicByAddress = createMemoryRateLimiter({ windowMs: 600_000, max: 20 });
 
 function logShape(feature, shape) {
   if (!shape) return;
@@ -34,18 +36,26 @@ export function createReadingRoutes(telemetry, auth, quota) {
     if (feature === 'coach' && !quota) return sendJson(res, { code: 'QUOTA_UNAVAILABLE', error: '상담 이용 횟수를 확인하지 못했어요. 잠시 뒤 다시 시도해 주세요.' }, 503);
     if (!enabled()) return sendJson(res, { error: feature === 'coach' ? '실제 상담이 연결되지 않았습니다.' : '판독이 연결되지 않았습니다.' }, 503);
     const id = sessionId(getSession(req).token);
-    if (!allowed(id)) return sendJson(res, { error: feature === 'coach' ? '잠시 뒤에 다시 물어봐 주세요.' : '판독은 10분에 네 번까지 열 수 있어요.' }, 429);
+    const permitted = feature === 'coach' ? allowed(user.id) : allowed(id) && epicByAddress(clientAddress(req));
+    if (!permitted) return sendJson(res, { error: feature === 'coach' ? '잠시 뒤에 다시 물어봐 주세요.' : '판독은 10분에 네 번까지 열 수 있어요.' }, 429);
+    let payload;
+    try {
+      payload = JSON.parse(await readBody(req, 100_000));
+    } catch (error) {
+      return error?.status === 413
+        ? sendJson(res, { error: '요청 내용이 너무 길어요. 줄여서 다시 시도해 주세요.' }, 413)
+        : sendJson(res, { error: '요청 형식을 확인하지 못했어요. 화면을 새로고침해 주세요.' }, 400);
+    }
     const usage = await telemetry.start(id, feature).catch(() => ({ id: null, started: Date.now() }));
     try {
-      const payload = JSON.parse(await readBody(req, 100_000));
       const out = feature === 'coach' ? await quota.run(user.id, payload, execute) : await execute(payload);
       logShape(feature, out.shape);
       await telemetry.finish(usage, telemetryDetails(out.shape, out.error ? 'failed' : 'completed', out.error ? 'UPSTREAM_RESPONSE' : null)).catch(() => {});
       const timing = { 'Server-Timing': `ai;dur=${Date.now() - requestStarted}` };
-      if (out.error) return sendJson(res, { error: out.error, code: out.code, quota: out.quota, shape: out.shape }, out.status || 500, timing);
+      if (out.error) return sendJson(res, { error: out.error, code: out.code, quota: out.quota }, out.status || 500, timing);
       return feature === 'coach'
-        ? sendJson(res, { text: out.text, offer: out.offer || null, source: out.source, shape: out.shape, quota: out.quota }, 200, timing)
-        : sendJson(res, { reading: out.reading, shape: out.shape }, 200, timing);
+        ? sendJson(res, { text: out.text, offer: out.offer || null, source: out.source, quota: out.quota }, 200, timing)
+        : sendJson(res, { reading: out.reading }, 200, timing);
     } catch (error) {
       console.error(JSON.stringify({ event: 'llm.error', feature, error: error?.message, status: error?.status }));
       await telemetry.finish(usage, telemetryDetails(null, 'failed', String(error?.status || 'UPSTREAM_ERROR'))).catch(() => {});

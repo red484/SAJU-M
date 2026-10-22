@@ -38,8 +38,9 @@ npm run build:ait
 Toss 로그인은 서버에서 mTLS로 인가 코드를 교환합니다. Toss 콘솔에서 받은 인증서와 키를
 `secrets/toss/`에 두고 `.env.production`의 `TOSS_MTLS_CERT_PATH`,
 `TOSS_MTLS_KEY_PATH`, `TOSS_MTLS_KEY_PASSWORD`를 설정합니다. 앱인토스 WebView의
-Origin은 `TOSS_ALLOWED_ORIGINS`에 쉼표로 등록하며, 고정 Origin을 확인하기 전에는 `*`로
-테스트할 수 있습니다.
+Origin은 `TOSS_ALLOWED_ORIGINS`에 쉼표로 정확히 등록합니다(`.env.production.example` 참고).
+`*`는 모든 API의 Origin(CSRF) 검사를 끄므로 운영에서는 쓰지 않습니다. 실제 Origin은 토스 앱의
+웹 디버그 툴즈 네트워크 탭에서 확인할 수 있습니다.
 
 ### 앱인토스 상담 이용권
 
@@ -62,6 +63,7 @@ Origin은 `TOSS_ALLOWED_ORIGINS`에 쉼표로 등록하며, 고정 Origin을 확
 ```sh
 npm test                      # 만세력·대운·코칭·안전 응답
 node tests/storage.test.mjs   # 로컬 서버 실행 중에만
+TEST_DATABASE_URL=postgresql://... npm run test:postgres  # 지워도 되는 로컬 DB에서만
 ```
 
 저장 테스트는 별도 세션에 테스트 기록을 만들고 지웁니다.

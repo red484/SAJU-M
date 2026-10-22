@@ -1,4 +1,15 @@
+import { randomBytes } from 'node:crypto';
 import { JournalConflictError } from './file-journal-repository.mjs';
+
+// Moves an account journal off a session that the account no longer owns, keeping it reachable by user_id.
+export async function parkForeignJournal(client, sessionId, userId = null) {
+  const foreign = await client.query(`SELECT user_id FROM saju_journals WHERE session_id = $1 AND user_id IS NOT NULL
+    AND user_id IS DISTINCT FROM $2::uuid FOR UPDATE`, [sessionId, userId]);
+  if (!foreign.rowCount) return;
+  const parked = randomBytes(32).toString('hex');
+  await client.query('INSERT INTO anonymous_sessions (id, user_id) VALUES ($1, $2)', [parked, foreign.rows[0].user_id]);
+  await client.query('UPDATE saju_journals SET session_id = $1 WHERE session_id = $2', [parked, sessionId]);
+}
 
 export class PostgresJournalRepository {
   constructor(pool) {
@@ -15,8 +26,9 @@ export class PostgresJournalRepository {
     try {
       await this.ensureSession(client, id);
       const result = await client.query(`SELECT j.payload, j.revision FROM anonymous_sessions s
-        LEFT JOIN saju_journals j ON j.session_id = s.id OR (s.user_id IS NOT NULL AND j.user_id = s.user_id)
-        WHERE s.id = $1 AND j.session_id IS NOT NULL ORDER BY j.updated_at DESC LIMIT 1`, [id]);
+        JOIN saju_journals j ON (j.session_id = s.id AND (j.user_id IS NULL OR j.user_id = s.user_id))
+          OR (s.user_id IS NOT NULL AND j.user_id = s.user_id)
+        WHERE s.id = $1 ORDER BY j.updated_at DESC LIMIT 1`, [id]);
       return result.rowCount ? { data: result.rows[0].payload, revision: result.rows[0].revision } : { data: null, revision: 0 };
     } finally {
       client.release();
@@ -30,6 +42,8 @@ export class PostgresJournalRepository {
       await client.query(`INSERT INTO audit_logs (anonymous_session_id, event_type, resource_type, resource_id)
         SELECT $1, 'journal.deleted', 'journal', $1 WHERE EXISTS (SELECT 1 FROM anonymous_sessions WHERE id = $1)`, [id]);
       const owner = await client.query('SELECT user_id FROM anonymous_sessions WHERE id = $1', [id]);
+      // The session delete below cascades, so another account's journal must leave this session first.
+      await parkForeignJournal(client, id, owner.rows[0]?.user_id || null);
       if (owner.rows[0]?.user_id) await client.query('DELETE FROM saju_journals WHERE user_id = $1', [owner.rows[0].user_id]);
       else await client.query('DELETE FROM saju_journals WHERE session_id = $1', [id]);
       await client.query('DELETE FROM anonymous_sessions WHERE id = $1', [id]);
@@ -49,6 +63,7 @@ export class PostgresJournalRepository {
       await this.ensureSession(client, id);
       const owner = await client.query('SELECT user_id FROM anonymous_sessions WHERE id = $1', [id]);
       const userId = owner.rows[0]?.user_id || null;
+      await parkForeignJournal(client, id, userId);
       const existing = await client.query(`SELECT session_id, revision FROM saju_journals
         WHERE session_id = $1 OR ($2::uuid IS NOT NULL AND user_id = $2) ORDER BY updated_at DESC LIMIT 1 FOR UPDATE`, [id, userId]);
       let result;

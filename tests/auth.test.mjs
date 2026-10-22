@@ -22,8 +22,8 @@ for (const provider of ['google', 'apple']) {
 
 const repository = {
   async userFromToken(token) { return token === 'signed-in' ? { id: 'u1', display_name: '달빛', email: 'moon@example.com' } : null; },
-  async logout(token) { this.loggedOut = token; },
-  async signIn(identity, anonymousId) { this.identity = identity; this.anonymousId = anonymousId; return { token: 'toss-token', userId: 'toss-user' }; }
+  async logout(token, anonymousId) { this.loggedOut = token; this.loggedOutSession = anonymousId; },
+  async signIn(identity, anonymousId, destinationId) { this.identity = identity; this.anonymousId = anonymousId; this.destinationId = destinationId; return { token: 'toss-token', userId: 'toss-user' }; }
 };
 const route = createAuthRoutes(repository);
 
@@ -39,7 +39,7 @@ async function call(path, { method = 'GET', cookie = '', origin = '', body = '',
 
 let res = await call('/api/auth/providers');
 assert.equal(res.status, 200);
-assert.deepEqual(JSON.parse(res.body), { google: false, apple: false, toss: false });
+assert.deepEqual(JSON.parse(res.body), { google: false, apple: false, toss: false, password: false });
 
 res = await call('/api/auth/guest', { method: 'POST', origin: 'https://evil.example' });
 assert.equal(res.status, 403);
@@ -62,6 +62,7 @@ assert.equal(JSON.parse(res.body).user.id, 'u1');
 res = await call('/api/auth/logout', { method: 'POST', cookie: 'dalbit_auth=signed-in', origin: 'https://saju.example.com' });
 assert.equal(res.status, 200);
 assert.equal(repository.loggedOut, 'signed-in');
+assert.match(repository.loggedOutSession, /^[a-f0-9]{64}$/);
 assert.equal(Array.isArray(res.headers['Set-Cookie']), true);
 
 process.env.TOSS_LOGIN_MOCK = 'true';
@@ -78,6 +79,23 @@ assert.equal(JSON.parse(res.body).token, 'toss-token');
 assert.deepEqual(repository.identity, { provider: 'toss', subject: 'toss-1234', email: 'hong@example.com', name: '홍길동' });
 assert.deepEqual(JSON.parse(res.body).user, { id: 'toss-user', name: '홍길동', email: 'hong@example.com' });
 assert.equal(repository.anonymousId.length, 64);
+// Login moves the account to a new session so the device's previous session cannot keep reading it.
+const issuedSession = JSON.parse(res.body).session;
+assert.match(issuedSession, /^[a-f0-9]{64}$/);
+assert.notEqual(issuedSession, tossSession);
+assert.notEqual(repository.destinationId, repository.anonymousId);
+assert.equal(repository.destinationId.length, 64);
+
+process.env.TOSS_LOGIN_MOCK = 'true';
+const signIn = repository.signIn;
+repository.signIn = async () => { throw new Error('connect ECONNREFUSED /app/secrets/toss/private.key'); };
+const quietError = console.error;
+try {
+  console.error = () => {};
+  res = await call('/api/auth/toss', { method: 'POST', body: JSON.stringify({ authorizationCode: 'mock' }) });
+} finally { console.error = quietError; repository.signIn = signIn; delete process.env.TOSS_LOGIN_MOCK; }
+assert.equal(res.status, 500);
+assert.doesNotMatch(JSON.parse(res.body).error, /secrets|ECONNREFUSED/);
 
 process.env.GOOGLE_CLIENT_ID = 'client-id';
 process.env.GOOGLE_CLIENT_SECRET = 'client-secret';
@@ -90,6 +108,11 @@ assert.equal(res.headers['Set-Cookie'].length, 3);
 assert.match(res.headers.Location, /nonce=/);
 res = await call(loginUrl('google'));
 assert.ok(res.headers['Set-Cookie'].some(value => value.startsWith('dalbit_oauth_return=%2F%3Fauth%3Dsuccess;')));
+// Browsers read "/\host" like "//host", so only plain same-origin paths survive.
+for (const returnTo of ['//evil.example', '/\\evil.example', 'https://evil.example', '/\t/evil.example']) {
+  res = await call(`/api/auth/start?provider=google&returnTo=${encodeURIComponent(returnTo)}`);
+  assert.ok(res.headers['Set-Cookie'].some(value => value.startsWith('dalbit_oauth_return=%2Fsettings;')), returnTo);
+}
 delete process.env.GOOGLE_CLIENT_ID;
 delete process.env.GOOGLE_CLIENT_SECRET;
 delete process.env.AUTH_BASE_URL;

@@ -48,6 +48,7 @@ async function serveStatic(req, res) {
   let info;
   try {
     info = await stat(file);
+    if (!info.isFile()) throw new Error('Not a file');
   } catch {
     if (extname(target)) {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -65,7 +66,7 @@ async function serveStatic(req, res) {
     'X-Content-Type-Options': 'nosniff'
   });
   if (req.method === 'HEAD') return res.end();
-  createReadStream(file).pipe(res);
+  createReadStream(file).on('error', () => res.destroy()).pipe(res);
 }
 
 createServer((req, res) => void api(req, res).then(handled => {

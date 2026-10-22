@@ -31,11 +31,12 @@ export class TossBillingRepository {
     return verifiedOrder(result.body, orderId);
   }
   async grant(userId, orderId) {
+    // Toss is asked before the transaction so a slow API never holds a pooled connection.
+    const order = await this.verify(userId, orderId);
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
       await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`coach:${userId}`]);
-      const order = await this.verify(userId, orderId, client);
       const prior = await client.query('SELECT * FROM toss_coach_orders WHERE order_id = $1 FOR UPDATE', [orderId]);
       if (prior.rowCount && prior.rows[0].user_id !== userId) throw fail(409, '다른 계정에 연결된 주문입니다.');
       if (order.status === 'REFUNDED') {
@@ -61,13 +62,14 @@ export class TossBillingRepository {
       FROM toss_coach_orders WHERE user_id = $1`, [userId]);
     return rows[0];
   }
-  async availableOrder(userId, client) {
-    const { rows } = await client.query(`SELECT order_id FROM toss_coach_orders
-      WHERE user_id=$1 AND NOT refunded AND used<50 AND expires_at>now() ORDER BY expires_at FOR UPDATE`, [userId]);
+  async availableOrder(userId) {
+    const { rows } = await this.pool.query(`SELECT order_id FROM toss_coach_orders
+      WHERE user_id=$1 AND NOT refunded AND used<50 AND expires_at>now() ORDER BY expires_at`, [userId]);
+    // Runs outside any transaction; consume() re-checks refunded/used when the answer is charged.
     for (const row of rows) {
-      const order = await this.verify(userId, row.order_id, client);
+      const order = await this.verify(userId, row.order_id);
       if (order.status === 'REFUNDED') {
-        await client.query('UPDATE toss_coach_orders SET refunded=true WHERE order_id=$1', [row.order_id]);
+        await this.pool.query('UPDATE toss_coach_orders SET refunded=true WHERE order_id=$1', [row.order_id]);
       } else return row.order_id;
     }
     return null;

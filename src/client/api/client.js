@@ -18,6 +18,13 @@ export function setTossAuthToken(token) {
   else localStorage.removeItem(tossAuthKey);
 }
 
+// Login hands out a fresh session; logout drops it so the next visitor starts anonymously.
+export function setTossSessionToken(token) {
+  if (!appsInToss) return;
+  if (/^[a-f0-9]{64}$/.test(token || '')) localStorage.setItem(tossSessionKey, token);
+  else localStorage.removeItem(tossSessionKey);
+}
+
 function tossSessionToken() {
   if (!appsInToss) return '';
   let token = localStorage.getItem(tossSessionKey) || '';

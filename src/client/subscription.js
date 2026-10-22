@@ -55,8 +55,9 @@ export function installSubscription({ page, user, openModal, notice, navigate, n
     card.querySelector('button').onclick = overview;
     document.querySelector('main')?.append(card);
   }
+  // Signed-out visitors see the login action instead; buying needs an account first.
   const quota = document.querySelector('.coach-quota');
-  if (quota) {
+  if (quota && user) {
     const button = document.createElement('button');
     button.type = 'button'; button.className = 'subscription-inline';
     button.textContent = '결제하시겠습니까?'; button.setAttribute('aria-label', '결제하시겠습니까? 구독 상품 팝업 열기'); button.onclick = overview;

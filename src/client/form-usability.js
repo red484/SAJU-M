@@ -17,6 +17,13 @@ export function hourIndex(time) {
   return Math.floor(((h * 60 + m + 60) % 1440) / 120);
 }
 
+const slotTime = value => value === 'late' ? '23:30' : value === '0' ? '00:30' : `${String(Number(value) * 2).padStart(2, '0')}:00`;
+
+// A saved time equal to a range midpoint was most likely picked as that range.
+export function slotForTime(time) {
+  return ['late', ...Array.from({ length: 12 }, (_, i) => String(i))].find(value => slotTime(value) === time) || 'exact';
+}
+
 export function improveBirthForm(profile) {
   const form = document.getElementById('birth-form');
   if (!form) return;
@@ -29,8 +36,8 @@ export function improveBirthForm(profile) {
   picker.add(new Option('23:00~24:00 · 자시 (밤)', 'late'));
   picker.add(new Option('정확한 시간 직접 입력', 'exact'));
   // Preserve existing exact times; selecting a range deliberately uses its midpoint.
-  picker.value = profile ? 'exact' : String(hourIndex(time.value));
-  label.hidden = !profile;
+  picker.value = profile ? slotForTime(time.value) : String(hourIndex(time.value));
+  label.hidden = picker.value !== 'exact';
   label.before(picker);
   const caption = document.createElement('label');
   caption.textContent = '태어난 시간';
@@ -43,10 +50,7 @@ export function improveBirthForm(profile) {
   label.after(hint);
   picker.addEventListener('change', () => {
     label.hidden = picker.value !== 'exact';
-    if (picker.value !== 'exact') {
-      const index = Number(picker.value);
-      time.value = picker.value === 'late' ? '23:30' : index === 0 ? '00:30' : `${String(index * 2).padStart(2, '0')}:00`;
-    }
+    if (picker.value !== 'exact') time.value = slotTime(picker.value);
   });
   if (!profile) picker.dispatchEvent(new Event('change'));
   const sync = () => { picker.disabled = form.elements.unknown.checked; };

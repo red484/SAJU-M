@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from 'jose';
-import { readBody, sendJson, validateOrigin } from './http.mjs';
+import { clientAddress, readBody, sendJson, validateOrigin } from './http.mjs';
 import { expiredSessionCookie, getSession, secureCookie, sessionCookie, sessionId } from './session.mjs';
 import { exchangeTossLogin } from './toss-auth.mjs';
 import { appleDisplayName } from './apple-profile.mjs';
@@ -16,7 +16,8 @@ export const authToken = req => {
   const bearer = String(req.headers.authorization || '');
   return bearer.startsWith('Bearer ') ? bearer.slice(7).trim() : readCookie(req, 'dalbit_auth');
 };
-const safeReturn = value => String(value || '/settings').startsWith('/') && !String(value).startsWith('//') ? String(value) : '/settings';
+// Same-origin paths only: browsers treat "/\" like "//", and control characters can split the header.
+const safeReturn = value => /^\/(?![/\\])[^\\\x00-\x1f]*$/.test(String(value || '')) ? String(value) : '/settings';
 const configured = provider => provider === 'google'
   ? Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
   : provider === 'apple'
@@ -69,8 +70,7 @@ export function createAuthRoutes(repository) {
       if (req.method !== 'POST') return sendJson(res, { error: 'POST 요청이 필요합니다.' }, 405);
       if (!validateOrigin(req)) return sendJson(res, { error: '이 앱에서 다시 시도해 주세요.' }, 403);
       if (!repository.registerPassword) return sendJson(res, { error: '아이디 로그인이 준비되지 않았어요.' }, 503);
-      // Use the transport peer, not a client-spoofable forwarding header.
-      if (!byAddress(req.socket.remoteAddress || 'unknown') || passwordWork >= 2)
+      if (!byAddress(clientAddress(req)) || passwordWork >= 2)
         return sendJson(res, { error: '요청이 많아요. 잠시 후 다시 시도해 주세요.' }, 429);
       passwordWork++;
       try {
@@ -106,7 +106,7 @@ export function createAuthRoutes(repository) {
       return sendJson(res, { guest: { id: sessionId(session.token) } }, 200,
         { 'Set-Cookie': sessionCookie(req, session) });
     }
-    if (url.pathname === '/api/auth/providers') return sendJson(res, { google: configured('google'), apple: configured('apple'), toss: configured('toss') });
+    if (url.pathname === '/api/auth/providers') return sendJson(res, { google: configured('google'), apple: configured('apple'), toss: configured('toss'), password: Boolean(repository.registerPassword) });
     if (url.pathname === '/api/auth/me') {
       const user = await repository.userFromToken(authToken(req));
       return sendJson(res, { user: user ? { id: user.id, name: user.display_name, email: user.email, loginId: user.login_id || null } : null });
@@ -136,13 +136,16 @@ export function createAuthRoutes(repository) {
             email: String(body.mockEmail || '').trim() || null }
           : await exchangeTossLogin({ authorizationCode: body.authorizationCode, referrer: body.referrer });
         const session = getSession(req);
+        const rotatedSession = { token: randomBytes(32).toString('hex'), fresh: true };
         const displayName = toss.name || `토스 사용자 ${toss.userKey.slice(-4)}`;
         const signed = await repository.signIn({ provider: 'toss', subject: toss.userKey,
-          email: toss.email || null, name: displayName }, sessionId(session.token));
-        return sendJson(res, { token: signed.token, user: { id: signed.userId, name: displayName, email: toss.email || null } });
+          email: toss.email || null, name: displayName }, sessionId(session.token), sessionId(rotatedSession.token));
+        return sendJson(res, { token: signed.token, session: rotatedSession.token, user: { id: signed.userId, name: displayName, email: toss.email || null } });
       } catch (error) {
         console.error(JSON.stringify({ event: 'auth.failed', provider: 'toss', error: error.message }));
-        return sendJson(res, { error: error.message || 'Toss 로그인에 실패했습니다.' }, error.status || 500);
+        // Upstream text, certificate paths and DB errors stay in the server log.
+        const status = error instanceof SyntaxError ? 400 : error.status || 500;
+        return sendJson(res, { error: status < 500 ? '로그인 요청을 확인해 주세요.' : 'Toss 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.' }, status);
       }
     }
     if (url.pathname.startsWith('/api/auth/callback/')) {
@@ -151,19 +154,21 @@ export function createAuthRoutes(repository) {
       let params = url.searchParams;
       if (req.method === 'POST') params = new URLSearchParams(await readBody(req, 20_000));
       if (params.get('state') !== readCookie(req, 'dalbit_oauth_state')) return sendJson(res, { error: '로그인 요청을 확인할 수 없습니다.' }, 400);
-      const session = getSession(req); const anonymousId = sessionId(session.token);
+      const anonymousId = sessionId(getSession(req).token);
+      const rotatedSession = { token: randomBytes(32).toString('hex'), fresh: true };
       try {
         const identity = await exchange(provider, params.get('code'), `${baseUrl(req)}/api/auth/callback/${provider}`, readCookie(req, 'dalbit_oauth_nonce'));
         if (provider === 'apple') identity.name = appleDisplayName(params.get('user'));
-        const signed = await repository.signIn(identity, anonymousId);
-        const location = decodeURIComponent(readCookie(req, 'dalbit_oauth_return') || '%2Fsettings');
-        res.writeHead(302, { Location: safeReturn(location), 'Set-Cookie': [sessionCookie(req, session), cookie('dalbit_auth', signed.token, req, 2_592_000), cookie('dalbit_oauth_state', '', req, 0), cookie('dalbit_oauth_nonce', '', req, 0), cookie('dalbit_oauth_return', '', req, 0)] });
+        const signed = await repository.signIn(identity, anonymousId, sessionId(rotatedSession.token));
+        let location = '/settings';
+        try { location = decodeURIComponent(readCookie(req, 'dalbit_oauth_return') || '%2Fsettings'); } catch {}
+        res.writeHead(302, { Location: safeReturn(location), 'Set-Cookie': [sessionCookie(req, rotatedSession),cookie('dalbit_auth', signed.token, req, 2_592_000), cookie('dalbit_oauth_state', '', req, 0), cookie('dalbit_oauth_nonce', '', req, 0), cookie('dalbit_oauth_return', '', req, 0)] });
         return res.end();
       } catch (error) { console.error(JSON.stringify({ event: 'auth.failed', provider, error: error.message })); res.writeHead(302, { Location: '/?auth=failed' }); return res.end(); }
     }
     if (url.pathname === '/api/auth/logout' && req.method === 'POST') {
       if (!validateOrigin(req)) return sendJson(res, { error: '이 사이트에서 다시 시도해 주세요.' }, 403);
-      await repository.logout(authToken(req));
+      await repository.logout(authToken(req), sessionId(getSession(req).token));
       return sendJson(res, { ok: true }, 200, { 'Set-Cookie': [cookie('dalbit_auth', '', req, 0), expiredSessionCookie(req)] });
     }
     if (url.pathname === '/api/auth/account' && req.method === 'DELETE') {

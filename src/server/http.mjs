@@ -25,6 +25,15 @@ export async function readBody(req, limit = 1_000_000) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
+const privatePeer = address => /^(?:::ffff:)?(?:127\.|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(address) || address === '::1' || /^f[cd]/i.test(address);
+
+// The backend is reachable only through nginx on the private network, which sets X-Real-IP.
+export function clientAddress(req) {
+  const peer = String(req.socket?.remoteAddress || '');
+  const forwarded = String(req.headers['x-real-ip'] || '').trim();
+  return (privatePeer(peer) && forwarded) || peer || 'unknown';
+}
+
 export function validateOrigin(req) {
   const origin = req.headers.origin;
   if (!origin) return true;

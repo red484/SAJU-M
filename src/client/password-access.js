@@ -1,8 +1,10 @@
 import { apiRequest, appsInToss } from './api/client.js';
 
-export function installPasswordAccess({ page, user, openModal, notice, signedIn, beforeSignIn }) {
+export function installPasswordAccess({ page, user, openModal, notice, signedIn, beforeSignIn, available = true }) {
   // Toss retains its own login flow; these cookie-based accounts are for the web.
   if (appsInToss) return;
+  // Servers without account storage (local file mode) can neither create nor check accounts.
+  if (!available) { document.querySelector('[data-password-register]')?.remove(); return; }
   const close = () => document.querySelector('#modal').close();
   function copyButton(id) {
     const button = document.createElement('button');
@@ -40,7 +42,13 @@ export function installPasswordAccess({ page, user, openModal, notice, signedIn,
       const error = element.querySelector('#password-error');
       const submit = element.querySelector('[type="submit"]');
       const password = element.elements.password.value;
-      if (registering && password !== element.elements.confirm.value) { error.textContent = '비밀번호가 서로 달라요.'; return; }
+      if (registering && password !== element.elements.confirm.value) {
+        error.textContent = '비밀번호가 서로 달라요. 비밀번호 확인을 다시 입력해 주세요.';
+        element.elements.confirm.setAttribute('aria-invalid', 'true');
+        element.elements.confirm.focus();
+        return;
+      }
+      element.elements.confirm?.removeAttribute('aria-invalid');
       submit.disabled = true;
       error.textContent = '';
       try {
