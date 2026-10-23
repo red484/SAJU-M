@@ -31,6 +31,9 @@ const server = createServer((req, res) => void api(req, res).catch(error => {
 server.listen(port, host, () => console.log(`Dalbit Saju backend listening on ${host}:${port}`));
 
 async function shutdown() {
+  // Idle keep-alive sockets would otherwise hold close() open until Docker sends SIGKILL.
+  setTimeout(() => process.exit(1), 10_000).unref();
+  server.closeIdleConnections();
   server.close(async () => {
     await pool.end();
     process.exit(0);

@@ -113,15 +113,15 @@ export class AuthRepository {
   }
 
   async logout(token, anonymousId = null) {
-    if (!token) return;
+    if (!token && !anonymousId) return;
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const ended = await client.query('DELETE FROM auth_sessions WHERE token_hash = $1 RETURNING user_id', [hash(token)]);
-      const userId = ended.rows[0]?.user_id;
-      if (userId && anonymousId) {
+      if (token) await client.query('DELETE FROM auth_sessions WHERE token_hash = $1', [hash(token)]);
+      if (anonymousId) {
         // The device keeps its session for anonymous use, so the account journal leaves it.
-        const unlinked = await client.query('UPDATE anonymous_sessions SET user_id = NULL WHERE id = $1 AND user_id = $2 RETURNING id', [anonymousId, userId]);
+        // This holds even when the auth token already expired and no auth session was found.
+        const unlinked = await client.query('UPDATE anonymous_sessions SET user_id = NULL WHERE id = $1 AND user_id IS NOT NULL RETURNING id', [anonymousId]);
         if (unlinked.rowCount) await parkForeignJournal(client, anonymousId);
       }
       await client.query('COMMIT');

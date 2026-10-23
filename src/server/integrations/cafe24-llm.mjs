@@ -95,7 +95,10 @@ async function once(options) {
       return await onceWithKey(key, options);
     } catch (error) {
       lastError = error;
-      if (![429, 500, 502, 503, 504].includes(error?.status)) throw error;
+      // Overload and connection failures (fetch's TypeError) are worth another key. A timeout
+      // is not retried: it has already spent the request deadline the next key would need.
+      const transient = error?.status ? [429, 500, 502, 503, 504].includes(error.status) : error instanceof TypeError;
+      if (!transient) throw error;
     }
   }
   throw lastError;

@@ -23,6 +23,10 @@ function database() {
             if (locks.has(args[0])) return { rows: [{ locked: false }] };
             held = args[0]; locks.add(held); return { rows: [{ locked: true }] };
           }
+          if (sql.includes('pg_advisory_xact_lock')) {
+            while (locks.has(args[0])) await new Promise(r => setImmediate(r));
+            held = args[0]; locks.add(held); return { rows: [{ locked: true }] };
+          }
           if (sql.includes('count(*)')) return { rows: [{ used: count(args[0]) }] };
           if (sql.startsWith('SELECT question_hash')) {
             const row = rows.get(args[0] + args[1]); return { rowCount: row ? 1 : 0, rows: row ? [row] : [] };
@@ -65,6 +69,11 @@ test('concurrent requests cannot consume the last credit twice; mismatched retry
   const changed = payload(4); changed.messages[0].text = '다른 질문';
   assert.equal((await repo.run('a', changed, answer)).code, 'REQUEST_ID_CONFLICT');
   assert.equal((await repo.status('a')).used, 5);
+});
+test('malformed payloads are rejected as bad requests', async () => {
+  const repo = new CoachQuotaRepository(database());
+  assert.equal((await repo.run('a', null, answer)).status, 400);
+  assert.equal((await repo.run('a', { requestId: 'question-0', messages: 'x' }, answer)).status, 400);
 });
 test('anonymous POST is rejected before AI or telemetry', async () => {
   const routes = createReadingRoutes({ start() { throw Error('must not start'); } }, { async userFromToken() { return null; } });

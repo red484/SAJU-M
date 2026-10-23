@@ -10,18 +10,21 @@ export function sendJson(res, body, status = 200, headers = {}) {
   res.end(payload);
 }
 
-export async function readBody(req, limit = 1_000_000) {
+export async function readBody(req, limit = 1_000_000, timeoutMs = 0) {
   const chunks = [];
   let size = 0;
-  for await (const chunk of req) {
-    size += chunk.length;
-    if (size > limit) {
-      const error = new Error('저장 용량을 초과했어요.');
-      error.status = 413;
-      throw error;
+  const timer = timeoutMs ? setTimeout(() => req.destroy(Object.assign(new Error('요청 시간이 초과됐어요.'), { status: 408 })), timeoutMs) : null;
+  try {
+    for await (const chunk of req) {
+      size += chunk.length;
+      if (size > limit) {
+        const error = new Error('저장 용량을 초과했어요.');
+        error.status = 413;
+        throw error;
+      }
+      chunks.push(chunk);
     }
-    chunks.push(chunk);
-  }
+  } finally { clearTimeout(timer); }
   return Buffer.concat(chunks).toString('utf8');
 }
 

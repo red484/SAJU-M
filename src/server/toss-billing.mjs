@@ -1,6 +1,7 @@
 import { tossJson } from './toss-auth.mjs';
 import { TOSS_PRODUCT } from '../shared/toss-product.mjs';
 
+const CONFIRM_TTL_MS = 10 * 60_000;
 const fail = (status, message) => Object.assign(new Error(message), { status });
 export function verifiedOrder(body, orderId) {
   const order = body?.resultType === 'SUCCESS' && body.success;
@@ -17,7 +18,7 @@ export function verifiedOrder(body, orderId) {
 }
 
 export class TossBillingRepository {
-  constructor(pool, request = tossJson) { this.pool = pool; this.request = request; }
+  constructor(pool, request = tossJson) { this.pool = pool; this.request = request; this.confirmed = new Map(); }
   async verify(userId, orderId, client = this.pool) {
     if (typeof orderId !== 'string' || !/^[a-zA-Z0-9-]{8,100}$/.test(orderId)) throw fail(400, '잘못된 주문번호입니다.');
     const identity = await client.query("SELECT provider_subject FROM auth_identities WHERE user_id = $1 AND provider = 'toss'", [userId]);
@@ -67,12 +68,23 @@ export class TossBillingRepository {
       WHERE user_id=$1 AND NOT refunded AND used<50 AND expires_at>now() ORDER BY expires_at`, [userId]);
     // Runs outside any transaction; consume() re-checks refunded/used when the answer is charged.
     for (const row of rows) {
+      // A recent confirmation is reused so each paid question does not wait on the Toss API.
+      if (Date.now() - (this.confirmed.get(row.order_id) || 0) < CONFIRM_TTL_MS) return row.order_id;
       const order = await this.verify(userId, row.order_id);
       if (order.status === 'REFUNDED') {
+        this.confirmed.delete(row.order_id);
         await this.pool.query('UPDATE toss_coach_orders SET refunded=true WHERE order_id=$1', [row.order_id]);
-      } else return row.order_id;
+      } else {
+        this.confirmed.set(row.order_id, Date.now());
+        return row.order_id;
+      }
     }
     return null;
+  }
+  async storedOrder(userId, client) {
+    const { rows } = await client.query(`SELECT order_id FROM toss_coach_orders
+      WHERE user_id=$1 AND NOT refunded AND used<50 AND expires_at>now() ORDER BY expires_at LIMIT 1`, [userId]);
+    return rows[0]?.order_id || null;
   }
   async consume(orderId, client) {
     const result = await client.query('UPDATE toss_coach_orders SET used=used+1 WHERE order_id=$1 AND used<50 AND NOT refunded RETURNING order_id', [orderId]);

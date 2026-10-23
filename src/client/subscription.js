@@ -27,7 +27,7 @@ export function installSubscription({ page, user, openModal, notice, navigate, n
   }
   function overview() {
     openModal(`<section class="subscription-sheet purchase-sheet">
-      <p class="eyebrow">조금 더 깊은 나의 이야기</p><h2>결제하시겠습니까?</h2>
+      <p class="eyebrow">조금 더 깊은 나의 이야기</p><h2>달빛 플러스 요금 안내</h2>
       <article class="purchase-plan" aria-label="달빛 플러스 월 구독 상품">
         <div class="purchase-plan-heading"><h3>달빛 플러스</h3><span>월 구독</span></div>
         <p class="purchase-caption">사주를 읽고, 궁금한 순간마다 물어보세요.</p>
@@ -54,13 +54,5 @@ export function installSubscription({ page, user, openModal, notice, navigate, n
     card.innerHTML = `<h2>달빛 플러스</h2><p>월 ${PLUS_PLAN.price.toLocaleString('ko-KR')}원 · AI 상담 ${PLUS_PLAN.answers}회</p><p>출시 준비 중 · 현재 활성 구독이나 청구는 없습니다.</p><button type="button" class="secondary">요금 및 결제 안내</button>`;
     card.querySelector('button').onclick = overview;
     document.querySelector('main')?.append(card);
-  }
-  // Signed-out visitors see the login action instead; buying needs an account first.
-  const quota = document.querySelector('.coach-quota');
-  if (quota && user) {
-    const button = document.createElement('button');
-    button.type = 'button'; button.className = 'subscription-inline';
-    button.textContent = '결제하시겠습니까?'; button.setAttribute('aria-label', '결제하시겠습니까? 구독 상품 팝업 열기'); button.onclick = overview;
-    quota.append(button);
   }
 }

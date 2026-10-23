@@ -22,7 +22,9 @@ const configured = provider => provider === 'google'
   ? Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
   : provider === 'apple'
     ? Boolean(process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && (process.env.APPLE_PRIVATE_KEY_B64 || process.env.APPLE_PRIVATE_KEY))
-    : provider === 'toss' && (process.env.TOSS_LOGIN_MOCK === 'true' || Boolean(process.env.TOSS_MTLS_CERT_PATH && process.env.TOSS_MTLS_KEY_PATH));
+    : provider === 'toss' && (tossMock() || Boolean(process.env.TOSS_MTLS_CERT_PATH && process.env.TOSS_MTLS_KEY_PATH));
+// The mock signs anyone in as any userKey, so it never applies to a production process.
+const tossMock = () => process.env.TOSS_LOGIN_MOCK === 'true' && process.env.NODE_ENV !== 'production';
 
 export function applePrivateKey() {
   const encoded = process.env.APPLE_PRIVATE_KEY_B64?.trim();
@@ -53,7 +55,7 @@ async function exchange(provider, code, redirectUri, nonce) {
     endpoint = 'https://appleid.apple.com/auth/token'; audience = process.env.APPLE_CLIENT_ID; keys = appleKeys; issuer = 'https://appleid.apple.com';
     body.set('client_id', audience); body.set('client_secret', await appleSecret());
   }
-  const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+  const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body, signal: AbortSignal.timeout(15_000) });
   const tokens = await response.json();
   if (!response.ok || !tokens.id_token) throw new Error(`${provider} token exchange failed`);
   const { payload } = await jwtVerify(tokens.id_token, keys, { audience, issuer });
@@ -73,11 +75,15 @@ export function createAuthRoutes(repository) {
       if (req.method !== 'POST') return sendJson(res, { error: 'POST 요청이 필요합니다.' }, 405);
       if (!validateOrigin(req)) return sendJson(res, { error: '이 앱에서 다시 시도해 주세요.' }, 403);
       if (!repository.registerPassword) return sendJson(res, { error: '아이디 로그인이 준비되지 않았어요.' }, 503);
-      if (!byAddress(clientAddress(req)) || passwordWork >= 2)
+      if (!byAddress(clientAddress(req)))
         return sendJson(res, { error: '요청이 많아요. 잠시 후 다시 시도해 주세요.' }, 429);
+      let body;
+      // The body is read before taking a hashing slot, so a slowly sent request cannot hold one.
+      try { body = JSON.parse(await readBody(req, 4096, 10_000) || '{}'); }
+      catch (error) { return sendJson(res, { error: '입력 내용을 확인해 주세요.' }, error.status === 413 ? 413 : 400); }
+      if (passwordWork >= 2) return sendJson(res, { error: '요청이 많아요. 잠시 후 다시 시도해 주세요.' }, 429);
       passwordWork++;
       try {
-        const body = JSON.parse(await readBody(req, 4096) || '{}');
         if (!body || typeof body !== 'object' || Array.isArray(body)) return sendJson(res, { error: '입력 내용을 확인해 주세요.' }, 400);
         if (!validPassword(body.password)) return sendJson(res, { error: '비밀번호는 12~128자로 입력해 주세요.' }, 400);
         if (await repository.userFromToken(authToken(req))) return sendJson(res, { error: '이미 로그인되어 있어요. 계정을 바꾸려면 먼저 로그아웃해 주세요.' }, 409);
@@ -133,8 +139,8 @@ export function createAuthRoutes(repository) {
       if (!validateOrigin(req)) return sendJson(res, { error: '이 앱에서 다시 시도해 주세요.' }, 403);
       try {
         const body = JSON.parse(await readBody(req, 20_000) || '{}');
-        if (!body.authorizationCode && process.env.TOSS_LOGIN_MOCK !== 'true') return sendJson(res, { error: 'authorizationCode가 필요합니다.' }, 400);
-        const toss = process.env.TOSS_LOGIN_MOCK === 'true'
+        if (!body.authorizationCode && !tossMock()) return sendJson(res, { error: 'authorizationCode가 필요합니다.' }, 400);
+        const toss = tossMock()
           ? { userKey: String(body.mockUserKey || 'local-dev-user'), name: String(body.mockName || '').trim() || null,
             email: String(body.mockEmail || '').trim() || null }
           : await exchangeTossLogin({ authorizationCode: body.authorizationCode, referrer: body.referrer });

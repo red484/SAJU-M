@@ -15,11 +15,14 @@ export class CoachQuotaRepository {
     return { ...free, freeRemaining: free.remaining, paidRemaining: paid.remaining, remaining: free.remaining + paid.remaining };
   }
   // Short transaction under the per-account lock; null when another worker holds it.
-  async locked(userId, work) {
+  // wait=true blocks for the lock instead, for work that must not be dropped.
+  async locked(userId, work, wait = false) {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const lock = await client.query('SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0)) AS locked', [`coach:${userId}`]);
+      const lock = await client.query(wait
+        ? 'SELECT pg_advisory_xact_lock(hashtextextended($1, 0)) IS NOT NULL AS locked'
+        : 'SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0)) AS locked', [`coach:${userId}`]);
       if (!lock.rows[0].locked) {
         await client.query('ROLLBACK');
         return null;
@@ -42,9 +45,10 @@ export class CoachQuotaRepository {
   // The AI call and Toss order checks run without a pooled connection; the charge is
   // re-checked and committed afterwards, so a concurrent answer can never overdraw.
   async run(userId, payload, execute) {
-    if (!/^[a-zA-Z0-9_-]{8,100}$/.test(payload.requestId || ''))
+    if (!payload || typeof payload !== 'object' || !/^[a-zA-Z0-9_-]{8,100}$/.test(payload.requestId || ''))
       return failure(400, 'REQUEST_ID_REQUIRED', '화면을 새로고침한 뒤 다시 시도해 주세요.');
-    const question = payload.messages?.filter(m => m.role === 'user').at(-1)?.text;
+    if (!Array.isArray(payload.messages)) return failure(400, 'QUESTION_REQUIRED', '질문을 입력해 주세요.');
+    const question = payload.messages.filter(m => m.role === 'user').at(-1)?.text;
     if (typeof question !== 'string' || !question.trim()) return failure(400, 'QUESTION_REQUIRED', '질문을 입력해 주세요.');
     const hash = createHash('sha256').update(question).digest('hex');
     const busy = failure(409, 'COACH_BUSY', '앞선 답변이 끝난 뒤 다시 시도해 주세요.');
@@ -74,12 +78,15 @@ export class CoachQuotaRepository {
         if (replayed) return replayed;
         const allowance = await this.status(userId, client);
         if (!allowance.remaining) return failure(403, 'COACH_LIMIT_REACHED', QUOTA_NOTICE, { quota: allowance });
-        if (this.paid && allowance.freeRemaining === 0 && !paidOrder) return busy;
+        // Free answers ran out while this one was generated: charge a stored order instead.
+        // consume() re-checks it; the Toss refund check happens again on the next question.
+        const order = this.paid && allowance.freeRemaining === 0 ? paidOrder || await this.paid.storedOrder(userId, client) : null;
+        if (this.paid && allowance.freeRemaining === 0 && !order) return failure(403, 'COACH_LIMIT_REACHED', QUOTA_NOTICE, { quota: allowance });
         await client.query('INSERT INTO coach_answers (user_id, request_id, question_hash, response) VALUES ($1, $2, $3, $4::jsonb)', [userId, payload.requestId, hash, JSON.stringify(out)]);
-        if (this.paid && allowance.freeRemaining === 0) await this.paid.consume(paidOrder, client);
+        if (order) await this.paid.consume(order, client);
         return { ...out, quota: this.paid ? await this.status(userId, client) : quota(allowance.used + 1) };
-      });
-      return after || busy;
+      }, true);
+      return after;
     } finally { this.inFlight.delete(userId); }
   }
 }

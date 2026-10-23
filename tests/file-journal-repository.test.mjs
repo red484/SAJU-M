@@ -14,6 +14,10 @@ try {
   assert.deepEqual(await repository.put('session', { records: [], conversations: [] }, 1), { revision: 2 });
   await repository.delete('session');
   assert.deepEqual(await repository.get('session'), { data: null, revision: 0 });
+  // Two saves of the same revision race: exactly one wins, the other is a conflict.
+  const raced = await Promise.allSettled([repository.put('race', { n: 1 }, 0), repository.put('race', { n: 2 }, 0)]);
+  assert.equal(raced.filter(r => r.status === 'fulfilled').length, 1);
+  assert.ok(raced.find(r => r.status === 'rejected').reason instanceof JournalConflictError);
   console.log('PASS: file journal repository read, write, conflict and delete.');
 } finally {
   await rm(root, { recursive: true, force: true });

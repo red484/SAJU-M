@@ -35,7 +35,9 @@ const types = {
 
 async function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  const requested = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname);
+  let requested;
+  try { requested = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname); }
+  catch { res.writeHead(400); return void res.end('Bad Request'); }
   const target = normalize(join(clientRoot, requested));
   const inside = relative(clientRoot, target);
 
@@ -74,6 +76,7 @@ createServer((req, res) => void api(req, res).then(handled => {
   return serveStatic(req, res);
 }).catch(error => {
     console.error('Static request failed', error?.message);
+    if (res.headersSent) return void res.destroy();
     res.writeHead(500);
     res.end('Internal Server Error');
   })).listen(port, host, () => {

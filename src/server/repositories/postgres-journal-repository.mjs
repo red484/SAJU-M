@@ -82,6 +82,8 @@ export class PostgresJournalRepository {
       return { revision: result.rows[0].revision };
     } catch (error) {
       await client.query('ROLLBACK');
+      // Two first saves racing on one account meet the unique index; that is a revision conflict.
+      if (error.code === '23505') throw new JournalConflictError('Journal revision conflict');
       throw error;
     } finally {
       client.release();

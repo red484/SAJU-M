@@ -66,7 +66,7 @@ body:not([data-page=chat]) main{animation:page-arrives .32s ease-out both}
 @media(max-height:700px) and (max-width:850px){.welcome,.welcome-copy{min-height:570px}.welcome-copy{padding-bottom:17px}.welcome .mark{width:38px;height:38px;margin-bottom:13px}.welcome h1{font-size:2rem;margin-bottom:14px}.welcome p{margin-bottom:17px}.welcome .primary{min-height:53px}.welcome small{margin:0}.welcome-link{min-height:35px}}
 /* Keep the moonlit cover; ink is an accent inside the book, not a new theme. */
 body:not([data-page=welcome]){background:#f6f4ee;isolation:isolate}
-body:not([data-page=welcome]):before{content:'';position:fixed;inset:-4%;z-index:-3;pointer-events:none;background:url('/assets/ink-waterfall.png') right center/auto 125vh no-repeat,url('/assets/scenery.webp') left bottom/70vw auto no-repeat;opacity:.64;mask-image:linear-gradient(90deg,#000 0%,#0008 42%,#000 90%)}
+body:not([data-page=welcome]):before{content:'';position:fixed;inset:-4%;z-index:-3;pointer-events:none;background:url('/assets/ink-waterfall.webp') right center/auto 125vh no-repeat,url('/assets/scenery.webp') left bottom/70vw auto no-repeat;opacity:.64;mask-image:linear-gradient(90deg,#000 0%,#0008 42%,#000 90%)}
 body:not([data-page=welcome]):after{content:'';position:fixed;inset:-8%;z-index:-2;pointer-events:none;background:radial-gradient(ellipse at 30% 55%,#f6f4eef5 0%,#f6f4ee99 32%,transparent 64%),linear-gradient(115deg,transparent 12%,#f6f4eedd 38%,transparent 66%);animation:quiet-mist 6s ease-in-out -2s infinite alternate}
 .ink-branches{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;opacity:.55}
 .ink-branches:before,.ink-branches:after{content:'';position:absolute;background-position:center;background-size:contain;background-repeat:no-repeat}
@@ -116,7 +116,7 @@ header{background:#faf8f2ed;border-bottom-color:#dcded4;box-shadow:none}
 .presets button{border-radius:10px;background:#fffdf7;min-height:62px;line-height:1.65}
 .journal-summary{background:#193f3b;color:#f8f2dc}
 .chat-panel{border-radius:16px;box-shadow:none}
-.messages{background:linear-gradient(#f8f6f0f5,#f8f6f0ee),url('/assets/ink-waterfall.png') right bottom/cover}
+.messages{background:linear-gradient(#f8f6f0f5,#f8f6f0ee),url('/assets/ink-waterfall.webp') right bottom/cover}
 .message .bubble{background:#fffdf8}.message.user .bubble{background:#20564b}
 .chat-note{background:#edf0e7}
 .message .bubble{border-radius:4px 14px 14px 14px}.message.user .bubble{border-radius:14px 4px 14px 14px}
@@ -155,7 +155,7 @@ body:not([data-page=chat]):not([data-page=welcome]) main{animation:ink-settle .8
 }
 /* A separate, quiet sky for conversation; never part of the scrolling log. */
 .chat-stage{position:relative;isolation:isolate;display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;background:#f5f7f4}
-.chat-stage:before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(#f5f7f4b8,#f5f7f485),url('/assets/chat-mountains.png') right bottom/auto 190% no-repeat;opacity:.7}
+.chat-stage:before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(#f5f7f4b8,#f5f7f485),url('/assets/chat-mountains.webp') right bottom/auto 190% no-repeat;opacity:.7}
 .chat-stage .messages{position:relative;z-index:1;background:transparent;padding-top:32px;padding-bottom:32px}
 .chat-stage .bubble{background:#fffdf9;box-shadow:0 3px 15px #26473808}
 .chat-stage .message.user .bubble{background:#20564b}
@@ -241,14 +241,17 @@ body[data-page=welcome] .save-error{position:fixed;top:12px;left:12px;right:12px
 .ai-recovery{margin:7px 0 0;padding:10px 12px;border-left:3px solid #8eaa93;background:#edf2e9;color:#405c49;font-size:.82rem;line-height:1.55}
 .ai-recovery p{margin:0 0 7px}.ai-recovery button{font-size:.82rem}
 .score-note{padding:10px 13px;background:#f0f3eb;border-left:3px solid #8aaa8e;color:#435a49!important;line-height:1.65}
-.cal-day.high,.cal-day.mid,.cal-day.low{background:#fffdf8;border-color:#dce0d5}
+.cal-day.high{background:#e6efe5;border-color:#bfd3c1}.cal-day.mid{background:#f7f0df;border-color:#e3d5b3}.cal-day.low{background:#fffdf8;border-color:#dce0d5}
+.cal-legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:12px 0 0;font-size:.75rem;color:#5d5a4c}.cal-legend span{display:inline-flex;align-items:center;gap:6px}
+.cal-legend span:before{content:'';width:12px;height:12px;border-radius:4px;border:1px solid #dce0d5;background:#fffdf8}
+.cal-legend .high:before{background:#e6efe5;border-color:#bfd3c1}.cal-legend .mid:before{background:#f7f0df;border-color:#e3d5b3}
 .cal-day.today{background:#1b5148;color:#fff8df;border-color:#1b5148}.cal-day.today i{color:#e5d7b6}
 .day-hero.high,.day-hero.low{background:linear-gradient(160deg,#2f5b52,#16332e)}
 .day-score{font-size:2.5rem}.day-score small{display:block;margin:5px 0 0;font-size:.75rem;letter-spacing:0;font-weight:500}
 
 /* Result hierarchy: all content remains visible, separated into readable layers. */
 .result-layer-title{margin:46px 0 8px;padding:28px 4px 18px;border-top:1px solid #c9d1c5}
-.result-layer-title span{display:block;margin-bottom:8px;color:#8b7750;font-size:.75rem;letter-spacing:.12em}
+.result-layer-title span{display:block;margin-bottom:8px;color:#76643f;font-size:.75rem;letter-spacing:.12em}
 .result-layer-title h2{margin:0 0 6px;font-size:1.45rem}.result-layer-title p{margin:0;color:var(--muted);font-size:.875rem}
 .result-technical{margin-top:30px}.result-technical+.result-technical{margin-top:38px}
 
@@ -275,6 +278,7 @@ body[data-page=welcome] .save-error{position:fixed;top:12px;left:12px;right:12px
 
 @media(max-width:850px){
  body[data-page=birth] .workspace{padding-bottom:32px}
+ #birth-form :is(input,select,textarea){scroll-margin-bottom:96px}
  #birth-form>.primary{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom));z-index:12;margin:var(--space-3) 0 0;box-shadow:0 -12px 22px 9px #f6f4eef2,0 9px 28px #173d3538}
  .result-layer-title{margin-top:38px;padding-top:24px}.result-layer-title h2{font-size:1.3rem}
  .result-technical{margin-top:26px}.result-technical+.result-technical{margin-top:32px}
