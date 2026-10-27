@@ -1,0 +1,69 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  DEPLOY_HOST: 54.116.137.102
+  DEPLOY_USER: ubuntu
+  DEPLOY_DIR: /home/ubuntu/saju
+  SITE_URL: https://saju.ashwoodfriends.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "$DEPLOY_HOST ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA13JEzgqagxDaiAvIhqVtkAv+v3sx7SpU//KnqIFbkd" > ~/.ssh/known_hosts
+
+      - name: Upload source
+        run: |
+          git archive --format=tar.gz -o release.tar.gz HEAD
+          scp -i ~/.ssh/deploy_key release.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:/tmp/saju-release.tar.gz"
+
+      # Server-only files (.env.production, .env.db, docker-compose.db.yml, secrets/) are kept.
+      - name: Build and restart containers
+        run: |
+          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" DEPLOY_DIR="$DEPLOY_DIR" 'bash -s' <<'EOF'
+          set -euo pipefail
+          cd "$DEPLOY_DIR"
+          find . -mindepth 1 -maxdepth 1 \
+            ! -name .env.production ! -name .env.db ! -name docker-compose.db.yml ! -name secrets \
+            -exec rm -rf {} +
+          tar xzf /tmp/saju-release.tar.gz
+          rm -f /tmp/saju-release.tar.gz
+          sudo docker compose --env-file .env.production -f docker-compose.prd.yml up -d --build --wait
+          sudo docker image prune -f
+          EOF
+
+      - name: Check health
+        run: |
+          for i in $(seq 1 10); do
+            curl --fail --silent "$SITE_URL/api/ready" && exit 0
+            sleep 5
+          done
+          exit 1

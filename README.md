@@ -83,6 +83,10 @@ docker compose --env-file .env.production -f docker-compose.prd.yml ps
 
 외부 Nginx와 인증서는 `deploy/lightsail/nginx/saju.conf`를 기준으로 연결합니다. 현재 기본 도메인은 `saju.ashwoodfriends.com`이며 실제 배포 도메인이 다르면 server_name과 인증서 경로를 함께 바꿉니다.
 
+### 자동 배포 (GitHub Actions)
+
+`main`에 푸시하면 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)이 build·test 후 Lightsail `saju-prod`(54.116.137.102)의 `/home/ubuntu/saju`에 소스를 풀고 compose를 다시 올립니다. 서버에만 있는 `.env.production`, `.env.db`, `docker-compose.db.yml`, `secrets/`는 유지됩니다. 저장소 Secrets에 배포용 SSH 개인키 `DEPLOY_SSH_KEY`가 있어야 하며, Actions 탭에서 수동 실행(workflow_dispatch)도 할 수 있습니다.
+
 ### 저장소
 
 운영 backend는 `DATABASE_URL`이 필수이며 시작 시 `server/migrations`를 자동 적용합니다. `saju_journals`는 revision 기반 충돌 방지를 유지하고, `usage_sessions`, `llm_requests`, `audit_logs`가 운영 이력을 남깁니다.
