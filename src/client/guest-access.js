@@ -1,4 +1,5 @@
 import { apiRequest, appsInToss } from './api/client.js';
+import { noteMode } from './native-shell.js';
 
 const modeKey = 'dalbit-guest-mode';
 let guestId = '';
@@ -28,7 +29,7 @@ export function installGuestAccess({ page, user, openModal, navigate, notice }) 
         if (!response.ok || !/^[a-f0-9]{64}$/.test(body.guest?.id || '')) throw new Error();
         guestId = body.guest.id;
         localStorage.setItem(modeKey, 'guest');
-        openModal('<h2>게스트로 시작해요</h2><p>임시 사용자 ID로 사주와 기록을 서버에 보관합니다. 본인 인증된 계정은 아니며, 쿠키 삭제나 기기 변경 시 복구가 어려울 수 있어요.</p><p>같은 브라우저에서 정식 로그인하면 기록을 계정에 연결할 수 있어요. AI 상담은 정식 로그인 후 무료 5회 이용할 수 있습니다.</p><button class="primary" id="guest-session-continue">시작하기</button>');
+        openModal(`<h2>게스트로 시작해요</h2><p>임시 사용자 ID로 ${noteMode ? '선택 기록과 회고를' : '사주와 기록을'} 서버에 보관합니다. 본인 인증된 계정은 아니며, 쿠키 삭제나 기기 변경 시 복구가 어려울 수 있어요.</p><p>같은 브라우저에서 정식 로그인하면 기록을 계정에 연결할 수 있어요.${noteMode ? '' : ' AI 상담은 정식 로그인 후 무료 5회 이용할 수 있습니다.'}</p><button class="primary" id="guest-session-continue">시작하기</button>`);
         document.querySelector('#guest-session-continue').onclick = () => {
           document.querySelector('#modal').close();
           navigate();

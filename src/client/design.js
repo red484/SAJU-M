@@ -1,3 +1,4 @@
+import { APP_NAME } from './native-shell.js';
 import { appsInToss } from './api/client.js';
 import { improveBirthForm, collapseChart } from './form-usability.js';
 
@@ -300,5 +301,5 @@ export function dressPage({page, result, profile}) {
   }
   // Focus follows navigation, without forcing users back to the top of a chat.
   const main = document.querySelector('main');
-  if (main) main.setAttribute('aria-label',`${profile?.name || '나'}의 달빛 사주`);
+  if (main) main.setAttribute('aria-label',`${profile?.name || '나'}의 ${APP_NAME}`);
 }

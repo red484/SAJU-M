@@ -9,7 +9,7 @@ for(const platform of ['android','ios']) {
   test(`${platform}: draft remains editable with ${JSON.stringify(state)}`,()=>{
    const input={disabled:true,value:'작성 중인 고민'},send={};
    const form={querySelector:s=>s==='textarea'?input:send,before(){}};
-   const context={document:{querySelector:s=>s==='#chat-form'?form:null,createElement:()=>({setAttribute(){},append(){}})},installSubscription(){},page:'chat',authUser:{},openModal(){},notice(){},nav(){},nativeApp:true,isAppsInToss:()=>false,coachLoginRequired:state.login,coachQuota:state.quota,quotaText:()=>'',ct:()=>({pending:false})};
+   const context={document:{querySelector:s=>s==='#chat-form'?form:null,createElement:()=>({setAttribute(){},append(){}})},installSubscription(){},page:'chat',authUser:{},openModal(){},notice(){},nav(){},nativeApp:true,noteMode:false,isAppsInToss:()=>false,coachLoginRequired:state.login,coachQuota:state.quota,quotaText:()=>'',ct:()=>({pending:false})};
    vm.runInNewContext(draw+';drawCoachQuota()',context);
    assert.equal(input.disabled,false);assert.equal(input.value,'작성 중인 고민');assert.equal(send.disabled,false);
   });

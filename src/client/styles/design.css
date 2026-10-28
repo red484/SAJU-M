@@ -561,3 +561,6 @@ dialog:has(.purchase-sheet) .purchase-sheet{min-height:0}
 .purchase-sheet>details p{font-size:12px}
 @media(max-width:400px){.chat-panel .coach-quota{padding-inline:12px;font-size:11px}.chat-panel .coach-quota button{font-size:11px}dialog:has(.subscription-sheet){padding:20px}}
 @media(max-width:850px){.native-app body[data-page=chat] .dual{height:calc(100dvh - 146px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}}
+
+/* iOS 달빛 노트: 스크립트가 첫 화면을 그리기 전에 정적 사주 문구가 비치지 않게 합니다. */
+html[data-app=note] .welcome:not(.welcome-with-auth) .welcome-copy{visibility:hidden}
