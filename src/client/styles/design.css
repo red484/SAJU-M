@@ -114,7 +114,7 @@ header{background:#faf8f2ed;border-bottom-color:#dcded4;box-shadow:none}
 .signals>div:last-child{background:#eef1e8;border-color:#dfe4d7}
 .compass{background:transparent}.compass:before{opacity:.16}
 .presets button{border-radius:10px;background:#fffdf7;min-height:62px;line-height:1.65}
-.journal-summary{background:#193f3b;color:#f8f2dc}
+.card.journal-summary{background:#193f3b;color:#f8f2dc}
 .chat-panel{border-radius:16px;box-shadow:none}
 .messages{background:linear-gradient(#f8f6f0f5,#f8f6f0ee),url('/assets/ink-waterfall.webp') right bottom/cover}
 .message .bubble{background:#fffdf8}.message.user .bubble{background:#20564b}
