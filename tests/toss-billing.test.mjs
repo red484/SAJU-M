@@ -50,7 +50,9 @@ test('Postgres: exact account, idempotent grant, consumption, rollback, expiry, 
     });
     const quota = new CoachQuotaRepository(pool, billing);
     await billing.grant(user, orderId); await billing.grant(user, orderId);
-    assert.equal((await quota.status(user)).remaining, 55);
+    const initialQuota = await quota.status(user);
+    assert.equal(initialQuota.remaining, 55);
+    assert.ok(new Date(initialQuota.paidNextExpiry).getTime() > Date.now());
     const answer = async () => ({ text: '정상 답변', source: 'cafe24' });
     const payload = i => ({ requestId: 'question-' + i, messages: [{ role: 'user', text: '질문' + i }] });
     for (let i = 0; i < 7; i++) await quota.run(user, payload(i), answer);
@@ -65,6 +67,7 @@ test('Postgres: exact account, idempotent grant, consumption, rollback, expiry, 
     status = 'REFUNDED';
     assert.equal((await quota.run(user, payload(8), answer)).code, 'COACH_LIMIT_REACHED');
     assert.equal((await quota.status(user)).remaining, 0);
+    assert.equal((await quota.status(user)).paidNextExpiry, null);
     status = 'PAYMENT_COMPLETED';
     await billing.grant(user, 'test-order-inflight');
     const refundedDuringAnswer = await quota.run(user, payload(9), async () => {

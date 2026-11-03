@@ -61,48 +61,66 @@ export function createTossPurchaseClient({ iap, request = apiRequest }) {
 
 let clientPromise, busy = false;
 const restoredAccounts = new Set();
-const getClient = () => clientPromise ||= import('@apps-in-toss/web-framework').then(({ IAP }) => createTossPurchaseClient({ iap: IAP }));
+const getClient = () => clientPromise ||= import('@apps-in-toss/web-framework')
+  .then(({ IAP }) => createTossPurchaseClient({ iap: IAP }))
+  .catch(error => { clientPromise = null; throw error; });
 
-export function installTossBilling({ page, user, openModal, notice, onChanged }) {
+export function installTossBilling({ page, user, openModal, notice, onChanged, resume }) {
   async function restore(silent = false) {
     if (busy || !user) return;
     busy = true;
     try {
       const count = await (await getClient()).restore();
+      if (user.id) restoredAccounts.add(user.id);
       if (count) { await onChanged(); notice('구매한 상담 이용권을 복원했어요.'); }
       else if (!silent) notice('복원할 미지급 주문이 없어요. 기존 이용권은 계정에 보관되어 있어요.');
     } catch (error) { if (!silent) notice(error.message); }
     finally { busy = false; }
   }
-  if (user?.id && !restoredAccounts.has(user.id)) { restoredAccounts.add(user.id); void restore(true); }
+  if (user?.id && !restoredAccounts.has(user.id)) void restore(true);
   async function overview() {
-    openModal(`<section class="subscription-sheet purchase-sheet"><p class="eyebrow">자동 갱신 없는 1회 결제</p><h2>결제하시겠습니까?</h2><article class="purchase-plan"><h3>${TOSS_PRODUCT.name}</h3><div class="purchase-allowance"><b>AI 상담 ${TOSS_PRODUCT.answers}회</b><span>구매 후 ${TOSS_PRODUCT.days}일 · 자동결제 없음</span></div><p class="purchase-amount">${TOSS_PRODUCT.price.toLocaleString('ko-KR')}<span>원 · 부가세 포함</span></p><ul><li>정상 AI 답변에만 횟수 차감</li><li>무료 상담 소진 후 이용권 사용</li><li>구매 후 ${TOSS_PRODUCT.days}일 또는 ${TOSS_PRODUCT.answers}회 소진 시 종료</li><li>동일 토스 계정에 이용권 저장</li></ul><p>환불은 토스 앱의 인앱결제 구매내역에서 신청할 수 있어요. 환불 완료 시 남은 이용권은 사용할 수 없습니다.</p><p id="toss-purchase-status" role="status">상품을 확인하고 있어요.</p><button class="primary" id="toss-purchase" disabled>${TOSS_PRODUCT.price.toLocaleString('ko-KR')}원 결제하기</button><button class="secondary" id="toss-restore">구매 복원</button><button class="secondary" id="toss-close">나중에 할게요</button></article></section>`);
+    openModal(`<section class="subscription-sheet purchase-sheet"><p class="eyebrow">자동 갱신 없는 1회 결제</p><h2>삶의 온기 상담 이용권</h2><article class="purchase-plan"><h3>이어서 상담하기</h3><p class="purchase-caption">고민을 함께 정리하고, 선택을 기록한 뒤 결과가 달라졌을 때 같은 상담으로 돌아오세요.</p><div class="purchase-allowance"><b>AI 상담 ${TOSS_PRODUCT.answers}회</b><span>구매 후 ${TOSS_PRODUCT.days}일 · 자동결제 없음</span></div><p class="purchase-amount" id="toss-display-amount">가격 확인 중</p><ul><li>정상 AI 답변에만 횟수 차감</li><li>무료 상담 소진 후 이용권 사용</li><li>구매 후 ${TOSS_PRODUCT.days}일 또는 ${TOSS_PRODUCT.answers}회 소진 시 종료</li><li>동일 토스 계정에 이용권 저장</li></ul><p>환불은 토스 앱의 인앱결제 구매내역에서 신청할 수 있어요. 환불 완료 시 남은 이용권은 사용할 수 없습니다.</p><p id="toss-purchase-status" role="status">상품을 확인하고 있어요.</p><button class="primary" id="toss-purchase" disabled>결제하기</button><button class="secondary" id="toss-restore">구매 복원</button><button class="secondary" id="toss-close">나중에 할게요</button></article></section>`);
     const pay = document.getElementById('toss-purchase'), status = document.getElementById('toss-purchase-status');
+    const amount = document.getElementById('toss-display-amount');
+    const modal = document.querySelector('#modal');
     document.getElementById('toss-close').onclick = () => { if (!busy) document.querySelector('#modal').close(); };
     document.getElementById('toss-restore').onclick = () => restore();
-    if (!user) { status.textContent = '토스 로그인 후 구매해 주세요.'; return; }
+    if (!user) { amount.textContent = '토스 로그인 후 확인'; status.textContent = '토스 로그인 후 구매해 주세요.'; return; }
     try {
       const client = await getClient(), product = await client.product();
       if (!pay.isConnected) return;
+      if (!product.displayAmount) throw new Error('결제 금액을 확인하지 못했어요. 잠시 뒤 다시 열어 주세요.');
+      amount.textContent = product.displayAmount;
       status.textContent = '최종 결제 금액은 토스 결제창에서 확인해 주세요.';
       pay.textContent = `${product.displayAmount} 결제하기`; pay.disabled = false;
       pay.onclick = async () => {
         if (busy) return;
         busy = true; pay.disabled = true;
-        try { await client.purchase(); await onChanged(); document.querySelector('#modal').close(); notice(`상담 ${TOSS_PRODUCT.answers}회가 지급됐어요. 구매 후 ${TOSS_PRODUCT.days}일 동안 이용할 수 있어요.`); }
+        try {
+          await client.purchase();
+          const quota = await onChanged();
+          const nextExpiry = quota?.paidNextExpiry && new Date(quota.paidNextExpiry);
+          const expiry = nextExpiry && Number.isFinite(nextExpiry.getTime())
+            ? ` · 가장 이른 만료 ${new Intl.DateTimeFormat('ko-KR', {timeZone:'Asia/Seoul',month:'long',day:'numeric'}).format(nextExpiry)}`
+            : '';
+          if (pay.isConnected && modal.open) {
+            openModal(`<h2>상담 이용권이 지급됐어요</h2><p>${Number.isFinite(quota?.paidRemaining)?`이용권 ${quota.paidRemaining}회 남음`:`AI 상담 ${TOSS_PRODUCT.answers}회 지급`}${expiry}</p><button class="primary" id="toss-resume">상담 이어가기</button>`);
+            document.getElementById('toss-resume').onclick = () => { modal.close(); resume?.(); };
+          } else notice('상담 이용권이 지급됐어요.');
+        }
         catch (error) { status.textContent = error.message; }
         finally { busy = false; pay.disabled = false; }
       };
-    } catch (error) { status.textContent = error.message; }
+    } catch (error) { amount.textContent = '가격 확인 불가'; status.textContent = error.message; }
   }
   const quota = document.querySelector('.coach-quota');
   if (quota) {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'subscription-inline';
     button.textContent = '상담 이용권 구매'; button.onclick = overview; quota.append(button);
   }
-  if (page === 'settings') {
+  if (page === 'settings' && !document.querySelector('.subscription-card')) {
     const card = document.createElement('section'); card.className = 'card subscription-card';
-    card.innerHTML = `<h2>달빛 플러스</h2><p>상담 ${TOSS_PRODUCT.answers}회 · 구매 후 ${TOSS_PRODUCT.days}일 · ${TOSS_PRODUCT.price.toLocaleString('ko-KR')}원</p><button class="secondary">이용권 구매 및 복원</button>`;
+    card.innerHTML = `<h2>삶의 온기 상담 이용권</h2><p>AI 상담 ${TOSS_PRODUCT.answers}회 · 구매 후 ${TOSS_PRODUCT.days}일 · 1회 결제</p><button class="secondary">이용권 구매 및 복원</button>`;
     card.querySelector('button').onclick = overview; document.querySelector('main')?.append(card);
   }
 }

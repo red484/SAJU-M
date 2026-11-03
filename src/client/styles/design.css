@@ -590,3 +590,10 @@ html:not([data-app=note]) nav button[aria-current=page]{background:#7d3e32;color
 .answer-basis{margin:6px 0;color:#704033;font-size:.85rem}
 .answer-basis summary{cursor:pointer}
 .answer-basis p{margin:6px 0 0;white-space:pre-wrap}
+
+.welcome [data-consultation-preview]{color:#fff0dc;min-height:44px;text-decoration:underline;text-underline-offset:4px}
+.choice-summary dl{margin-bottom:0}
+.choice-summary dt{font-weight:700}
+.choice-summary dd{margin:4px 0 12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.coach-quota:has(.quota-follow-up){flex-wrap:wrap}
+.quota-follow-up{flex-basis:100%;margin:0;overflow-wrap:anywhere}

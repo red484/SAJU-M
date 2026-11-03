@@ -12,7 +12,7 @@ export class CoachQuotaRepository {
     if (!this.paid) return quota(result.rows[0].used);
     const paid = await this.paid.allowance(userId, client);
     const free = quota(Math.max(0, result.rows[0].used - paid.consumed));
-    return { ...free, freeRemaining: free.remaining, paidRemaining: paid.remaining, remaining: free.remaining + paid.remaining };
+    return { ...free, freeRemaining: free.remaining, paidRemaining: paid.remaining, paidNextExpiry: paid.next_expiry || null, remaining: free.remaining + paid.remaining };
   }
   // Short transaction under the per-account lock; null when another worker holds it.
   // wait=true blocks for the lock instead, for work that must not be dropped.

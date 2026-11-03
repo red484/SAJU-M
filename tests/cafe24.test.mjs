@@ -276,6 +276,8 @@ try {
   assert.deepEqual(cited.references,[{kind:'선택 기록',title:'통근 기준',date:'2026-11-03',recordId:'linked-choice-1'}]);
   assert.doesNotMatch(cited.text, /<참고>/);
 
+  assert.match(critique('현실 확인\n어떤 조건인가요?\n오늘 할 일\n언제 해보실래요?\n<근거>해석 없음</근거>', '해석 없음', 2).join(' '), /질문을 한 개/);
+
   // 첫 답변의 제목 누락은 같은 요청 안에서 형식 지시를 보강해 다시 생성한다.
   let firstTurnCalls = 0;
   globalThis.fetch = async (_url, options) => {
@@ -284,7 +286,7 @@ try {
     if (firstTurnCalls === 2) assert.match(messages[0].content, /형식 재확인/);
     const content = firstTurnCalls === 1
       ? '많이 지치셨군요. 언제가 가장 벅찬가요?\n<근거>일간 임</근거>'
-      : '### 명리학 관점\n여러 가능성을 넓게 보는 편이에요.\n\n**현실 확인**\n하루 중 언제 가장 벅찬가요?\n\n오늘 할 일:\n그 시각을 한 번 적어 주세요. 언제였나요?\n<근거>일간 임</근거>';
+      : '### 명리학 관점\n여러 가능성을 넓게 보는 편이에요.\n\n**현실 확인**\n가장 벅찬 시간대를 짚어봅니다.\n\n오늘 할 일:\n그 시각을 한 번 적어 주세요. 언제였나요?\n<근거>일간 임</근거>';
     return new Response(JSON.stringify({choices:[{message:{content},finish_reason:'stop'}]}),{
       status:200,headers:{'Content-Type':'application/json'}
     });

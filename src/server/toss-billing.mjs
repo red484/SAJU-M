@@ -58,7 +58,8 @@ export class TossBillingRepository {
   }
   async allowance(userId, client = this.pool) {
     const { rows } = await client.query(`SELECT COALESCE(sum(used),0)::int AS consumed,
-      COALESCE(sum(CASE WHEN NOT refunded AND expires_at > now() THEN 50-used ELSE 0 END),0)::int AS remaining
+      COALESCE(sum(CASE WHEN NOT refunded AND expires_at > now() THEN 50-used ELSE 0 END),0)::int AS remaining,
+      min(expires_at) FILTER (WHERE NOT refunded AND used<50 AND expires_at > now()) AS next_expiry
       FROM toss_coach_orders WHERE user_id = $1`, [userId]);
     return rows[0];
   }
