@@ -15,7 +15,7 @@ const loveReading=topicReading(a,'연애','2026-09-16');
 assert.match(loveReading.timing,/이번 달/);assert.match(loveReading.signal,/현실에서는/);assert.ok(loveReading.action.length>20);
 assert.doesNotMatch(Object.values(loveReading).join(' '),/반드시|운명|결혼한다|새 인연이 들어/);
 const c={messages:[{role:'user',text:'이직 고민'}],topic:'진로'};const q=coach(a,base,c,'이직 고민');assert.equal(q.phase,'question');Object.assign(c,q);c.messages.push({role:'user',text:'연봉과 안정성'});const adv=coach(a,base,c,'연봉은 20% 높지만 회사가 작은 게 걱정돼요.');
-assert.match(adv.text,/사주 관점[\s\S]*현실 확인[\s\S]*오늘 할 일/);
+assert.match(adv.text,/명리학 관점[\s\S]*현실 확인[\s\S]*오늘 할 일/);
 // Conditions are named from the user's own words, with the figure kept.
 assert.match(adv.text,/조직 규모/);assert.match(adv.text,/보상/);assert.match(adv.text,/20%/);
 // The reply must not parrot the user's sentence back at them.

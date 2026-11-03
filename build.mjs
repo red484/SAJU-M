@@ -16,6 +16,7 @@ await copyFile('THIRD_PARTY_NOTICES.txt','dist/client/THIRD_PARTY_NOTICES.txt');
 await copyFile('native/offline.html','dist/client/offline.html');
 await writeFile('dist/client/app.css',(await readFile('src/client/styles/app.css','utf8'))+'\n'+(await readFile('src/client/styles/design.css','utf8')));await copyFile('index.html','dist/client/index.html');
 for(const name of ['splash','mark','mentorAvatar','mentorHeader','todayRest','todayTalk','todayDeal','todayDuty','todayStart','hanji','compassCore','branchPine','element-wood','element-fire','element-earth','element-metal',...['wood','fire','earth','metal'].flatMap(e=>[0,1,3].map(n=>`element-${e}-${n}`))])await copyFile(`assets/${name}.webp`,`dist/client/assets/${name}.webp`);
+for(const name of ['ongi','ongi-welcome'])await copyFile(`assets/${name}.svg`,`dist/client/assets/${name}.svg`);
 await copyFile('assets/ink-waterfall.webp','dist/client/assets/ink-waterfall.webp');
 await copyFile('assets/chat-mountains.webp','dist/client/assets/chat-mountains.webp');
 await copyFile('assets/chat-crane.webp','dist/client/assets/chat-crane.webp');

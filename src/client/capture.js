@@ -71,7 +71,7 @@ function layout(ctx, messages) {
   return { rows, height: y };
 }
 
-export async function captureMessages(messages, { title = '달빛 도령', subtitle = '' } = {}) {
+export async function captureMessages(messages, { title = '온기', subtitle = '' } = {}) {
   const [, avatar] = await Promise.all([document.fonts.ready, loadAvatar()]);
   const probe = document.createElement('canvas').getContext('2d');
   const { rows, height } = layout(probe, messages);
@@ -130,7 +130,7 @@ export async function captureMessages(messages, { title = '달빛 도령', subti
 
   // 꼬리말
   ctx.fillStyle = SUB; ctx.font = font(10.5);
-  const foot = '달빛 사주 · 상담 기록';
+  const foot = '삶의 온기 · 상담 기록';
   ctx.fillText(foot, (W - ctx.measureText(foot).width) / 2, total - footH + 14);
 
   return new Promise(res => cv.toBlob(res, 'image/png'));

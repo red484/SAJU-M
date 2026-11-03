@@ -1,6 +1,6 @@
 // The iOS app ships as "달빛 노트": choice records and reviews only, without the
 // saju reading, daily flow or AI consultation (App Store guideline 4.3).
-// Android, the web and Apps in Toss keep the full 달빛 사주 service.
+// Android, the web and Apps in Toss keep the full 삶의 온기 service.
 // On the web, ?app=note previews the same screens for this browser tab.
 export const NOTE_PAGES = ['welcome', 'choice', 'records', 'settings'];
 

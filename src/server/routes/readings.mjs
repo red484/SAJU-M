@@ -54,7 +54,7 @@ export function createReadingRoutes(telemetry, auth, quota) {
       const timing = { 'Server-Timing': `ai;dur=${Date.now() - requestStarted}` };
       if (out.error) return sendJson(res, { error: out.error, code: out.code, quota: out.quota }, out.status || 500, timing);
       return feature === 'coach'
-        ? sendJson(res, { text: out.text, offer: out.offer || null, source: out.source, quota: out.quota }, 200, timing)
+        ? sendJson(res, { text: out.text, references: out.references || [], basis: out.basis || null, offer: out.offer || null, source: out.source, quota: out.quota }, 200, timing)
         : sendJson(res, { reading: out.reading }, 200, timing);
     } catch (error) {
       console.error(JSON.stringify({ event: 'llm.error', feature, error: error?.message, status: error?.status }));

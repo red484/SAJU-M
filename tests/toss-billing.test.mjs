@@ -65,6 +65,15 @@ test('Postgres: exact account, idempotent grant, consumption, rollback, expiry, 
     status = 'REFUNDED';
     assert.equal((await quota.run(user, payload(8), answer)).code, 'COACH_LIMIT_REACHED');
     assert.equal((await quota.status(user)).remaining, 0);
+    status = 'PAYMENT_COMPLETED';
+    await billing.grant(user, 'test-order-inflight');
+    const refundedDuringAnswer = await quota.run(user, payload(9), async () => {
+      status = 'REFUNDED';
+      return answer();
+    });
+    assert.equal(refundedDuringAnswer.code, 'COACH_LIMIT_REACHED');
+    assert.equal((await quota.status(user)).remaining, 0);
+    assert.equal((await query("SELECT used FROM toss_coach_orders WHERE order_id='test-order-inflight'")).rows[0].used, 0);
     status = 'PURCHASED'; await assert.rejects(billing.grant(user, orderId));
     await billing.grant(user, 'test-order-456');
     await query("UPDATE toss_coach_orders SET expires_at=now()-interval '1 day' WHERE order_id='test-order-456'");

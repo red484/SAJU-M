@@ -30,11 +30,11 @@ export function installSubscription({ page, user, openModal, notice, navigate, n
       <p class="eyebrow">조금 더 깊은 나의 이야기</p><h2>달빛 플러스 요금 안내</h2>
       <article class="purchase-plan" aria-label="달빛 플러스 월 구독 상품">
         <div class="purchase-plan-heading"><h3>달빛 플러스</h3><span>월 구독</span></div>
-        <p class="purchase-caption">사주를 읽고, 궁금한 순간마다 물어보세요.</p>
+        <p class="purchase-caption">지금의 고민을 정리하고, 궁금한 순간마다 물어보세요.</p>
         <div class="purchase-allowance"><b>AI 상담 ${PLUS_PLAN.answers}회</b><span>매월 결제 주기마다 새롭게</span></div>
         <p class="purchase-amount">${PLUS_PLAN.price.toLocaleString('ko-KR')}<span>원 / 월</span></p>
         <p class="purchase-tax">부가세 포함 · 출시 예정 요금</p>
-        <ul><li>정상 답변에만 상담 횟수 차감</li><li>한도를 다 써도 자동 추가 결제 없음</li><li>기본 사주·기록·회고는 계속 무료</li></ul>
+        <ul><li>정상 답변에만 상담 횟수 차감</li><li>한도를 다 써도 자동 추가 결제 없음</li><li>자기 이해 요약·기록·회고는 계속 무료</li></ul>
         <button class="primary purchase-pay" disabled>월 4,900원 결제하기 · 준비 중</button>
         <p class="purchase-unavailable" role="status">아직 결제를 지원하지 않습니다.<br>구독이 시작되거나 상담 횟수가 늘어나지 않습니다.</p>
       </article>

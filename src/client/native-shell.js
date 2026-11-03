@@ -9,7 +9,7 @@ import { resolveNoteMode, reviewReminders } from './app-mode.js';
 
 export const nativeApp = Capacitor.isNativePlatform();
 export const noteMode = resolveNoteMode({ platform: Capacitor.getPlatform(), search: location.search, storage: globalThis.sessionStorage });
-export const APP_NAME = noteMode ? '달빛 노트' : '달빛 사주';
+export const APP_NAME = noteMode ? '달빛 노트' : '삶의 온기';
 let started = false;
 
 // Re-creates the review reminders from the current records. Permission is asked

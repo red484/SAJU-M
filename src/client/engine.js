@@ -75,7 +75,7 @@ function loveTopicReading(r,iso){
 }
 export function topicReading(r,t,iso=DateTime.now().setZone('Asia/Seoul').toISODate()){
  if(t==='연애')return loveTopicReading(r,iso);
- const a=TOPIC[t]||TOPIC.진로,trait=TRAITS[r.strong[0]];return {title:a[0],body:`사주에서는 ${trait[1]}으로 읽혀요. ${t}에서는 ${trait[3]}이 나와 잘 맞는지 천천히 살펴보세요. ${a[1]}`,action:a[2]};
+ const a=TOPIC[t]||TOPIC.진로,trait=TRAITS[r.strong[0]];return {title:a[0],body:`명리학에서는 ${trait[1]}으로 읽혀요. ${t}에서는 ${trait[3]}이 나와 잘 맞는지 천천히 살펴보세요. ${a[1]}`,action:a[2]};
 }
 export function reading(r,p){const e=r.strong[0],w=r.weak[0];return {summary:`${p.name&&p.name!=='방문자'?p.name+'님의':'나의'} 일간은 ${ELEMENTS[r.element]}입니다. ${r.total}글자에서 ${r.strong.length>1?'가장 많이 나타난 기운 중':'가장 많이 나타난'} ${ELEMENTS[e]}은 ${TRAITS[e][0]}으로 읽어볼 수 있어요.`,strength:TRAITS[e][0],caution:TRAITS[e][2],environment:TRAITS[e][3],balance:`${ELEMENTS[w]}은 ${r.cnt[w]}개로 상대적으로 적게 나타납니다. ${TRAITS[w][0]}을 일상의 습관으로 보완해보는 관점입니다. 없는 기운이 곧 결핍이나 불운이라는 뜻은 아니에요.`,action:topicReading(r,p.topics?.[0]||'진로').action};}
 // 흐름 카드. 천간은 십성으로 주제를, 지지는 십이운성으로 세기를 말하고,
@@ -103,7 +103,7 @@ function groundClash(r,b){
  }
  return null;
 }
-export function safety(text){if(/자살|죽고\s*싶|죽을|자해|목숨|살기\s*싫|해치고\s*싶/.test(text))return '지금은 사주보다 안전이 먼저예요. 혼자 견디지 말고 믿을 수 있는 사람에게 지금의 상황을 알려주세요. 즉시 위험하다면 한국에서는 119 또는 112에 연락하거나 가까운 응급실로 가세요. 자살예방상담전화 109는 24시간 연결됩니다. 해외라면 현지 긴급전화나 위기상담 서비스를 이용해 주세요. 지금 혼자 계신가요?';if(/흉통|호흡\s*곤란|(?:가슴|흉부).{0,8}(?:아프|통증|조이)|숨(?:이)?\s*(?:안\s*쉬|못\s*쉬|막히)/.test(text))return '지금 가슴 통증이나 호흡 곤란을 겪고 있다면 사주 상담을 멈추고 즉시 119 또는 가까운 응급실에 도움을 요청해 주세요.';if(/진단|처방|치료|임신|질환|무슨\s*병|어떤\s*병|약을|약\s*먹|복용|암\s*(?:인가|일까|진단|치료)/.test(text))return '사주로 질병이나 치료 결과를 판단할 수 없어요. 어떤 점이 걱정되는지 정리해 의료 전문가에게 확인해 주세요. 지금 가장 궁금한 점은 무엇인가요?';if(/투자|주식|코인|매수|매도|대출|재무|수익/.test(text))return '사주로 투자 수익이나 매매 시점을 예측하지 않습니다. 손실을 감당할 수 있는 범위, 수수료와 부채를 먼저 확인하세요. 구체적인 투자·대출 결정은 자격 있는 금융 전문가와 상의하고, 오늘은 자산과 지출을 정리하는 데 집중해보세요.';if(/법률|소송|고소|이혼|계약|재판|변호사/.test(text))return '사주는 법률 판단이나 사건 결과를 예측하는 근거가 아닙니다. 계약서·관련 자료와 기한을 정리하고 변호사 또는 공인된 법률상담기관에 확인하세요. 오늘은 놓치면 안 되는 기한 하나를 확인해보세요.';return null;}
+export function safety(text){if(/자살|죽고\s*싶|죽을|자해|목숨|살기\s*싫|해치고\s*싶/.test(text))return '지금은 해석보다 안전이 먼저예요. 혼자 견디지 말고 믿을 수 있는 사람에게 지금의 상황을 알려주세요. 즉시 위험하다면 한국에서는 119 또는 112에 연락하거나 가까운 응급실로 가세요. 자살예방상담전화 109는 24시간 연결됩니다. 해외라면 현지 긴급전화나 위기상담 서비스를 이용해 주세요. 지금 혼자 계신가요?';if(/흉통|호흡\s*곤란|(?:가슴|흉부).{0,8}(?:아프|통증|조이)|숨(?:이)?\s*(?:안\s*쉬|못\s*쉬|막히)/.test(text))return '지금 가슴 통증이나 호흡 곤란을 겪고 있다면 사주 상담을 멈추고 즉시 119 또는 가까운 응급실에 도움을 요청해 주세요.';if(/진단|처방|치료|임신|질환|무슨\s*병|어떤\s*병|약을|약\s*먹|복용|암\s*(?:인가|일까|진단|치료)/.test(text))return '명리학으로 질병이나 치료 결과를 판단할 수 없어요. 어떤 점이 걱정되는지 정리해 의료 전문가에게 확인해 주세요. 지금 가장 궁금한 점은 무엇인가요?';if(/투자|주식|코인|매수|매도|대출|재무|수익/.test(text))return '명리학으로 투자 수익이나 매매 시점을 예측하지 않습니다. 손실을 감당할 수 있는 범위, 수수료와 부채를 먼저 확인하세요. 구체적인 투자·대출 결정은 자격 있는 금융 전문가와 상의하고, 오늘은 자산과 지출을 정리하는 데 집중해보세요.';if(/법률|소송|고소|이혼|계약|재판|변호사/.test(text))return '사주는 법률 판단이나 사건 결과를 예측하는 근거가 아닙니다. 계약서·관련 자료와 기한을 정리하고 변호사 또는 공인된 법률상담기관에 확인하세요. 오늘은 놓치면 안 되는 기한 하나를 확인해보세요.';return null;}
 // Conditions people actually weigh, each with the checks that turn a feeling
 // into something comparable. A factor is claimed only when the user's own
 // words name it, so a reply never invents a concern they did not raise.
@@ -117,7 +117,7 @@ const FACTOR=[
  ['거리',/출퇴근|통근|이사|재택|원격/,'편도 통근 시간','재택이 가능한 일수'],
  ['관계 거리',/연락|만남|소개팅|고백|헤어|이별|재회|결혼|사귀|연인|애인|남친|여친|썸/,'서로 표현한 의사와 경계','다음에 만나기로 한 시점'],
  ['지출 구조',/지출|저축|대출|생활비|비상금?/,'고정 지출과 비상 자금의 개월 수','줄일 수 있는 항목 한 가지']];
-const figures=t=>[...t.matchAll(/(\d+(?:\.\d+)?)\s*(%|퍼센트|배|만 ?원|억|개월|달|년|주|시간)/g)].map(m=>m[1]+m[2].replace(/\s/g,'').replace('퍼센트','%'));
+const figures=t=>[...t.matchAll(/(\d+(?:\.\d+)?)\s*(%|퍼센트|배|만 ?원|억|개월|달|년|주|시간|분)/g)].map(m=>m[1]+m[2].replace(/\s/g,'').replace('퍼센트','%'));
 const batchim=w=>{const c=w.charCodeAt(w.length-1);return c>=0xAC00&&c<=0xD7A3&&(c-0xAC00)%28!==0;};
 const yeyo=w=>w+(batchim(w)?'이에요':'예요');
 function readFactors(latest,earlier){const out=[];for(const [label,re,a,b] of FACTOR){const fresh=re.test(latest);if(fresh||re.test(earlier))out.push({label,checks:[a,b],fresh:fresh&&!re.test(earlier)});}return out;}
@@ -165,10 +165,10 @@ export function signalsOf(conversations,limit=5){
 export function coach(r,p,conversation,text){const safe=safety(text);if(safe)return {text:safe,phase:'safety'};const user=conversation.messages.filter(m=>m.role==='user');const previous=user.at(-2)?.text||'';let topic=conversation.topic||p.topics?.[0]||'진로',named=false;
  if(/^(?:음|응|뭐|네|예|무슨\s*뜻)(?:[?？!…\.\s]*)$/.test(text.trim())&&previous){const aboutHealth=/건강|몸|아프|통증|증상|병원|졸리|졸려|졸음/.test(previous);return {text:aboutHealth?'제가 너무 앞서갔네요. 아직 어떤 점이 걱정되는지 듣지 못했어요. 편한 만큼만 말씀해 주실래요?':'제가 질문을 너무 크게 드렸네요. 지금 마음에 걸리는 상황 하나만 말씀해 주실래요?',topic:aboutHealth?'건강':topic,context:null,phase:'clarify'};}
  const sleepy=/졸리|졸려|졸음|잠(?:이)?\s*쏟아/;
- if(sleepy.test(text)&&conversation.context!=='sleepiness')return {text:'요즘 자주 졸리시군요. 사주로 원인을 미리 정하진 않을게요. 하루 중 언제 졸음이 가장 몰리나요?',topic:'건강',context:'sleepiness',phase:'clarify'};
+ if(sleepy.test(text)&&conversation.context!=='sleepiness')return {text:'요즘 자주 졸리시군요. 명리학으로 원인을 미리 정하진 않을게요. 하루 중 언제 졸음이 가장 몰리나요?',topic:'건강',context:'sleepiness',phase:'clarify'};
  if(conversation.topic==='건강'&&conversation.context==='sleepiness'&&!/진로|이직|직장|연애|가족|재물|투자/.test(text)){
   const duration=/\d+\s*(?:일|주|달|개월|년)\s*(?:째|동안|전부터)?|몇\s*(?:주|달|개월)/.test(text);
-  return {text:duration?'그만큼 이어졌군요. 일상에 지장이 있거나 계속 걱정된다면 사주 대신 의료진에게 확인해 주세요. 하루 중 어떤 일이 가장 불편한가요?':'말씀해 주신 때에 졸음이 오는군요. 이런 날이 언제부터 이어졌는지 알려주실래요?',topic:'건강',context:'sleepiness',phase:'listen'};
+  return {text:duration?'그만큼 이어졌군요. 일상에 지장이 있거나 계속 걱정된다면 해석에 기대기보다 의료진에게 확인해 주세요. 하루 중 어떤 일이 가장 불편한가요?':'말씀해 주신 때에 졸음이 오는군요. 이런 날이 언제부터 이어졌는지 알려주실래요?',topic:'건강',context:'sleepiness',phase:'listen'};
  }
  if(/건강\s*(?:관련|문제|때문|이)?.{0,12}(?:고민|걱정)|(?:고민|걱정).{0,12}건강/.test(text)&&!/(?:흉통|호흡\s*곤란|진단|처방|치료)/.test(text))return {text:'건강 때문에 마음이 쓰이시는군요. 아직 어떤 점이 걱정되는지는 듣지 못했어요. 편한 만큼만 말씀해 주실래요?',topic:'건강',context:null,phase:'clarify'};
  if(/진로\s*(?:에\s*대한|때문|관련)?.{0,10}(?:고민|걱정)|(?:고민|걱정).{0,10}진로/.test(text)&&!/(?:이직|퇴사|직장|회사|취업|전공|진학|제안|선택|연봉|업무)/.test(text)){const month=flow(r,DateTime.now().setZone('Asia/Seoul').toISODate())[1];return {text:`진로 이야기도 같이 해요. 이번 달은 ‘${month.title}’ 쪽으로 읽혀요. ${CAREER_QUESTION[r.strong[0]]||'지금 가장 마음에 걸리는 장면은 무엇인가요?'}`,topic:'진로',context:null,phase:'clarify'};}
@@ -186,11 +186,12 @@ export function coach(r,p,conversation,text){const safe=safety(text);if(safe)ret
   return {text:`${named?topic+' 이야기를 함께 정리해볼게요. ':''}지금 생각하는 선택지는 무엇이고, 가장 걱정되는 조건 하나는 무엇인가요?\n이미 마음이 기울었다면 그 이유도 알려주세요.`,topic,context:text,phase:'question'};
  }
  const t=topicReading(r,topic),earlier=user.slice(0,-1).map(m=>m.text).join(' '),found=readFactors(text,earlier),nums=figures([earlier,text].join(' '));
+ const basis=t.basis || `명식에서 가장 많이 나타난 ${ELEMENTS[r.strong[0]]} 기운을 바탕으로 성향을 살펴봤어요.`;
  // Nothing named yet: ask for the options themselves instead of restating the
  // question back, which is what made earlier replies feel like an echo.
  if(!found.length){
-  if(topic==='연애')return {text:`사주 관점\n${t.core}\n\n현실 확인\n${t.timing} ${t.signal}\n\n오늘 할 일\n${t.action}`,topic,context:conversation.context,phase:'advice'};
-  return {text:`사주 관점\n${t.body}\n\n현실 확인\n아직 고민의 범위가 넓어요. 지금 그대로 가져가고 싶은 것과 가장 바꾸고 싶은 것을 하나씩 알려주세요.\n\n오늘 할 일\n메모장에 ‘유지할 것’과 ‘바꿀 것’을 적고 각각 한 줄만 채워보세요.`,topic,context:conversation.context,phase:'advice'};
+  if(topic==='연애')return {basis,text:`명리학 관점\n${t.core}\n\n현실 확인\n${t.timing} ${t.signal}\n\n오늘 할 일\n${t.action}`,topic,context:conversation.context,phase:'advice'};
+  return {basis,text:`명리학 관점\n${t.body}\n\n현실 확인\n아직 고민의 범위가 넓어요. 지금 그대로 가져가고 싶은 것과 가장 바꾸고 싶은 것을 하나씩 알려주세요.\n\n오늘 할 일\n메모장에 ‘유지할 것’과 ‘바꿀 것’을 적고 각각 한 줄만 채워보세요.`,topic,context:conversation.context,phase:'advice'};
  }
  const nth=user.length,fresh=found.filter(f=>f.fresh),labels=found.map(f=>f.label);
  // Newest concerns first, and never more than three at once: a list that grows
@@ -202,7 +203,7 @@ export function coach(r,p,conversation,text){const safe=safety(text);if(safe)ret
  // back to it after that instead of reprinting the same paragraph.
  const view=nth<=2?t.body:`앞서 본 ${topic} 해석은 그대로예요. 이번에는 조건 쪽만 보겠습니다.`;
  const rank=labels.length>1?`\n\n${shown.map(f=>f.label).join(' · ')} 중 지금 가장 포기하기 어려운 순서로 알려주시면, 그 기준으로 좁혀드릴게요.`:`\n\n${labels[0]} 말고 지금 함께 걸리는 조건이 하나 더 있다면 알려주세요.`;
- return {text:`사주 관점\n${view}\n\n현실 확인\n${lead}지금 비교할 조건은 ${shown.map(f=>f.label).join('·')}${found.length>shown.length?` 외 ${found.length-shown.length}가지`:''}${nums.length?` (${[...new Set(nums)].join(', ')})`:''}입니다. 아래를 확인하면 느낌이 아니라 숫자로 비교할 수 있어요.\n${shown.map(f=>`· ${f.label} — ${f.checks[0]} / ${f.checks[1]}`).join('\n')}\n\n오늘 할 일\n${action} 하나만 오늘 확인해서 답을 적어두세요. 나머지는 그다음에 봐도 늦지 않아요.${rank}`,topic,context:conversation.context,phase:'advice'};
+ return {basis:nth<=2?basis:null,text:`명리학 관점\n${view}\n\n현실 확인\n${lead}지금 비교할 조건은 ${shown.map(f=>f.label).join('·')}${found.length>shown.length?` 외 ${found.length-shown.length}가지`:''}${nums.length?` (${[...new Set(nums)].join(', ')})`:''}입니다. 아래를 확인하면 느낌이 아니라 숫자로 비교할 수 있어요.\n${shown.map(f=>`· ${f.label} — ${f.checks[0]} / ${f.checks[1]}`).join('\n')}\n\n오늘 할 일\n${action} 하나만 오늘 확인해서 답을 적어두세요. 나머지는 그다음에 봐도 늦지 않아요.${rank}`,topic,context:conversation.context,phase:'advice'};
 }
 
 export function monthly(records,month){const list=records.filter(r=>r.date?.startsWith(month)),done=list.filter(r=>r.result==='good'||r.result==='rethink'),low=done.filter(r=>r.confidence<50),high=done.filter(r=>r.confidence>=50),avg=a=>a.length?Math.round(a.filter(r=>r.result==='good').length/a.length*100):null;return {list,done,low,high,lowRate:avg(low),highRate:avg(high),moods:list.reduce((a,r)=>{if(r.mood)a[r.mood]=(a[r.mood]||0)+1;return a;},{}),insight:low.length>=3&&high.length>=3?`완료한 기록에서 확신 50 미만 ${low.length}건의 만족 비율은 ${avg(low)}%, 50 이상 ${high.length}건은 ${avg(high)}%였어요. 스스로 남긴 소수 기록의 관찰이며 인과관계나 미래 예측은 아닙니다.`:'확신 수준별 비교는 두 그룹에 완료 기록이 각각 3개 이상 쌓이면 보여드려요. 지금은 선택과 실제 결과를 차근차근 남겨보세요.'};}

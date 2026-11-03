@@ -85,7 +85,7 @@ try {
   // 잘린 답을 이어받아 붙이는지. 두 번째 호출에 앞부분이 assistant로 실려 가야 합니다.
   const calls = [];
   const pieces = [
-    { content: '사주 관점\n앞부분이 여기서', finish: 'length' },
+    { content: '명리학 관점\n앞부분이 여기서', finish: 'length' },
     { content: ' 끊겼다가 이어집니다.', finish: 'stop' }
   ];
   globalThis.fetch = async (url, options) => {
@@ -102,8 +102,8 @@ try {
   });
   assert.equal(calls.length, 2);
   assert.equal(calls[1].at(-2).role, 'assistant');
-  assert.equal(calls[1].at(-2).content, '사주 관점\n앞부분이 여기서');
-  assert.equal(joined.text, '사주 관점\n앞부분이 여기서 끊겼다가 이어집니다.');
+  assert.equal(calls[1].at(-2).content, '명리학 관점\n앞부분이 여기서');
+  assert.equal(joined.text, '명리학 관점\n앞부분이 여기서 끊겼다가 이어집니다.');
   assert.equal(joined.truncated, false);
   assert.equal(joined.continuations, 1);
   assert.deepEqual(joined.usage, { in: 10, out: 14 });
@@ -149,13 +149,13 @@ try {
   assert.equal(plain.truncated, true);
 
   // 제목 판정.
-  const full = '사주 관점\n본문\n\n현실 확인\n본문\n\n오늘 할 일\n본문';
+  const full = '명리학 관점\n본문\n\n현실 확인\n본문\n\n오늘 할 일\n본문';
   assert.equal(hasSections(full), true);
-  assert.equal(hasSections(full.replace('사주 관점\n', '')), false);
-  assert.equal(hasSections('오늘 할 일을 사주 관점으로 현실 확인 했습니다'), false);
+  assert.equal(hasSections(full.replace('명리학 관점\n', '')), false);
+  assert.equal(hasSections('오늘 할 일을 명리학 관점으로 현실 확인 했습니다'), false);
   assert.equal(hasSections('많이 피곤하셨군요.\n\n' + full), true);
-  assert.equal(normalizeSectionHeadings('### 사주 관점\n본문\n\n**현실 확인**\n본문\n\n오늘 할 일:\n본문'), full);
-  assert.equal(normalizeSectionHeadings('사주 관점은 중요해요.\n현실 확인\n본문'), '사주 관점은 중요해요.\n현실 확인\n본문');
+  assert.equal(normalizeSectionHeadings('### 명리학 관점\n본문\n\n**현실 확인**\n본문\n\n오늘 할 일:\n본문'), full);
+  assert.equal(normalizeSectionHeadings('명리학 관점은 중요해요.\n현실 확인\n본문'), '명리학 관점은 중요해요.\n현실 확인\n본문');
 
   // 명리 용어가 본문에 새면 잡아내는지.
   assert.deepEqual(
@@ -179,9 +179,9 @@ try {
   ]) assert.deepEqual(jargonLeaks(clean), [], clean);
 
   // 근거 블록은 읽어서 보관하고 본문에서는 떼어냅니다.
-  const withBasis = '사주 관점\n한 번 쥐면 놓지 않습니다.\n<근거>일간 무토, 많은 기운 금</근거>';
+  const withBasis = '명리학 관점\n한 번 쥐면 놓지 않습니다.\n<근거>일간 무토, 많은 기운 금</근거>';
   assert.equal(readBasis(withBasis), '일간 무토, 많은 기운 금');
-  assert.equal(stripBasis(withBasis), '사주 관점\n한 번 쥐면 놓지 않습니다.');
+  assert.equal(stripBasis(withBasis), '명리학 관점\n한 번 쥐면 놓지 않습니다.');
   assert.equal(stripBasis('본문\n<근거>내부 점검\\</근거>'), '본문');
   assert.equal(readBasis('근거 없는 답'), null);
 
@@ -189,7 +189,7 @@ try {
   assert.deepEqual(jargonLeaks(stripBasis(withBasis)), []);
 
   // 실제로 돌아온 나쁜 답을 그대로 넣어 무엇이 걸리는지 확인합니다.
-  const weak = ['사주 관점', '할 일을 미루지 않고 바로 시작하는 사람입니다.', '',
+  const weak = ['명리학 관점', '할 일을 미루지 않고 바로 시작하는 사람입니다.', '',
     '현실 확인', '몸이 보내는 신호에 귀 기울일 때입니다. 건강 검진 결과나 최근 혈액 검사 기록을 확인해 보는 것도 방법입니다. 필요하다면 상담하는 것이 좋습니다.', '',
     '오늘 할 일', '일찍 자세요.'].join('\n');
   const faults = critique(weak, readBasis(weak));
@@ -197,25 +197,25 @@ try {
   assert.match(faults.join(' '), /근거/);
   assert.match(faults.join(' '), /건강 검진/);
   assert.match(faults.join(' '), /맺음이 흐립니다/);
-  assert.match(critique('사주 관점\n본문\n현실 확인\n본문\n오늘 할 일\n본문\n추가 확인 (준수)', '값').join(' '), /내부 지시/);
-  assert.match(critique('사주 관점\n지금은 어려운 시기로 보입니다.\n현실 확인\n언제부터인가요?\n오늘 할 일\n눈을 붙여보세요.', '값').join(' '), /건강 행동/);
-  assert.deepEqual(critique('다정한 도입입니다.\n사주 관점\n타고나기를 강인한 분이에요.\n현실 확인\n혼자 고민하느라 애쓰셨어요.\n오늘 할 일\n한 줄 적어볼까요?', '값'), []);
-  assert.match(critique('사주 관점\n본문\n현실 확인\n그 일 때문에 피곤했을까요?\n오늘 할 일\n한 줄 적어봐요.', '값').join(' '), /건강 행동/);
+  assert.match(critique('명리학 관점\n본문\n현실 확인\n본문\n오늘 할 일\n본문\n추가 확인 (준수)', '값').join(' '), /내부 지시/);
+  assert.match(critique('명리학 관점\n지금은 어려운 시기로 보입니다.\n현실 확인\n언제부터인가요?\n오늘 할 일\n눈을 붙여보세요.', '값').join(' '), /건강 행동/);
+  assert.deepEqual(critique('다정한 도입입니다.\n명리학 관점\n타고나기를 강인한 분이에요.\n현실 확인\n혼자 고민하느라 애쓰셨어요.\n오늘 할 일\n한 줄 적어볼까요?', '값'), []);
+  assert.match(critique('명리학 관점\n본문\n현실 확인\n그 일 때문에 피곤했을까요?\n오늘 할 일\n한 줄 적어봐요.', '값').join(' '), /건강 행동/);
 
   // 고친 답에는 지적이 남지 않아야 합니다.
-  const solid = ['사주 관점', '한 번 쥐면 끝까지 놓지 않습니다.', '',
+  const solid = ['명리학 관점', '한 번 쥐면 끝까지 놓지 않습니다.', '',
     '현실 확인', '실제 수면 — 지난 7일의 취침·기상 시각을 적으세요. 이어지면 진료로 확인하세요.', '',
     '오늘 할 일', '오늘 넘길 일 하나를 고르세요.', '<근거>일간 무토, 많은 기운 금</근거>'].join('\n');
   assert.deepEqual(critique(solid, readBasis(solid)), []);
 
-  // 후속 답변은 제목 두 개만 쓰고, 사주 관점을 다시 펼치면 지적합니다.
-  const first = ['사주 관점', '한 번 쥐면 놓지 않습니다.', '', '현실 확인', '지난 7일 취침 시각을 적으세요.', '',
+  // 후속 답변은 제목 두 개만 쓰고, 명리학 관점을 다시 펼치면 지적합니다.
+  const first = ['명리학 관점', '한 번 쥐면 놓지 않습니다.', '', '현실 확인', '지난 7일 취침 시각을 적으세요.', '',
     '오늘 할 일', '10분만 적으세요.', '<근거>일간 무</근거>'].join('\n');
   const later = ['현실 확인', '가져온 숫자부터 받겠습니다.', '', '오늘 할 일', '10분만 적으세요.', '<근거>해석 없음</근거>'].join('\n');
   assert.deepEqual(critique(first, readBasis(first), 1), []);
   assert.deepEqual(critique(later, readBasis(later), 2), []);
   assert.match(critique(first, readBasis(first), 2).join(' '), /다시 쓰지 않습니다/);
-  assert.match(critique(later, readBasis(later), 1).join(' '), /빠진 것: 사주 관점/);
+  assert.match(critique(later, readBasis(later), 1).join(' '), /빠진 것: 명리학 관점/);
   assert.equal(hasSections(later, 2), true);
   assert.equal(hasSections(later, 1), false);
 
@@ -258,6 +258,24 @@ try {
   assert.equal(sentMessages.at(-1).content,'이직 제안을 받았어요');
   assert.match(sentMessages[0].content,new RegExp(periodFlow[0].pillar));
 
+  // Only references to supplied sources are returned, and markup stays out of the reply.
+  const cited = await (async () => {
+    globalThis.fetch = async (_url, options) => {
+      const messages = JSON.parse(options.body).messages;
+      assert.match(messages.at(-2).content, /통근 기준/);
+      const content = `${later}\n<참고>R1,R9,C1</참고>`;
+      return new Response(JSON.stringify({choices:[{message:{content},finish_reason:'stop'}]}), {
+        status:200,headers:{'Content-Type':'application/json'}
+      });
+    };
+    return coachReply({
+      chart:{...chart,records:[{title:'통근 기준',date:'2026-11-03'}]},
+      messages:[{role:'user',text:'이직 제안을 받았어요'}]
+    });
+  })();
+  assert.deepEqual(cited.references,[{kind:'선택 기록',title:'통근 기준',date:'2026-11-03'}]);
+  assert.doesNotMatch(cited.text, /<참고>/);
+
   // 첫 답변의 제목 누락은 같은 요청 안에서 형식 지시를 보강해 다시 생성한다.
   let firstTurnCalls = 0;
   globalThis.fetch = async (_url, options) => {
@@ -266,7 +284,7 @@ try {
     if (firstTurnCalls === 2) assert.match(messages[0].content, /형식 재확인/);
     const content = firstTurnCalls === 1
       ? '많이 지치셨군요. 언제가 가장 벅찬가요?\n<근거>일간 임</근거>'
-      : '### 사주 관점\n여러 가능성을 넓게 보는 편이에요.\n\n**현실 확인**\n하루 중 언제 가장 벅찬가요?\n\n오늘 할 일:\n그 시각을 한 번 적어 주세요. 언제였나요?\n<근거>일간 임</근거>';
+      : '### 명리학 관점\n여러 가능성을 넓게 보는 편이에요.\n\n**현실 확인**\n하루 중 언제 가장 벅찬가요?\n\n오늘 할 일:\n그 시각을 한 번 적어 주세요. 언제였나요?\n<근거>일간 임</근거>';
     return new Response(JSON.stringify({choices:[{message:{content},finish_reason:'stop'}]}),{
       status:200,headers:{'Content-Type':'application/json'}
     });
@@ -275,7 +293,7 @@ try {
   assert.equal(firstTurnCalls, 2);
   assert.equal(repaired.source, 'cafe24');
   assert.equal(repaired.shape.sections, true);
-  assert.match(repaired.text, /^사주 관점\n/);
+  assert.match(repaired.text, /^명리학 관점\n/);
   assert.doesNotMatch(repaired.text, /###|\*\*|<근거>/);
 
   // 일상어와 겹치는 소재를 신호로 잘못 세지 않는지.

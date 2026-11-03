@@ -63,7 +63,8 @@ jobs:
       - name: Check health
         run: |
           for i in $(seq 1 10); do
-            curl --fail --silent "$SITE_URL/api/ready" && exit 0
+            if curl --fail --silent "$SITE_URL/api/ready" &&
+               SMOKE_BASE_URL="$SITE_URL" npm run smoke; then exit 0; fi
             sleep 5
           done
           exit 1

@@ -564,3 +564,29 @@ dialog:has(.purchase-sheet) .purchase-sheet{min-height:0}
 
 /* iOS 달빛 노트: 스크립트가 첫 화면을 그리기 전에 정적 사주 문구가 비치지 않게 합니다. */
 html[data-app=note] .welcome:not(.welcome-with-auth) .welcome-copy{visibility:hidden}
+
+/* 삶의 온기 */
+html:not([data-app=note]) body{--paper:#f8f2eb;--card:#fffaf4;--ink:#382821;--teal:#7d3e32;--line:#e4d6cc;background:var(--paper);color:var(--ink)}
+html:not([data-app=note]) body:not([data-page=welcome]):before{background:none}
+html:not([data-app=note]) .welcome:after{background:linear-gradient(90deg,#472920 6%,#472920d9 40%,#47292000 85%)}
+html:not([data-app=note]) .core,
+html:not([data-app=note]) .chat-panel .mentor,
+html:not([data-app=note]) .message.user .bubble{background:#7d3e32;color:#fff8ef;border-color:#7d3e32}
+html:not([data-app=note]) .chat-panel .messages{background:#f8f2eb}
+html:not([data-app=note]) .narrow{background:#fffaf4}
+body[data-page=chat] .workspace.dual{grid-template-columns:minmax(0,1fr);max-width:800px}
+body[data-page=chat] .dual main{display:none}
+body.apps-in-toss[data-page=chat] .toss-page-settings{padding:8px 16px}
+@media(max-width:850px){
+ html:not([data-app=note]) .welcome:after{background:linear-gradient(0deg,#472920 12%,#472920df 55%,#47292033)}
+}
+html:not([data-app=note]) .chat-stage:before{content:none}
+html:not([data-app=note]) .topic-choice:has(:checked){border-color:#7d3e32;box-shadow:0 0 0 1px #7d3e32}
+html:not([data-app=note]) .topic-choice input:checked+span{background:#f5e2d7}
+html:not([data-app=note]) nav button[aria-current=page]{background:#7d3e32;color:#fff8ef}
+
+.welcome-concern{width:100%;max-width:400px;margin:0 0 16px;color:#fff0dc;text-align:left}
+.welcome-concern textarea{margin-top:6px;background:#fffaf4;color:#382821}
+.answer-basis{margin:6px 0;color:#704033;font-size:.85rem}
+.answer-basis summary{cursor:pointer}
+.answer-basis p{margin:6px 0 0;white-space:pre-wrap}

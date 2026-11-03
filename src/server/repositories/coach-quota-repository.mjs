@@ -65,22 +65,22 @@ export class CoachQuotaRepository {
       });
       if (!before) return busy;
       if (before.done) return before.done;
-      let paidOrder = null;
       if (this.paid && before.allowance.freeRemaining === 0) {
-        paidOrder = await this.paid.availableOrder(userId);
+        const paidOrder = await this.paid.availableOrder(userId);
         if (!paidOrder) return failure(403, 'COACH_LIMIT_REACHED', '사용 가능한 상담 이용권이 없어요.', { quota: await this.status(userId) });
       }
       const out = await execute(payload);
       const charge = !out.error && out.source === 'cafe24' && typeof out.text === 'string' && !!out.text.trim();
       if (!charge) return { ...out, quota: this.paid ? await this.status(userId) : before.allowance };
+      // An order may be refunded while the model is generating the answer.
+      const paidOrder = this.paid && (await this.status(userId)).freeRemaining === 0
+        ? await this.paid.availableOrder(userId) : null;
       const after = await this.locked(userId, async client => {
         const replayed = await this.replay(client, userId, payload.requestId, hash);
         if (replayed) return replayed;
         const allowance = await this.status(userId, client);
         if (!allowance.remaining) return failure(403, 'COACH_LIMIT_REACHED', QUOTA_NOTICE, { quota: allowance });
-        // Free answers ran out while this one was generated: charge a stored order instead.
-        // consume() re-checks it; the Toss refund check happens again on the next question.
-        const order = this.paid && allowance.freeRemaining === 0 ? paidOrder || await this.paid.storedOrder(userId, client) : null;
+        const order = this.paid && allowance.freeRemaining === 0 ? paidOrder : null;
         if (this.paid && allowance.freeRemaining === 0 && !order) return failure(403, 'COACH_LIMIT_REACHED', QUOTA_NOTICE, { quota: allowance });
         await client.query('INSERT INTO coach_answers (user_id, request_id, question_hash, response) VALUES ($1, $2, $3, $4::jsonb)', [userId, payload.requestId, hash, JSON.stringify(out)]);
         if (order) await this.paid.consume(order, client);

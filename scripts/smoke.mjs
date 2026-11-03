@@ -9,5 +9,5 @@ async function check(path, verify) {
 }
 
 await check('/api/health', body => JSON.parse(body).ok === true);
-await check('/', body => body.includes('달빛 사주'));
+await check('/', body => body.includes('삶의 온기'));
 console.log(`Smoke test passed: ${base}`);

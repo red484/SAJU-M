@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 test('Toss AI notice is not a nested layout sidebar', () => {
   const source = readFileSync(new URL('../src/client/design.js', import.meta.url), 'utf8');
-  const block = source.slice(source.indexOf("  if (appsInToss &&"), source.indexOf("  if (page === 'result')"));
+  const block = source.slice(source.indexOf("  if (appsInToss &&"), source.indexOf("  const log"));
   let inserted;
   const host = {querySelector: selector => selector === '.mentor' ? {
     insertAdjacentElement: (_, node) => { inserted = node; }
