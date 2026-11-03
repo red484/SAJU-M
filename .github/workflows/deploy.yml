@@ -36,19 +36,32 @@ jobs:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           install -m 700 -d ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
+          umask 077
+          python3 - <<'PYKEY'
+          import os
+          from pathlib import Path
+
+          key = os.environ.get("SSH_KEY", "").replace("\\r\\n", "\n").replace("\\n", "\n")
+          key = key.replace("\r", "").strip()
+          if not key:
+              raise SystemExit("DEPLOY_SSH_KEY is missing")
+          Path.home().joinpath(".ssh", "deploy_key").write_text(key + "\n")
+          PYKEY
+          if ! ssh-keygen -y -P '' -f ~/.ssh/deploy_key >/dev/null 2>&1; then
+            echo "::error::DEPLOY_SSH_KEY must contain an unencrypted SSH private key"
+            exit 1
+          fi
           echo "$DEPLOY_HOST ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA13JEzgqagxDaiAvIhqVtkAv+v3sx7SpU//KnqIFbkd" > ~/.ssh/known_hosts
 
       - name: Upload source
         run: |
           git archive --format=tar.gz -o release.tar.gz HEAD
-          scp -i ~/.ssh/deploy_key release.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:/tmp/saju-release.tar.gz"
+          scp -o BatchMode=yes -o IdentitiesOnly=yes -i ~/.ssh/deploy_key release.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:/tmp/saju-release.tar.gz"
 
       # Server-only files (.env.production, .env.db, docker-compose.db.yml, secrets/) are kept.
       - name: Build and restart containers
         run: |
-          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" DEPLOY_DIR="$DEPLOY_DIR" 'bash -s' <<'EOF'
+          ssh -o BatchMode=yes -o IdentitiesOnly=yes -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" DEPLOY_DIR="$DEPLOY_DIR" 'bash -s' <<'EOF'
           set -euo pipefail
           cd "$DEPLOY_DIR"
           find . -mindepth 1 -maxdepth 1 \
