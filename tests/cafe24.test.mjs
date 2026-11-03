@@ -269,11 +269,11 @@ try {
       });
     };
     return coachReply({
-      chart:{...chart,records:[{title:'통근 기준',date:'2026-11-03'}]},
+      chart:{...chart,records:[{recordId:'linked-choice-1',title:'통근 기준',date:'2026-11-03'}]},
       messages:[{role:'user',text:'이직 제안을 받았어요'}]
     });
   })();
-  assert.deepEqual(cited.references,[{kind:'선택 기록',title:'통근 기준',date:'2026-11-03'}]);
+  assert.deepEqual(cited.references,[{kind:'선택 기록',title:'통근 기준',date:'2026-11-03',recordId:'linked-choice-1'}]);
   assert.doesNotMatch(cited.text, /<참고>/);
 
   // 첫 답변의 제목 누락은 같은 요청 안에서 형식 지시를 보강해 다시 생성한다.

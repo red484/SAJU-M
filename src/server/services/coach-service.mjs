@@ -54,7 +54,7 @@ function readChart(raw) {
     signals: list(raw.signals, 6, v => (v && str(v.name, 12) && Number.isFinite(v.count)
       ? { name: str(v.name, 12), count: Math.min(Math.max(v.count | 0, 0), 999) } : null)),
     records: list(raw.records, 3, v => (v && str(v.title, 60)
-      ? { title: str(v.title, 60), topic: str(v.topic, 12), expectation: str(v.expectation, 200), date: str(v.date, 10), action: str(v.action, 200), actual: str(v.actual, 200) } : null)),
+      ? { title: str(v.title, 60), recordId: str(v.recordId, 64), topic: str(v.topic, 12), expectation: str(v.expectation, 200), date: str(v.date, 10), action: str(v.action, 200), actual: str(v.actual, 200) } : null)),
     pastConversations: list(raw.pastConversations, 3, v => (v && str(v.excerpt, 200)
       ? { title: str(v.title, 60), date: str(v.date, 10), excerpt: str(v.excerpt, 200) } : null)),
     lastVisit: Number.isFinite(raw.lastVisit) ? Math.min(Math.max(raw.lastVisit | 0, 0), 3650) : null,
@@ -400,6 +400,12 @@ export function critique(raw, basis, turn = 1) {
 
 import { unrelatedQuestion, SCOPE_NOTICE } from '../../client/consultation-scope.js';
 
+const SUPPORT_GUIDANCE = new Map([
+  ['listen', '마음을 정리할 수 있도록 감정과 상황을 먼저 되짚고, 행동 제안은 부담 없는 성찰 질문으로 마무리하세요.'],
+  ['compare', '선택지와 사용자가 중요하게 보는 기준을 명확히 짚고, 비교에 필요한 정보 하나를 확인하세요.'],
+  ['action', '이미 정리된 조건을 토대로 사용자가 직접 해볼 작은 행동 하나를 구체적으로 제안하세요.']
+]);
+
 export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   const chart = readChart(rawChart);
   if (!chart) return { error: '명식 정보가 없습니다.', status: 400 };
@@ -432,7 +438,7 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   const citationRule = sources.length
     ? '\n보관함 자료는 현재 고민과 관련될 때만 참고하세요. 답변에서 실제로 언급한 자료가 있으면 마지막에 <참고>R1,C1</참고>처럼 해당 ID만 표시하세요. 참고한 자료가 없으면 태그를 생략하세요.'
     : '';
-  const base = [{ role: 'system', content: realtimeSystemPrompt(chart) + '\n첫 실질 답변은 “명리학 관점” 제목 바로 아래 첫 문장에서 사용자가 방금 말한 구체적인 상황이나 갈등을 짚으세요. 성향 해석은 그 다음 문장에서 시작하세요. 이미 밝힌 고민을 다시 묻지 말고, 아직 확인되지 않은 조건을 하나만 물으세요. <근거>에는 실제로 참고한 명리학 요소와 고민에 연결한 이유를 짧고 쉽게 적으세요. 명리학을 사용하지 않았다면 해석 없음이라고 적으세요.' + citationRule }, ...prior, ...history, ...turns];
+  const base = [{ role: 'system', content: realtimeSystemPrompt(chart) + '\n첫 실질 답변은 “명리학 관점” 제목 바로 아래 첫 문장에서 사용자가 방금 말한 구체적인 상황이나 갈등을 짚으세요. 성향 해석은 그 다음 문장에서 시작하세요. 이미 밝힌 고민을 다시 묻지 말고, 아직 확인되지 않은 조건을 하나만 물으세요. <근거>에는 실제로 참고한 명리학 요소와 고민에 연결한 이유를 짧고 쉽게 적으세요. 명리학을 사용하지 않았다면 해석 없음이라고 적으세요.' + citationRule + (SUPPORT_GUIDANCE.has(rawChart.supportMode) ? '\n이번 상담에서 요청한 도움: ' + SUPPORT_GUIDANCE.get(rawChart.supportMode) : '') }, ...prior, ...history, ...turns];
   // 모바일 상담은 첫 응답 시간을 우선합니다. 규칙 답은 이미 화면에 있으므로
   // AI가 20초 안에 끝내지 못하면 즉시 폴백을 유지합니다.
   const deadlineAt = Date.now() + 20_000;
@@ -473,7 +479,7 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
     return '';
   });
   const references = sources.filter(source => cited.has(source.id))
-    .map(({kind, title, date}) => ({kind, title, date}));
+    .map(({kind, title, date, recordId}) => ({kind, title, date, ...(recordId ? {recordId} : {})}));
   // 모델이 붙인 기록 제안 블록을 본문에서 떼어내 구조화합니다. 형식이
   // 어긋나면 조용히 버립니다 — 본문은 그대로 읽히므로 손해가 없습니다.
   let offer = null;
