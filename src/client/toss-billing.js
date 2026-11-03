@@ -65,7 +65,7 @@ const getClient = () => clientPromise ||= import('@apps-in-toss/web-framework')
   .then(({ IAP }) => createTossPurchaseClient({ iap: IAP }))
   .catch(error => { clientPromise = null; throw error; });
 
-export function installTossBilling({ page, user, openModal, notice, onChanged, resume }) {
+export function installTossBilling({ page, user, openModal, notice, onChanged, resume, quota: allowance }) {
   async function restore(silent = false) {
     if (busy || !user) return;
     busy = true;
@@ -118,9 +118,28 @@ export function installTossBilling({ page, user, openModal, notice, onChanged, r
     const button = document.createElement('button'); button.type = 'button'; button.className = 'subscription-inline';
     button.textContent = '상담 이용권 구매'; button.onclick = overview; quota.append(button);
   }
-  if (page === 'settings' && !document.querySelector('.subscription-card')) {
+  if (page === 'settings') {
+    document.querySelector('.subscription-card')?.remove();
     const card = document.createElement('section'); card.className = 'card subscription-card';
     card.innerHTML = `<h2>삶의 온기 상담 이용권</h2><p>AI 상담 ${TOSS_PRODUCT.answers}회 · 구매 후 ${TOSS_PRODUCT.days}일 · 1회 결제</p><button class="secondary">이용권 구매 및 복원</button>`;
+    const dates = new Map();
+    const format = new Intl.DateTimeFormat('ko-KR', {timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric'});
+    for (const pack of allowance?.paidPacks || []) {
+      const date = new Date(pack.expiresAt);
+      if (!Number.isFinite(date.getTime()) || !Number.isFinite(pack.remaining)) continue;
+      const label = format.format(date);
+      dates.set(label, (dates.get(label) || 0) + pack.remaining);
+    }
+    if (dates.size) {
+      const list = document.createElement('ul');
+      list.setAttribute('aria-label','만료일별 잔여 상담');
+      for (const [date, remaining] of dates) {
+        const item = document.createElement('li');
+        item.textContent = `${date} 만료 · ${remaining}회 남음`;
+        list.append(item);
+      }
+      card.querySelector('button').before(list);
+    }
     card.querySelector('button').onclick = overview; document.querySelector('main')?.append(card);
   }
 }

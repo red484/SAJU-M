@@ -53,6 +53,8 @@ test('Postgres: exact account, idempotent grant, consumption, rollback, expiry, 
     const initialQuota = await quota.status(user);
     assert.equal(initialQuota.remaining, 55);
     assert.ok(new Date(initialQuota.paidNextExpiry).getTime() > Date.now());
+    assert.equal(initialQuota.paidPacks.length, 1);
+    assert.equal(initialQuota.paidPacks[0].remaining, 50);
     const answer = async () => ({ text: '정상 답변', source: 'cafe24' });
     const payload = i => ({ requestId: 'question-' + i, messages: [{ role: 'user', text: '질문' + i }] });
     for (let i = 0; i < 7; i++) await quota.run(user, payload(i), answer);
@@ -68,6 +70,7 @@ test('Postgres: exact account, idempotent grant, consumption, rollback, expiry, 
     assert.equal((await quota.run(user, payload(8), answer)).code, 'COACH_LIMIT_REACHED');
     assert.equal((await quota.status(user)).remaining, 0);
     assert.equal((await quota.status(user)).paidNextExpiry, null);
+    assert.deepEqual((await quota.status(user)).paidPacks, []);
     status = 'PAYMENT_COMPLETED';
     await billing.grant(user, 'test-order-inflight');
     const refundedDuringAnswer = await quota.run(user, payload(9), async () => {
@@ -82,6 +85,13 @@ test('Postgres: exact account, idempotent grant, consumption, rollback, expiry, 
     await query("UPDATE toss_coach_orders SET expires_at=now()-interval '1 day' WHERE order_id='test-order-456'");
     assert.equal((await quota.status(user)).remaining, 0);
     await billing.grant(user, 'test-order-456'); assert.equal((await quota.status(user)).remaining, 0);
+    await billing.grant(user, 'test-order-pack-a');
+    await billing.grant(user, 'test-order-pack-b');
+    await query("UPDATE toss_coach_orders SET expires_at=now()+interval '1 day', used=42 WHERE order_id='test-order-pack-a'");
+    const packs = await quota.status(user);
+    assert.equal(packs.paidRemaining, 58);
+    assert.deepEqual(packs.paidPacks.map(pack => pack.remaining), [8, 50]);
+    assert.equal(new Date(packs.paidPacks[0].expiresAt).getTime(), new Date(packs.paidNextExpiry).getTime());
     await query('DELETE FROM app_users WHERE id=$1', [user]);
     assert.equal((await query('SELECT user_id FROM toss_coach_orders LIMIT 1')).rows[0].user_id, null);
     assert.ok(calls > 5);

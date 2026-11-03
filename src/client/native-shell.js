@@ -15,9 +15,9 @@ let started = false;
 // Re-creates the review reminders from the current records. Permission is asked
 // only once there is something to remind about, i.e. right after the first save.
 export async function syncReviewReminders(records) {
-  if (!nativeApp || !noteMode) return;
+  if (!nativeApp) return;
   try {
-    const wanted = reviewReminders(records);
+    const wanted = reviewReminders(noteMode ? records : records.filter(record => record.reviewReminder));
     const { notifications: pending } = await LocalNotifications.getPending();
     if (pending.length) await LocalNotifications.cancel({ notifications: pending.map(({ id }) => ({ id })) });
     if (!wanted.length) return;
