@@ -13,7 +13,7 @@ import {getJournal,putJournal,deleteJournal} from './api/journal.js';
 import {coachStatus,requestCoachWithRetry} from './api/readings.js';
 import {unrelatedQuestion,SCOPE_NOTICE} from './consultation-scope.js';
 import {authProviders,currentUser,logout,deleteAccount,loginUrl,loginWithToss,clearTossLogin,isAppsInToss} from './api/auth.js';
-import {nativeApp,noteMode,APP_NAME,setupNativeShell,shareNativeFile,syncReviewReminders} from './native-shell.js';
+import {nativeApp,noteMode,APP_NAME,setupNativeShell,shareNativeFile,syncReviewReminders,reviewReminderEnabled,setReviewReminder,reviewReminderStatus} from './native-shell.js';
 import {NOTE_PAGES} from './app-mode.js';
 // The 만세력 tables are ~323KB of the bundle and are not needed until a chart
 // is actually cast, so engine.js loads on demand. E is null until then.
@@ -27,15 +27,43 @@ const ENGINE_PAGES=['result','chat','choice','records'];
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let data={profile:null,records:[],conversations:[],savedAnswers:[]},revision=0,result=null,page=new URLSearchParams(location.search).get('onboarding')==='1'?'birth':location.pathname==='/settings'?'settings':'welcome',loaded=false,saveState='loading',activeConversation=null,month=now().toFormat('yyyy-MM'),selectedDate=now().toISODate(),recordFilter='all',pendingProfile=null,saveQueue=Promise.resolve(),generation=0;
 const concernDraftKey = 'ongi-concern-draft';
-function readConcernDraft() {
- try { return sessionStorage.getItem(concernDraftKey) || ''; } catch { return ''; }
+const drafts = new Map();
+function draftKey(id) { return id ? concernDraftKey + ':' + id : concernDraftKey; }
+function readConcernDraft(id) {
+ const key=draftKey(id);
+ if(drafts.has(key))return drafts.get(key);
+ try { return sessionStorage.getItem(key) || ''; } catch { return ''; }
+}
+function writeDraft(id,value) {
+ const key=draftKey(id);
+ drafts.set(key,value);
+ try {
+  if(value)sessionStorage.setItem(key,value);
+  else sessionStorage.removeItem(key);
+ }catch{ /* The in-memory draft remains available. */ }
 }
 function setChatDraft(value) {
- chatDraft = value;
+ chatDraft=value;
+ writeDraft(activeConversation,value);
+}
+function selectConversation(id, adoptDraft=false) {
+ const initial=adoptDraft&&!activeConversation?readConcernDraft(null):'';
+ activeConversation=id;
+ chatDraft=readConcernDraft(id);
+ if(id&&initial&&!chatDraft){
+  setChatDraft(initial);
+  writeDraft(null,'');
+ }
+}
+function clearDrafts() {
+ drafts.clear();
  try {
-  if (value) sessionStorage.setItem(concernDraftKey, value);
-  else sessionStorage.removeItem(concernDraftKey);
- } catch { /* In-memory draft still works within this page. */ }
+  for(const key of Object.keys(sessionStorage)){
+   if(key===concernDraftKey||key.startsWith(concernDraftKey+':'))sessionStorage.removeItem(key);
+  }
+ }catch{ /* Storage may be unavailable. */ }
+ activeConversation=null;
+ chatDraft='';
 }
 let savedBaseline=null,saveError='',chatDraft=noteMode?'':readConcernDraft(),chatScroll=null,openOnLoad=null;
 let coachQuota=null,coachLoginRequired=true,quotaChecking=false;
@@ -133,7 +161,7 @@ function resultPage(){
  <section class="block"><h2 class="block-title">상담에서 다룰 주제</h2>${p().topics.map(t=>`<button class="secondary" data-topic-chat="${t}">${t} 이야기하기</button>`).join('')}</section>
  <details class="card"><summary>명리학 해석 근거</summary>${basis()}</details>`;
 }
-function currentConversation(){let c=ct();if(!c&&p()){c={id:uid(),created:new Date().toISOString(),profileKey:profileKey(),profileName:p().name,topic:p().topics[0],context:null,messages:[{id:uid(),role:'assistant',text:`안녕하세요${named()?`, ${named()}님`:''}. 온기입니다.\n명리학을 참고해 지금의 고민을 함께 살펴볼게요. 어떤 선택을 고민하고 계신가요?`,at:new Date().toISOString()}]};data.conversations.push(c);activeConversation=c.id;}return c;}
+function currentConversation(){let c=ct();if(!c&&p()){c={id:uid(),created:new Date().toISOString(),profileKey:profileKey(),profileName:p().name,topic:p().topics[0],context:null,messages:[{id:uid(),role:'assistant',text:`안녕하세요${named()?`, ${named()}님`:''}. 온기입니다.\n명리학을 참고해 지금의 고민을 함께 살펴볼게요. 어떤 선택을 고민하고 계신가요?`,at:new Date().toISOString()}]};data.conversations.push(c);selectConversation(c.id,true);if(loaded)persist();}return c;}
 function profileKey(){return JSON.stringify([p()?.birth,p()?.time,p()?.zone,p()?.calendar,p()?.unknown,p()?.clock,p()?.longitude]);}
 function chatPanel(){const c=currentConversation(),attached=data.records.find(r=>r.id===c?.attachedRecordId);return `<section class="chat-panel"><div class="mentor"><img src="/assets/ongi.svg" alt=""><div><h2>온기</h2><span>${aiCoach?'명리학 기반 AI 인생 상담':'문맥을 이어가는 체험 코칭'}</span></div><button class="plain" data-action="chat-history">이전 상담</button></div><p class="chat-note">${coachLoginRequired?'상담은 로그인 후 무료 5회 이용할 수 있어요. 로그인 전에는 메시지를 보낼 수 없습니다. 사람 상담사가 아니며, 건강·투자·법률 판단은 해당 전문가에게 확인해 주세요.':aiCoach?'명리학 해석과 대화 내용을 참고해 답합니다. 사람 상담사가 아니며, 건강·투자·법률 판단은 해당 전문가에게 확인해 주세요.':'AI·전문 상담사와의 실시간 대화가 아닙니다. 명리학 해석과 입력한 상황을 활용한 규칙 기반 코칭이며, 건강·투자·법률 판단은 해당 전문가에게 확인해 주세요.'}</p><div class="messages" role="log" aria-live="polite">${(()=>{const picked=capturedIds();return (c?.messages||[]).map(m=>capturing?`<article class="message ${m.role} pickable${picked.includes(m.id)?' picked':''}"><button class="pick" data-pick="${m.id}" aria-pressed="${picked.includes(m.id)}"><span class="tick" aria-hidden="true"></span><span class="bubble">${esc(m.text)}</span></button></article>`:`<article class="message ${m.role}${m.streaming?' composing':''}"><div class="bubble">${esc(m.text)}</div>${m.role==='assistant'&&m.references?.length?`<details class="answer-basis"><summary>참고한 지난 기록</summary><ul>${m.references.map(ref=>`<li>${esc(ref.kind)} · ${esc(ref.date)} · ${esc(ref.title)}${data.records.some(r=>r.id===ref.recordId)?` <button class="plain" data-record="${esc(ref.recordId)}">기록 열기</button>`:''}</li>`).join('')}</ul></details>`:''}${m.role==='assistant'&&m.basis?`<details class="answer-basis"><summary>명리학 해석 근거</summary><p>${esc(m.basis)}</p></details>`:''}${m.role==='assistant'?`<div class="answer-tools"><time>${DateTime.fromISO(m.at).toFormat('HH:mm')}</time>${m.streaming?'<span class="ai-working" role="status"><span aria-hidden="true"></span>답변을 다듬고 있어요</span>':`<button data-copy="${m.id}">복사</button><button data-save-answer="${m.id}">${data.savedAnswers.some(a=>a.messageId===m.id)?'저장됨':'저장'}</button>`}</div>`:`<time>${DateTime.fromISO(m.at).toFormat('HH:mm')}</time>`}</article>`).join('');})()}</div>${capturing?(()=>{const n=capturedIds().length,off=n?'':' disabled';return `<div class="capture-bar"><div class="capture-guide"><span>${captureGuide()}</span><button class="plain" data-capture="reset"${off}>선택 해제</button></div><div class="capture-acts">${canCopyImage()?`<button data-capture="copy"${off}>복사</button>`:''}${canShareFiles()?`<button data-capture="share"${off}>공유</button>`:''}<button data-capture="save"${off}>저장</button><button class="plain" data-capture="cancel">취소</button></div></div>`;})():''}${(()=>{const cold=(c?.messages||[]).length<2;
  const chips=`<div class="quick-topics">${p().topics.map(t=>`<button data-quick="${t} 고민이 있어요">${t} 이야기</button>`).join('')}</div>`;
@@ -147,7 +175,7 @@ function criteriaLabelField(value=''){
  <datalist id="criteria-labels">${labels.map(label=>`<option value="${esc(label)}"></option>`).join('')}</datalist>`;
 }
 function reminderField(record={}){
- return nativeApp&&!noteMode?`<label class="check"><input type="checkbox" name="reviewReminder" ${record.reviewReminder?'checked':''}>회고일 저녁 8시에 이 기기로 알림 받기</label>`:'';
+ return nativeApp&&!noteMode?`<label class="check"><input type="checkbox" name="reviewReminder" ${reviewReminderEnabled(record.id)?'checked':''}>회고일 저녁 8시에 이 기기로 알림 받기</label>`:'';
 }
 function choiceSummary(record){
  return `<section class="card choice-summary"><h3>선택 한 장 요약</h3><dl>
@@ -155,6 +183,7 @@ function choiceSummary(record){
  <dt>해볼 행동</dt><dd>${esc(record.nextAction||'아직 정하지 않았어요.')}</dd>
  <dt>돌아볼 날짜</dt><dd>${record.due?dateLabel(record.due):'아직 정하지 않았어요.'}</dd>
  ${record.advice?`<dt>당시 참고한 조언</dt><dd>${esc(record.advice)}</dd>`:''}
+ ${record.reviewProgress?`<dt>행동 상태</dt><dd>${esc(quickReviewStates[record.reviewProgress])}</dd>`:''}
  ${record.actual?`<dt>실제로 확인한 결과</dt><dd>${esc(record.actual)}</dd>`:''}</dl></section>`;
 }
 function repeatedCriteria(records){
@@ -172,6 +201,46 @@ function repeatedCriteria(records){
  ${recurring.map(group=>`<p><b>${esc(group.criteria)}</b> · ${esc(group.records[0].topic)} ${group.records.length}건</p>
  ${group.records.map(record=>`<button class="text-link" data-record="${esc(record.id)}">${esc(record.title)}</button>`).join(' ')}`).join('')}</section>`;
 }
+const quickReviewStates={done:'해봤어요',waiting:'아직이에요',changed:'계획을 바꿨어요'};
+function quickReview(record){
+ openModal(`<h2>1분 회고</h2><p>${esc(record.title)}</p><form id="quick-review">
+ <label>어떻게 됐나요?<select name="progress">${Object.entries(quickReviewStates).map(([value,label])=>`<option value="${value}" ${record.reviewProgress===value?'selected':''}>${label}</option>`).join('')}</select></label>
+ <label>결과 한 줄<textarea name="actual" maxlength="1500" rows="2">${esc(record.actual||'')}</textarea></label>
+ <button class="primary">회고 저장하기</button></form>`);
+ const form=$('#quick-review');
+ form.onsubmit=async event=>{
+  event.preventDefault();
+  form.querySelector('button').disabled=true;
+  const fields=new FormData(form);
+  record.reviewProgress=fields.get('progress');
+  record.actual=String(fields.get('actual')).trim();
+  record.result=record.reviewProgress==='waiting'?'pending':record.reviewProgress==='changed'?'rethink':['pending','rethink'].includes(record.result)?'neutral':record.result;
+  const saved=await persist();
+  if(!form.isConnected)return;
+  if(saved){render();recordDetail(record.id);}
+  else form.querySelector('button').disabled=false;
+ };
+}
+function compareChoices(){
+ const options=data.records.map(r=>`<option value="${esc(r.id)}">${dateLabel(r.date)} · ${esc(r.title)}</option>`).join('');
+ openModal(`<h2>두 선택 비교</h2><form id="compare-choices">
+ <label>첫 번째 선택<select name="left" required><option value="">기록 선택</option>${options}</select></label>
+ <label>두 번째 선택<select name="right" required><option value="">기록 선택</option>${options}</select></label>
+ <p class="form-error" role="alert" hidden></p><button class="primary">비교하기</button></form><div id="choice-comparison"></div>`);
+ const form=$('#compare-choices');
+ form.onsubmit=event=>{
+  event.preventDefault();
+  const [left,right]=['left','right'].map(side=>data.records.find(r=>r.id===form.elements[side].value));
+  const output=$('#choice-comparison');
+  output.innerHTML='';
+  if(!left||!right||left===right)return fieldError(form,'right','서로 다른 기록 두 개를 골라 주세요.');
+  form.querySelector('.form-error').hidden=true;
+  form.elements.right.removeAttribute('aria-invalid');
+  output.innerHTML=`<div class="compare">${[left,right].map(record=>`<section><h3>${esc(record.title)}</h3>${choiceSummary(record)}
+   <button class="text-link" data-record="${esc(record.id)}">원본 기록 열기</button></section>`).join('')}</div>`;
+  bind(output);
+ };
+}
 function dueReviews(){
  const due=data.records.filter(r=>r.result==='pending'&&r.due&&r.due<=today()).sort((a,b)=>a.due.localeCompare(b.due));
  if(!due.length)return '';
@@ -179,7 +248,7 @@ function dueReviews(){
  <b>${esc(r.title)}</b><span>회고일 ${dateLabel(r.due)}</span>${r.expectation?`<span>선택 기준 · ${esc(r.expectation)}</span>`:''}
  ${r.nextAction?`<span>해볼 행동 · ${esc(r.nextAction)}</span>`:''}${r.actual?`<span>실제 결과 · ${esc(r.actual)}</span>`:''}</button>`).join('')}</section>`;
 }
-function recordsPage(){const m=E.monthly(data.records,month),filtered=m.list.filter(r=>recordFilter==='all'||(recordFilter==='pending'?r.result==='pending':r.result!=='pending'));const days=DateTime.fromISO(month+'-01').daysInMonth,offset=DateTime.fromISO(month+'-01').weekday%7;return `<div class="section-top"><div><p class="eyebrow">선택이 쌓이면, 나의 기준이 됩니다</p><h1>나의 기록</h1></div><button class="plain" data-nav="choice">새 기록</button></div>${dueReviews()}${noteMode?'':repeatedCriteria(data.records)}<div class="month-nav"><button data-month="-1" aria-label="이전 달">‹</button><h2>${month.replace('-','년 ')}월</h2><button data-month="1" aria-label="다음 달">›</button></div><section class="card"><div class="calendar">${['일','월','화','수','목','금','토'].map(v=>`<span>${v}</span>`).join('')}${Array.from({length:offset},()=>'<span></span>').join('')}${Array.from({length:days},(_,i)=>{const day=month+'-'+String(i+1).padStart(2,'0'),n=m.list.filter(r=>r.date===day).length;return `<button data-day="${day}" class="${n?'has-record':''}" aria-label="${dateLabel(day)}, 기록 ${n}개">${i+1}${n?`<small>${n}</small>`:''}</button>`;}).join('')}</div></section><section class="card"><span class="eyebrow">이번 달 돌아보기</span><div class="stats"><div><b>${m.list.length}</b><span>선택 기록</span></div><div><b>${m.done.length}</b><span>결과 기록</span></div><div><b>${m.list.filter(r=>r.mood).length}</b><span>감정 기록</span></div></div><p>${m.insight}</p>${Object.keys(m.moods).length?`<div class="mood-summary">${Object.entries(m.moods).map(([k,v])=>`<span>${esc(k)} ${v}회</span>`).join('')}</div>`:'<p class="hint">결과를 남길 때 감정도 함께 선택해보세요.</p>'}</section><div class="filters">${[['all','전체'],['pending','돌아볼 선택'],['done','결과 남김']].map(([id,label])=>`<button data-filter="${id}" aria-pressed="${recordFilter===id}">${label}</button>`).join('')}</div>${filtered.length?filtered.sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<button class="record-row card" data-record="${r.id}"><span class="eyebrow">${dateLabel(r.date)} · ${esc(r.topic)}</span><h3>${esc(r.title)}</h3><p>${r.result==='pending'?`${dateLabel(r.due)}에 돌아보기`:resultLabel(r.result)} · 당시 마음 ${confidenceLabel(r.confidence)}</p></button>`).join(''):'<div class="empty"><h3>아직 이 달의 기록이 없어요.</h3><p>큰 결정이 아니어도 좋아요. 오늘의 작은 선택부터 남겨보세요.</p><button class="secondary" data-nav="choice">첫 선택 기록하기</button></div>'}`;}
+function recordsPage(){const m=E.monthly(data.records,month),filtered=m.list.filter(r=>recordFilter==='all'||(recordFilter==='pending'?r.result==='pending':r.result!=='pending'));const days=DateTime.fromISO(month+'-01').daysInMonth,offset=DateTime.fromISO(month+'-01').weekday%7;return `<div class="section-top"><div><p class="eyebrow">선택이 쌓이면, 나의 기준이 됩니다</p><h1>나의 기록</h1></div><button class="plain" data-nav="choice">새 기록</button></div>${!noteMode&&data.records.length>=2?'<button class="secondary" data-compare-choices>두 선택 비교</button>':''}${dueReviews()}${noteMode?'':repeatedCriteria(data.records)}<div class="month-nav"><button data-month="-1" aria-label="이전 달">‹</button><h2>${month.replace('-','년 ')}월</h2><button data-month="1" aria-label="다음 달">›</button></div><section class="card"><div class="calendar">${['일','월','화','수','목','금','토'].map(v=>`<span>${v}</span>`).join('')}${Array.from({length:offset},()=>'<span></span>').join('')}${Array.from({length:days},(_,i)=>{const day=month+'-'+String(i+1).padStart(2,'0'),n=m.list.filter(r=>r.date===day).length;return `<button data-day="${day}" class="${n?'has-record':''}" aria-label="${dateLabel(day)}, 기록 ${n}개">${i+1}${n?`<small>${n}</small>`:''}</button>`;}).join('')}</div></section><section class="card"><span class="eyebrow">이번 달 돌아보기</span><div class="stats"><div><b>${m.list.length}</b><span>선택 기록</span></div><div><b>${m.done.length}</b><span>결과 기록</span></div><div><b>${m.list.filter(r=>r.mood).length}</b><span>감정 기록</span></div></div><p>${m.insight}</p>${Object.keys(m.moods).length?`<div class="mood-summary">${Object.entries(m.moods).map(([k,v])=>`<span>${esc(k)} ${v}회</span>`).join('')}</div>`:'<p class="hint">결과를 남길 때 감정도 함께 선택해보세요.</p>'}</section><div class="filters">${[['all','전체'],['pending','돌아볼 선택'],['done','결과 남김']].map(([id,label])=>`<button data-filter="${id}" aria-pressed="${recordFilter===id}">${label}</button>`).join('')}</div>${filtered.length?filtered.sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<button class="record-row card" data-record="${r.id}"><span class="eyebrow">${dateLabel(r.date)} · ${esc(r.topic)}</span><h3>${esc(r.title)}</h3><p>${r.result==='pending'?`${dateLabel(r.due)}에 돌아보기`:resultLabel(r.result)} · 당시 마음 ${confidenceLabel(r.confidence)}</p></button>`).join(''):'<div class="empty"><h3>아직 이 달의 기록이 없어요.</h3><p>큰 결정이 아니어도 좋아요. 오늘의 작은 선택부터 남겨보세요.</p><button class="secondary" data-nav="choice">첫 선택 기록하기</button></div>'}`;}
 const confidenceLabel=v=>CONFIDENCE.reduce((a,b)=>Math.abs(b[0]-v)<Math.abs(a[0]-v)?b:a)[1];
 const resultLabel=v=>({pending:'아직 결과를 기다려요',good:'만족스러운 결과',neutral:'아직 판단하기 어려워요',rethink:'다르게 선택하고 싶어요'}[v]||'결과 미상');
 function settingsPage(){
@@ -214,34 +283,39 @@ function chooseHistory(onConfirm, showTemplate=false) {
   onConfirm(preferences,form.elements.mode.value,form.elements.template?.value);
  };
 }
-function startConversation(topic, recordId) {
+function startConversation(topic, recordId, initialDraft) {
  chooseHistory((preferences,mode,template)=>{
-  activeConversation=null;
+  selectConversation(null);
   const conversation=currentConversation();
   conversation.historyPreferences=preferences;
   conversation.supportMode=mode;
   const starter=consultationTemplates[template];
   if(topic||starter?.[0])conversation.topic=topic||starter[0];
-  if(starter&&!chatDraft.trim())setChatDraft(starter[1]);
+  if(initialDraft)setChatDraft(initialDraft);
+  else if(starter&&!chatDraft.trim())setChatDraft(starter[1]);
   if(recordId)conversation.attachedRecordId=recordId;
   nav('chat');
   persist();
- },!recordId&&!chatDraft.trim());
+ },!recordId);
 }
 
 function chatHistoryModal(){
  const conversations=data.conversations.slice().reverse();
  openModal(`<h2>이전 상담 이어가기</h2><button class="secondary" id="new-chat">새 상담 시작하기</button><div class="conversation-list">${conversations.length?conversations.map(c=>`<div class="conversation-row"><button class="record-row" data-conversation="${c.id}"><b>${esc(c.profileName)} · ${esc(c.topic||'상담')}</b><span>${dateLabel(c.created.slice(0,10))} · ${c.messages.length}개 메시지 ${c.profileKey!==profileKey()?'· 이전 프로필 (읽기 전용)':''}</span></button><button class="conversation-delete" data-delete-conversation="${c.id}" aria-label="${esc(c.profileName)}의 ${esc(c.topic||'상담')} 상담 삭제">삭제</button></div>`).join(''):'<p class="muted">아직 저장된 상담이 없어요.</p>'}</div>`);
  $('#new-chat').onclick=()=>startConversation();
- document.querySelectorAll('[data-conversation]').forEach(b=>b.onclick=()=>{activeConversation=b.dataset.conversation;$('#modal').close();render();});
+ document.querySelectorAll('[data-conversation]').forEach(b=>b.onclick=()=>{selectConversation(b.dataset.conversation);$('#modal').close();render();});
  document.querySelectorAll('[data-delete-conversation]').forEach(b=>b.onclick=()=>{
   const id=b.dataset.deleteConversation,c=data.conversations.find(v=>v.id===id);if(!c)return;
   openModal(`<h2>이 상담을 삭제할까요?</h2><p>${dateLabel(c.created.slice(0,10))}의 ${esc(c.topic||'상담')} 대화가 모두 삭제되며 복구할 수 없어요. 따로 저장한 상담 답변은 보관함에 남습니다.</p><button class="danger" id="confirm-delete-conversation">상담 삭제</button><button class="secondary" id="cancel-delete-conversation">취소</button>`);
   $('#cancel-delete-conversation').onclick=chatHistoryModal;
-  $('#confirm-delete-conversation').onclick=async()=>{data.conversations=data.conversations.filter(v=>v.id!==id);if(activeConversation===id)activeConversation=null;await persist();$('#modal').close();render();notice('상담을 삭제했어요.');};
+  $('#confirm-delete-conversation').onclick=async()=>{data.conversations=data.conversations.filter(v=>v.id!==id);writeDraft(id,'');if(activeConversation===id)selectConversation(null);await persist();$('#modal').close();render();notice('상담을 삭제했어요.');};
  });
 }
-function recordDetail(id){const r=data.records.find(r=>r.id===id);if(!r)return;const linked=!noteMode&&data.conversations.find(c=>c.id===r.conversationId);openModal(`<p class="eyebrow">${dateLabel(r.date)}의 선택</p><h2>${esc(r.title)}</h2>${!noteMode?choiceSummary(r):`<section class="compare"><div><span>선택 당시</span><p>${esc(r.expectation||'예상을 남기지 않았어요.')}</p><small>확신 ${r.confidence} / 100</small></div>${r.conversationId?`<div><span>해볼 행동</span><p>${esc(r.nextAction||'아직 정하지 않았어요.')}</p></div>`:noteMode?'':`<div><span>그날의 해석</span><p>${esc(r.advice||'이전 버전의 기록입니다.')}</p></div>`}</section>`}<form id="edit-record" data-id="${id}"><label>선택 제목<input name="title" maxlength="100" value="${esc(r.title)}" required></label>${r.conversationId?`<label>선택 기준<textarea name="criteria" maxlength="1000">${esc(r.expectation)}</textarea></label><label>해볼 행동<textarea name="action" maxlength="1000">${esc(r.nextAction)}</textarea></label>`:''}${noteMode?'':criteriaLabelField(r.criteriaLabel)}<label>실제 결과<select name="result">${['pending','good','neutral','rethink'].map(v=>`<option value="${v}" ${r.result===v?'selected':''}>${resultLabel(v)}</option>`).join('')}</select></label><label>돌아본 마음<select name="mood"><option value="">아직 선택하지 않음</option>${['기뻐요','편안해요','보통이에요','아쉬워요','속상해요'].map(v=>`<option ${r.mood===v?'selected':''}>${v}</option>`).join('')}</select></label><label>예상과 실제는 어떻게 달랐나요?<textarea name="actual" maxlength="1500">${esc(r.actual||'')}</textarea></label><label>회고 날짜<input type="date" name="due" value="${r.due}"></label>${reminderField(r)}<div class="form-error" role="alert" hidden></div><button class="primary">수정 내용 저장</button></form>${!noteMode?`<button class="secondary" id="continue-review">${linked?'이 선택 다시 이야기하기':'이 기록으로 새 상담 시작하기'}</button><button class="plain" id="attach-record">이번 상담에 이 기록 첨부</button>`:''}<button class="secondary" data-calendar="${id}">회고 일정 캘린더에 등록하기</button><p class="hint">캘린더 파일을 가져와야 일정·알림이 등록됩니다. 알림 허용 여부는 캘린더 앱에서 확인하세요.</p><button class="danger" data-delete-record="${id}">이 기록 삭제</button>`);
+function recordDetail(id){const r=data.records.find(r=>r.id===id);if(!r)return;const linked=!noteMode&&data.conversations.find(c=>c.id===r.conversationId);openModal(`<p class="eyebrow">${dateLabel(r.date)}의 선택</p><h2>${esc(r.title)}</h2>${!noteMode?choiceSummary(r):`<section class="compare"><div><span>선택 당시</span><p>${esc(r.expectation||'예상을 남기지 않았어요.')}</p><small>확신 ${r.confidence} / 100</small></div>${r.conversationId?`<div><span>해볼 행동</span><p>${esc(r.nextAction||'아직 정하지 않았어요.')}</p></div>`:noteMode?'':`<div><span>그날의 해석</span><p>${esc(r.advice||'이전 버전의 기록입니다.')}</p></div>`}</section>`}<form id="edit-record" data-id="${id}"><label>선택 제목<input name="title" maxlength="100" value="${esc(r.title)}" required></label>${r.conversationId?`<label>선택 기준<textarea name="criteria" maxlength="1000">${esc(r.expectation)}</textarea></label><label>해볼 행동<textarea name="action" maxlength="1000">${esc(r.nextAction)}</textarea></label>`:''}${noteMode?'':criteriaLabelField(r.criteriaLabel)}<label>실제 결과<select name="result">${['pending','good','neutral','rethink'].map(v=>`<option value="${v}" ${r.result===v?'selected':''}>${resultLabel(v)}</option>`).join('')}</select></label><label>돌아본 마음<select name="mood"><option value="">아직 선택하지 않음</option>${['기뻐요','편안해요','보통이에요','아쉬워요','속상해요'].map(v=>`<option ${r.mood===v?'selected':''}>${v}</option>`).join('')}</select></label><label>예상과 실제는 어떻게 달랐나요?<textarea name="actual" maxlength="1500">${esc(r.actual||'')}</textarea></label><label>회고 날짜<input type="date" name="due" value="${r.due}"></label>${reminderField(r)}${nativeApp&&!noteMode?'<p id="review-reminder-status" class="hint" role="status"></p>':''}<div class="form-error" role="alert" hidden></div><button class="primary">수정 내용 저장</button></form>${!noteMode?`<button class="secondary" id="quick-review-open">1분 회고</button><button class="secondary" id="continue-review">${linked?'이 선택 다시 이야기하기':'이 기록으로 새 상담 시작하기'}</button><button class="plain" id="attach-record">이번 상담에 이 기록 첨부</button>`:''}<button class="secondary" data-calendar="${id}">회고 일정 캘린더에 등록하기</button><p class="hint">캘린더 파일을 가져와야 일정·알림이 등록됩니다. 알림 허용 여부는 캘린더 앱에서 확인하세요.</p><button class="danger" data-delete-record="${id}">이 기록 삭제</button>`);
+ const quick=$('#quick-review-open');
+ if(quick)quick.onclick=()=>quickReview(r);
+ const reminder=$('#review-reminder-status');
+ if(reminder)void reviewReminderStatus(r).then(status=>{reminder.textContent=status;});
  const attach=$('#attach-record');
  if(attach)attach.onclick=async()=>{
   const current=ct();
@@ -257,17 +331,17 @@ function recordDetail(id){const r=data.records.find(r=>r.id===id);if(!r)return;c
  if(resume)resume.onclick=async()=>{
   const draft=[`“${r.title}” 선택을 돌아보고 싶어요.`,r.actual&&`실제로는: ${r.actual}`,
    r.expectation&&`선택 기준: ${r.expectation}`,r.nextAction&&`해볼 행동: ${r.nextAction}`].filter(Boolean).join('\n');
-  if(chatDraft.trim()&&!window.confirm('현재 작성 중인 초안을 회고 메시지로 바꿀까요?'))return;
+  if(linked&&readConcernDraft(linked.id).trim()&&!window.confirm('이 상담의 초안을 회고 메시지로 바꿀까요?'))return;
   if(linked&&linked.profileKey!==profileKey()&&!window.confirm('현재 프로필로 이 상담을 이어갈까요? 다음 답변부터 수정한 출생 정보를 사용합니다.'))return;
-  setChatDraft(draft.slice(0,1500));
-  if(!linked){startConversation(r.topic,r.id);return;}
+  if(!linked){startConversation(r.topic,r.id,draft.slice(0,1500));return;}
   if(linked.profileKey!==profileKey()){
    linked.profileKey=profileKey();
    linked.profileName=p().name;
    linked.context=null;
    linked.offer=null;
   }
-  activeConversation=linked.id;
+  selectConversation(linked.id);
+  setChatDraft(draft.slice(0,1500));
   linked.attachedRecordId=r.id;
   $('#modal').close();
   await nav('chat');persist();focusChat();
@@ -289,6 +363,7 @@ function calendarFile(id){const r=data.records.find(v=>v.id===id),date=DateTime.
 function getMessage(id){return data.conversations.flatMap(c=>c.messages).find(m=>m.id===id);}
 function exportText(){return [`${APP_NAME} 개인 보관함`,JSON.stringify(p(),null,2),'\n선택 기록',...data.records.map(r=>`${r.date} ${r.title}\n예상: ${r.expectation}\n결과: ${resultLabel(r.result)}\n회고: ${r.actual||''}`),'\n상담',...data.conversations.map(c=>c.messages.map(m=>`${m.role==='user'?'나':'온기'} (${m.at})\n${m.text}`).join('\n\n')),'\n저장한 답변',...data.savedAnswers.map(a=>a.text)].join('\n\n');}
 function bind(root=document){
+ root.querySelector('[data-compare-choices]')?.addEventListener('click',compareChoices);
  root.querySelector('[data-consultation-preview]')?.addEventListener('click',consultationPreview);
  root.querySelector('[data-detach-record]')?.addEventListener('click',()=>{delete ct().attachedRecordId;persist();render();});
  root.querySelector('[data-review-offer]')?.addEventListener('click',()=>reviewChoice(currentConversation()));
@@ -311,7 +386,7 @@ root.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{const id=b.datase
  if(how==='reset'){capturing={a:null,b:null};render();return;}
  saveCapture(how);});root.querySelectorAll('[data-remove-answer]').forEach(b=>b.onclick=()=>{data.savedAnswers=data.savedAnswers.filter(a=>a.id!==b.dataset.removeAnswer);persist();render();});root.querySelectorAll('[data-month]').forEach(b=>b.onclick=()=>{month=DateTime.fromISO(month+'-01').plus({months:Number(b.dataset.month)}).toFormat('yyyy-MM');render();});root.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{recordFilter=b.dataset.filter;render();});root.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{const list=data.records.filter(r=>r.date===b.dataset.day);if(list.length)openModal(`<h2>${dateLabel(b.dataset.day)}의 기록</h2>${list.map(r=>`<button class="record-row" data-record="${r.id}">${esc(r.title)}</button>`).join('')}`);else{selectedDate=b.dataset.day;nav('choice');}});root.querySelectorAll('[data-calendar]').forEach(b=>b.onclick=()=>calendarFile(b.dataset.calendar)); root.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>action(b.dataset.action));
  const bf=root.querySelector('#birth-form');if(bf){bindBirthPicker(bf);bf.elements.calendar.onchange=()=>{$('#leap-wrap').hidden=bf.elements.calendar.value!=='lunar';};bf.elements.unknown.onchange=()=>{bf.elements.time.disabled=bf.elements.unknown.checked;};bf.elements.city.onchange=()=>{const c=CITIES.find(c=>c[0]===bf.elements.city.value);for(const key of ['zone','longitude'])bf.elements[key].readOnly=!!c;if(c){bf.elements.zone.value=c[1];bf.elements.longitude.value=c[2];}else{const d=$('#precise');if(d)d.open=true;}};bf.onsubmit=async e=>{e.preventDefault();const f=new FormData(bf);const a={name:(String(f.get('name')||'').trim()||p()?.name||authUser?.name||'방문자').slice(0,100),birth:String(f.get('birth')).trim(),calendar:f.get('calendar'),leap:f.has('leap'),unknown:f.has('unknown'),time:f.get('time')||'12:00',city:f.get('city'),zone:String(f.get('zone')).trim(),longitude:Number(f.get('longitude')),clock:f.get('clock'),gender:f.get('gender')||'',topics:p()?.topics||['진로'],question:p()?.question||''};if(!f.has('unknown')&&!f.get('time'))return fieldError(bf,'time','시간을 입력하거나 시간 모름을 선택해 주세요.');if(!/^\d{4}-\d{2}-\d{2}$/.test(a.birth))return fieldError(bf,'birth','날짜를 1995-05-17처럼 입력해 주세요.');if(!await engineReady())return;try{E.calculate(a);pendingProfile=a;page='topic';render();}catch(err){fieldError(bf,'birth',err.message);}};}
- const tf=root.querySelector('#topic-form');if(tf)tf.onsubmit=async e=>{e.preventDefault();const f=new FormData(tf),selected=f.getAll('topic');if(!selected.length)return fieldError(tf,'topic','관심 주제를 한 가지 이상 골라주세요.');if(!await engineReady())return;data.profile={...pendingProfile,topics:selected,question:''};setChatDraft(String(f.get('question') || ''));result=E.calculate(p());activeConversation=data.conversations.findLast(c=>c.profileKey===profileKey())?.id||null;persist();nav('chat');};
+ const tf=root.querySelector('#topic-form');if(tf)tf.onsubmit=async e=>{e.preventDefault();const f=new FormData(tf),selected=f.getAll('topic');if(!selected.length)return fieldError(tf,'topic','관심 주제를 한 가지 이상 골라주세요.');if(!await engineReady())return;data.profile={...pendingProfile,topics:selected,question:''};result=E.calculate(p());selectConversation(data.conversations.findLast(c=>c.profileKey===profileKey())?.id||null);setChatDraft(String(f.get('question') || ''));persist();nav('chat');};
  const cf=root.querySelector('#chat-form');if(cf){cf.onsubmit=e=>{e.preventDefault();plusOpen=false;sendMessage(cf.elements.message.value);};// 터치 키보드의 Enter는 줄바꿈입니다. 마우스·키보드 기기에서만 Enter로 보냅니다.
  cf.elements.message.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&matchMedia('(hover: hover) and (pointer: fine)').matches){e.preventDefault();cf.requestSubmit();}};
  // 한 줄로 시작해 쓰는 만큼만 자랍니다. CSS의 max-height가 천장을 잡아요.
@@ -319,8 +394,8 @@ root.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{const id=b.datase
  const ta=cf.elements.message,grow=()=>{ta.style.height='auto';const h=ta.scrollHeight+ta.offsetHeight-ta.clientHeight;ta.style.height=h+'px';ta.style.overflowY=h>=parseFloat(getComputedStyle(ta).maxHeight)?'auto':'hidden';};
  ta.oninput=()=>{setChatDraft(ta.value);grow();};grow();}
  root.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{const f=root.querySelector('#record-form');if(!f)return;f.elements.title.value=b.dataset.preset;f.elements.topic.value=b.dataset.presetTopic;f.elements.title.focus();});
- const rf=root.querySelector('#record-form');if(rf){rf.onsubmit=async e=>{e.preventDefault();const f=new FormData(rf),title=String(f.get('title')).trim(),date=String(f.get('date'));if(!title)return fieldError(rf,'title','선택의 제목을 입력해 주세요.');if(!DateTime.fromISO(date).isValid)return fieldError(rf,'date','선택 날짜를 확인해 주세요.');if(!await engineReady())return;const r={id:uid(),title,date,topic:f.get('topic'),confidence:Number(f.get('confidence')),expectation:f.get('expectation'),criteriaLabel:String(f.get('criteriaLabel')||'').trim(),reviewReminder:f.has('reviewReminder'),due:DateTime.fromISO(date).plus({days:Number(f.get('delay'))}).toISODate(),result:'pending',mood:'',actual:'',advice:noteMode?'':E.topicReading(result,f.get('topic')).action,created:new Date().toISOString()};data.records.push(r);persist();month=date.slice(0,7);page='records';render();notice('선택을 기록했어요. 회고는 나중에 기록을 눌러 남겨주세요.');};}
- const ef=root.querySelector('#edit-record');if(ef){ef.onsubmit=e=>{e.preventDefault();const r=data.records.find(r=>r.id===ef.dataset.id),f=new FormData(ef);if(!String(f.get('title')).trim())return fieldError(ef,'title','선택의 제목을 입력해 주세요.');if(!DateTime.fromISO(f.get('due')).isValid)return fieldError(ef,'due','회고 날짜를 확인해 주세요.');if(r.conversationId){r.expectation=String(f.get('criteria')).trim();r.nextAction=String(f.get('action')).trim();}if(!noteMode)r.criteriaLabel=String(f.get('criteriaLabel')||'').trim();if(nativeApp&&!noteMode)r.reviewReminder=f.has('reviewReminder');Object.assign(r,{title:String(f.get('title')).trim(),result:f.get('result'),mood:f.get('mood'),actual:f.get('actual'),due:f.get('due')});persist();$('#modal').close();render();};const b=root.querySelector('[data-delete-record]');b.onclick=()=>{const id=ef.dataset.id;openModal('<h2>이 기록을 삭제할까요?</h2><p>예상과 회고 내용도 함께 삭제됩니다. 캘린더 일정은 캘린더 앱에서 별도로 삭제해 주세요.</p><button class="danger" id="confirm-delete-record">삭제하기</button>');$('#confirm-delete-record').onclick=()=>{data.records=data.records.filter(r=>r.id!==id);persist();$('#modal').close();render();};};}
+ const rf=root.querySelector('#record-form');if(rf){rf.onsubmit=async e=>{e.preventDefault();const f=new FormData(rf),title=String(f.get('title')).trim(),date=String(f.get('date'));if(!title)return fieldError(rf,'title','선택의 제목을 입력해 주세요.');if(!DateTime.fromISO(date).isValid)return fieldError(rf,'date','선택 날짜를 확인해 주세요.');if(!await engineReady())return;const r={id:uid(),title,date,topic:f.get('topic'),confidence:Number(f.get('confidence')),expectation:f.get('expectation'),criteriaLabel:String(f.get('criteriaLabel')||'').trim(),due:DateTime.fromISO(date).plus({days:Number(f.get('delay'))}).toISODate(),result:'pending',mood:'',actual:'',advice:noteMode?'':E.topicReading(result,f.get('topic')).action,created:new Date().toISOString()};data.records.push(r);if(nativeApp&&!noteMode)setReviewReminder(r.id,f.has('reviewReminder'));persist();month=date.slice(0,7);page='records';render();notice('선택을 기록했어요. 회고는 나중에 기록을 눌러 남겨주세요.');};}
+ const ef=root.querySelector('#edit-record');if(ef){ef.onsubmit=e=>{e.preventDefault();const r=data.records.find(r=>r.id===ef.dataset.id),f=new FormData(ef);if(!String(f.get('title')).trim())return fieldError(ef,'title','선택의 제목을 입력해 주세요.');if(!DateTime.fromISO(f.get('due')).isValid)return fieldError(ef,'due','회고 날짜를 확인해 주세요.');if(r.conversationId){r.expectation=String(f.get('criteria')).trim();r.nextAction=String(f.get('action')).trim();}if(!noteMode)r.criteriaLabel=String(f.get('criteriaLabel')||'').trim();if(nativeApp&&!noteMode)setReviewReminder(r.id,f.has('reviewReminder'));Object.assign(r,{title:String(f.get('title')).trim(),result:f.get('result'),mood:f.get('mood'),actual:f.get('actual'),due:f.get('due')});persist();$('#modal').close();render();};const b=root.querySelector('[data-delete-record]');b.onclick=()=>{const id=ef.dataset.id;openModal('<h2>이 기록을 삭제할까요?</h2><p>예상과 회고 내용도 함께 삭제됩니다. 캘린더 일정은 캘린더 앱에서 별도로 삭제해 주세요.</p><button class="danger" id="confirm-delete-record">삭제하기</button>');$('#confirm-delete-record').onclick=()=>{data.records=data.records.filter(r=>r.id!==id);if(nativeApp&&!noteMode)setReviewReminder(id,false);persist();$('#modal').close();render();};};}
 }
 // 실제 상담이 붙어 있는지 한 번만 확인합니다. 확인에 실패하면 없는 것으로
 // 봅니다 — 규칙 기반 코칭이 늘 답을 내주므로 대화가 끊기지 않습니다.
@@ -418,9 +493,10 @@ function reviewChoice(conversation) {
   const submit=form.querySelector('button');
   submit.disabled=true;
   const record={id:uid(),title,date,topic:offer.topic||conversation.topic||'진로',
-   confidence:50,expectation:String(fields.get('criteria')).trim(),criteriaLabel:String(fields.get('criteriaLabel')||'').trim(),reviewReminder:fields.has('reviewReminder'),nextAction:String(fields.get('action')).trim(),
+   confidence:50,expectation:String(fields.get('criteria')).trim(),criteriaLabel:String(fields.get('criteriaLabel')||'').trim(),nextAction:String(fields.get('action')).trim(),
    due:reviewDate,result:'pending',mood:'',actual:'',conversationId:conversation.id,created:new Date().toISOString()};
   data.records.push(record);
+  if(nativeApp&&!noteMode)setReviewReminder(record.id,fields.has('reviewReminder'));
   if(conversation.offer===offer)conversation.offer=null;
   $('#modal').close();
   render();
@@ -524,17 +600,17 @@ async function sendMessage(text){if(quotaChecking)return;const c=currentConversa
  }
  c.pending=false;
  c.messages.push({id:uid(),role:'assistant',text:reply,source,aiFailure,basis:fallback.basis,at:new Date().toISOString()});persist();render();}
-async function action(a){if(a==='retry'){if(!loaded)await load();else await persist();return;}if(a==='logout'){try{const {response}=await logout();if(!response.ok)throw new Error();clearTossLogin();setChatDraft('');authUser=null;coachQuota=null;coachLoginRequired=true;aiCoach=null;page='welcome';await load();notice('로그아웃했어요.');}catch{notice('로그아웃하지 못했어요. 다시 시도해 주세요.');}return;}if(a==='export-json'){download('달빛-보관함.json',JSON.stringify(data,null,2),'application/json');return;}if(a==='export-text'){download('달빛-보관함.txt',exportText());return;}if(a==='chat-history'){chatHistoryModal();return;}
- if(a==='delete-all'){openModal(`<h2>${authUser?'계정과 개인정보를':'개인정보를'} 모두 삭제할까요?</h2><p>현재 보관함의 ${noteMode?'선택 기록과 회고가':'프로필·상담·선택 기록·저장한 답변이'} 삭제됩니다. 내려받은 파일과 캘린더 일정은 별도로 삭제해 주세요.</p><label class="check"><input id="delete-confirm" type="checkbox">복구할 수 없음을 이해했습니다.</label><p id="delete-error" role="alert"></p><button class="danger" id="delete-final">전체 삭제</button>`);$('#delete-final').onclick=async()=>{if(!$('#delete-confirm').checked){$('#delete-error').textContent='위 확인란을 선택해 주세요.';return;}$('#delete-final').disabled=true;await saveQueue;try{const {response}=authUser?await deleteAccount():await deleteJournal();if(!response.ok)throw new Error('삭제하지 못했어요. 잠시 후 다시 시도해 주세요.');generation++;clearTossLogin();setChatDraft('');authUser=null;data={profile:null,records:[],conversations:[],savedAnswers:[]};revision=0;result=null;activeConversation=null;localStorage.removeItem('dalbit-v2');saveState='ready';$('#modal').close();nav('welcome');notice('계정과 개인 보관함의 정보를 삭제했어요.');}catch(e){$('#delete-error').textContent=e.message;$('#delete-final').disabled=false;}};}}
+async function action(a){if(a==='retry'){if(!loaded)await load();else await persist();return;}if(a==='logout'){try{const {response}=await logout();if(!response.ok)throw new Error();clearTossLogin();clearDrafts();authUser=null;coachQuota=null;coachLoginRequired=true;aiCoach=null;page='welcome';await load();notice('로그아웃했어요.');}catch{notice('로그아웃하지 못했어요. 다시 시도해 주세요.');}return;}if(a==='export-json'){download('달빛-보관함.json',JSON.stringify(data,null,2),'application/json');return;}if(a==='export-text'){download('달빛-보관함.txt',exportText());return;}if(a==='chat-history'){chatHistoryModal();return;}
+ if(a==='delete-all'){openModal(`<h2>${authUser?'계정과 개인정보를':'개인정보를'} 모두 삭제할까요?</h2><p>현재 보관함의 ${noteMode?'선택 기록과 회고가':'프로필·상담·선택 기록·저장한 답변이'} 삭제됩니다. 내려받은 파일과 캘린더 일정은 별도로 삭제해 주세요.</p><label class="check"><input id="delete-confirm" type="checkbox">복구할 수 없음을 이해했습니다.</label><p id="delete-error" role="alert"></p><button class="danger" id="delete-final">전체 삭제</button>`);$('#delete-final').onclick=async()=>{if(!$('#delete-confirm').checked){$('#delete-error').textContent='위 확인란을 선택해 주세요.';return;}$('#delete-final').disabled=true;await saveQueue;try{const {response}=authUser?await deleteAccount():await deleteJournal();if(!response.ok)throw new Error('삭제하지 못했어요. 잠시 후 다시 시도해 주세요.');generation++;clearTossLogin();clearDrafts();authUser=null;data={profile:null,records:[],conversations:[],savedAnswers:[]};revision=0;result=null;activeConversation=null;localStorage.removeItem('dalbit-v2');saveState='ready';$('#modal').close();nav('welcome');notice('계정과 개인 보관함의 정보를 삭제했어요.');}catch(e){$('#delete-error').textContent=e.message;$('#delete-final').disabled=false;}};}}
 async function load(){saveState='loading';refreshSave();try{const {response:res,body:r}=await getJournal();if(!res.ok)throw new Error(r.error);loaded=true;revision=r.revision;data=r.data||{profile:null,records:[],conversations:[],savedAnswers:[]};data.savedAnswers||=[];
  for(const conversation of data.conversations){
   delete conversation.pending;
   conversation.messages=conversation.messages.filter(message=>!message.streaming);
  }
  savedBaseline=JSON.parse(JSON.stringify(data));result=null;if(!noteMode&&data.profile&&await engineReady()){try{result=E.calculate(data.profile);}catch{notice('이전 프로필의 계산 정보를 다시 확인해 주세요. 정보 수정에서 다시 저장하면 이어서 볼 수 있어요.');}}if(!ct()||ct().profileKey!==profileKey()){
-  const previous=data.conversations.filter(c=>c.profileKey===profileKey()&&c.messages.some(m=>m.role==='user'))
+  const previous=data.conversations.filter(c=>c.profileKey===profileKey()&&(c.messages.some(m=>m.role==='user')||readConcernDraft(c.id).trim()))
    .sort((a,b)=>(b.messages.at(-1)?.at||b.created).localeCompare(a.messages.at(-1)?.at||a.created))[0];
-  activeConversation=previous?.id||null;
+  selectConversation(previous?.id||null,true);
  }
  if(afterLogin){page=noteMode?'records':result?'chat':'birth';afterLogin=false;const url=new URL(location.href);url.searchParams.delete('auth');history.replaceState(null,'',url.pathname+url.search+url.hash);}saveError='';saveState=revision?'saved':'ready';render();syncReviewReminders(data.records);if(openOnLoad){const id=openOnLoad;openOnLoad=null;page='records';render();recordDetail(id);}const legacy=localStorage.getItem('dalbit-v2');if(legacy&&!r.data)offerMigration(legacy);}catch(e){markSaveError(e.message||'저장소에 연결하지 못했어요. 설정에서 다시 시도해 주세요.');render();}}
 function offerMigration(raw){let old;try{old=JSON.parse(raw);}catch{return;}if(!old.birth)return;openModal('<h2>이전 기록을 발견했어요</h2><p>이 브라우저에 있던 프로필과 선택 기록을 서버 보관함으로 옮길 수 있어요. 현재 버전은 생년월일·상담·기록을 서버에 저장합니다.</p><button class="primary" id="migrate">이전 기록 가져와 서버에 저장</button><button class="secondary" id="skip-migrate">지금은 건너뛰기</button>');$('#skip-migrate').onclick=()=>$('#modal').close();$('#migrate').onclick=async()=>{data.profile={name:old.name,birth:old.birth,time:old.time||'12:00',unknown:!!old.unknownTime,calendar:'solar',city:'서울',zone:'Asia/Seoul',longitude:126.978,clock:'civil',topics:old.topics?.length?old.topics:['진로'],question:old.topicNote||''};data.records=(old.records||[]).map(r=>({id:uid(),date:String(r.d).slice(0,10),title:r.title,topic:'진로',confidence:50,expectation:r.sub||'',actual:r.kind==='결과'?r.sub:'',due:String(r.d).slice(0,10),result:r.kind==='결과'?'neutral':'pending',mood:r.mood||'',legacy:true}));if(!await engineReady())return;try{result=E.calculate(p());const ok=await persist();if(ok)localStorage.removeItem('dalbit-v2');$('#modal').close();nav('result');}catch(e){notice(e.message);}};}

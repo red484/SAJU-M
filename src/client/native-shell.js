@@ -5,19 +5,46 @@ import { Directory, Filesystem } from '@capacitor/filesystem';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Network } from '@capacitor/network';
 import { Share } from '@capacitor/share';
-import { resolveNoteMode, reviewReminders } from './app-mode.js';
+import { resolveNoteMode, reviewReminders, reminderId } from './app-mode.js';
 
 export const nativeApp = Capacitor.isNativePlatform();
 export const noteMode = resolveNoteMode({ platform: Capacitor.getPlatform(), search: location.search, storage: globalThis.sessionStorage });
 export const APP_NAME = noteMode ? '달빛 노트' : '삶의 온기';
 let started = false;
 
-// Re-creates the review reminders from the current records. Permission is asked
-// only once there is something to remind about, i.e. right after the first save.
-export async function syncReviewReminders(records) {
-  if (!nativeApp) return;
+const reminderKey = id => `ongi-review-reminder:${id}`;
+export function reviewReminderEnabled(id) {
+  try { return localStorage.getItem(reminderKey(id)) === 'on'; } catch { return false; }
+}
+export function setReviewReminder(id, enabled) {
   try {
-    const wanted = reviewReminders(noteMode ? records : records.filter(record => record.reviewReminder));
+    if (enabled) localStorage.setItem(reminderKey(id), 'on');
+    else localStorage.removeItem(reminderKey(id));
+  } catch { /* The record can still be saved without a device reminder. */ }
+}
+export async function reviewReminderStatus(record) {
+  if (!reviewReminderEnabled(record.id)) return '이 기기에서 알림 꺼짐';
+  try {
+    await reminderSync;
+    const { display } = await LocalNotifications.checkPermissions();
+    if (display !== 'granted') return '기기 설정에서 알림 권한이 필요해요.';
+    if (!reviewReminders([record]).length) return '예약할 회고 시간이 없어요.';
+    const { notifications } = await LocalNotifications.getPending();
+    return notifications.some(notification => notification.id === reminderId(record.id))
+      ? '이 기기에 알림이 예약됐어요.' : '이 기기에 알림이 예약되지 않았어요.';
+  } catch { return '알림 예약 상태를 확인하지 못했어요.'; }
+}
+
+let reminderSync = Promise.resolve();
+export function syncReviewReminders(records) {
+  if (!nativeApp) return reminderSync;
+  const wanted = reviewReminders(noteMode ? records : records.filter(record => reviewReminderEnabled(record.id)));
+  reminderSync = reminderSync.then(() => scheduleReviewReminders(wanted));
+  return reminderSync;
+}
+
+async function scheduleReviewReminders(wanted) {
+  try {
     const { notifications: pending } = await LocalNotifications.getPending();
     if (pending.length) await LocalNotifications.cancel({ notifications: pending.map(({ id }) => ({ id })) });
     if (!wanted.length) return;
