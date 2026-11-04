@@ -1,0 +1,10 @@
+services:
+  saju-db:
+    image: ${SAJU_DB_LOG_IMAGE:?Use apply-database-logs.sh to preserve the running image}
+    logging:
+      driver: syslog
+      options:
+        syslog-address: unixgram:///var/spool/rsyslog/saju.sock
+        syslog-format: rfc5424micro
+        tag: saju-db
+        cache-disabled: "true"

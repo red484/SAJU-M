@@ -23,6 +23,8 @@ docker network inspect levelup-net >/dev/null 2>&1 || docker network create leve
 
 ```sh
 sudo bash deploy/logging/install.sh
+sudo bash deploy/logging/apply-database-logs.sh
+sudo bash deploy/logging/apply-host-proxy-logs.sh
 docker compose --env-file .env.production -f docker-compose.prd.yml config --quiet
 docker compose --env-file .env.production -f docker-compose.prd.yml up -d --build
 docker compose --env-file .env.production -f docker-compose.prd.yml ps
@@ -55,6 +57,8 @@ npm ci
 npm run build
 npm test
 sudo bash deploy/logging/install.sh
+sudo bash deploy/logging/apply-database-logs.sh
+sudo bash deploy/logging/apply-host-proxy-logs.sh
 docker compose --env-file .env.production -f docker-compose.prd.yml up -d --build
 SMOKE_BASE_URL=https://saju.ashwoodfriends.com npm run smoke
 ```
