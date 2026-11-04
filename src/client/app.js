@@ -1,3 +1,4 @@
+import { findPurchaseFollowUp } from './purchase-follow-up.js';
 import { businessInfo } from './business-info.js';
 import {DateTime} from 'luxon';
 import {birthPicker,bindBirthPicker} from './birth-picker.js';
@@ -144,11 +145,12 @@ const consultationExamples=[
   answer:'친구를 돕고 싶은 마음과 내 시간을 지키고 싶은 마음이 함께 있네요. 어떤 부탁이 가장 부담스러웠나요?',
   criteria:'내 일정과 여유 시간',action:'다음 부탁에 가능한 시간대를 먼저 말하기',review:'가능한 범위를 이야기해 보니 관계와 내 마음에 어떤 변화가 있었나요?'}
 ];
-function consultationPreview(){
+function consultationPreview(onBack){
  openModal(`<h2>상담 예시</h2><p>가상의 고민으로 온기의 질문, 선택 기록, 회고를 미리 볼 수 있어요.</p>
  ${consultationExamples.map(example=>`<details><summary>${esc(example.topic)} 고민</summary><p>${esc(example.concern)}</p>
  <p>${esc(example.answer)}</p><dl><dt>선택 기준</dt><dd>${esc(example.criteria)}</dd><dt>해볼 행동</dt><dd>${esc(example.action)}</dd>
- <dt>돌아볼 날짜</dt><dd>행동을 해본 다음 날</dd><dt>회고 질문</dt><dd>${esc(example.review)}</dd></dl></details>`).join('')}`);
+ <dt>돌아볼 날짜</dt><dd>행동을 해본 다음 날</dd><dt>회고 질문</dt><dd>${esc(example.review)}</dd></dl></details>`).join('')}${typeof onBack==='function'?'<button class="secondary" id="preview-return">이용권 안내로 돌아가기</button>':''}`);
+ if(typeof onBack==='function')$('#preview-return').onclick=onBack;
 }
 function welcome(){const start=noteMode?(data.records.length?['records','나의 기록 이어보기']:['choice','첫 선택 기록하기']):p()?['chat',ct()?.messages.some(m=>m.role==='user')?`${ct().topic||'지난'} 상담 이어가기`:'상담 시작하기']:['birth','상담 시작하기'];return `<section class="welcome welcome-with-auth"><img class="landscape" src="/assets/${noteMode?'splash.webp':'ongi-welcome.svg'}" fetchpriority="high" decoding="async" alt=""><div class="welcome-copy"><img class="mark" src="/assets/${noteMode?'mark.webp':'ongi.svg'}" alt="${APP_NAME}">${noteMode?'<h1>오늘의 선택을,<br>내일의 나에게</h1><p>망설이는 선택과 그때의 마음을 남기고,<br>정한 날에 결과를 돌아보세요.</p>':'<h1>삶의 온기</h1><p>명리학을 바탕으로 지금의 고민과 선택을 함께 정리해요.</p>'}${noteMode?'':`<label class="welcome-concern">지금 마음에 걸리는 일이 있나요?<textarea data-concern-draft rows="2" maxlength="1500" placeholder="한 문장부터 시작해 보세요.">${esc(chatDraft)}</textarea></label><button type="button" class="welcome-link" data-consultation-preview>상담 예시 보기</button>`}<footer class="welcome-auth" aria-label="로그인 및 이용 안내">${authUser?`<button class="primary gold" data-nav="${start[0]}">${start[1]}</button><button class="welcome-link" data-action="logout">로그아웃</button><button class="welcome-link" data-nav="settings">내 보관함 보기</button><small>${esc(authUser.name||'회원')}님 · 로그인되어 있어요</small>`:`${authStatus==='loading'?'<small role="status">로그인 연결을 확인하고 있어요.</small>':authStatus==='error'?'<small role="alert">로그인 연결을 확인하지 못했어요.</small><button class="welcome-link" data-auth-refresh>연결 다시 확인</button>':''}${authFailure?'<p class="auth-failure" role="alert">로그인을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.</p>':''}<div class="auth-buttons">${authButtons()}</div><button class="welcome-link" data-guest-start>로그인 없이 이용하기</button>`}<div class="welcome-legal"><a href="/pricing/">상품 안내</a><span>·</span><a href="/refund/">환불정책</a><span>·</span><a href="/support/">고객지원</a><span>·</span><a href="/terms/">이용약관</a><span>·</span><a href="/privacy/">개인정보처리방침</a></div>${businessInfo}</footer></div></section>`;}
 function birth(){const a=p()||{name:authUser?.name||'',birth:'1995-05-17',time:'15:30',calendar:'solar',city:'서울',zone:'Asia/Seoul',longitude:126.978,clock:'civil',gender:'',topics:['진로']};return `<div class="narrow">${steps(1)}<p class="eyebrow">첫 번째 이야기 · 나의 시작</p><h1>상담 프로필 만들기</h1><p class="muted">출생 정보는 상담에 참고할 명리학 해석을 만드는 데 사용해요.</p><form id="birth-form" novalidate>${authUser?`<p class="hint">로그인 계정의 이름을 사용합니다. 이름을 다시 입력하지 않아도 돼요.</p>`:`<label>별명 <span class="hint">선택 사항</span><input name="name" value="${esc(a.name)}" maxlength="20" autocomplete="nickname" placeholder="비워 두어도 시작할 수 있어요"></label>`}<div class="fields"><label>달력<select name="calendar"><option value="solar" ${a.calendar==='solar'?'selected':''}>양력</option><option value="lunar" ${a.calendar==='lunar'?'selected':''}>한국 음력</option></select></label></div>${birthPicker(a.birth,Number(today().slice(0,4)))}<p id="birth-hint" class="hint">연도·월·일을 선택해 주세요 · 1900년부터 오늘까지 지원</p><label class="check" id="leap-wrap" ${a.calendar!=='lunar'?'hidden':''}><input type="checkbox" name="leap" ${a.leap?'checked':''}>음력 윤달이에요</label><label>태어난 시간<input name="time" type="time" value="${esc(a.time||'12:00')}" ${a.unknown?'disabled':''}></label><label class="check"><input name="unknown" type="checkbox" ${a.unknown?'checked':''}>태어난 시간을 몰라요</label><p class="hint">시간 미상은 정오 기준 3주를 계산합니다. 절기·날짜 경계에서는 년·월·일주도 달라질 수 있어요.</p><fieldset class="segment"><legend>성별</legend>${[['female','여성'],['male','남성']].map(([v,t])=>`<label><input type="radio" name="gender" value="${v}" ${a.gender===v?'checked':''}>${t}</label>`).join('')}</fieldset><p class="hint">대운의 순행·역행을 가르는 값이라 여쭙습니다. 해석 문구는 성별로 달라지지 않아요.</p><label>태어난 도시<select name="city">${[...new Set(CITIES.map(v=>v[3]))].map(g=>`<optgroup label="${g}">${CITIES.filter(v=>v[3]===g).map(v=>`<option ${v[0]===a.city?'selected':''}>${v[0]}</option>`).join('')}</optgroup>`).join('')}<option ${a.city==='직접 입력'?'selected':''}>직접 입력</option></select></label><details id="precise" ${a.city==='직접 입력'||a.clock==='mean'?'open':''}><summary>정밀 계산 설정</summary><p class="hint">도시를 고르면 시간대와 경도가 자동으로 채워집니다. 대부분 그대로 두셔도 됩니다.</p><div class="fields"><label>시간대 (IANA)<input name="zone" value="${esc(a.zone)}" placeholder="Asia/Seoul" ${a.city!=='직접 입력'?'readonly':''}></label><label>출생지 경도<input name="longitude" type="number" step="0.001" min="-180" max="180" value="${a.longitude}" ${a.city!=='직접 입력'?'readonly':''}></label></div><label>시각 계산 방식<select name="clock"><option value="civil" ${a.clock==='civil'?'selected':''}>출생지의 기록된 현지 시각</option><option value="mean" ${a.clock==='mean'?'selected':''}>지역 경도 보정 · 지방평균태양시</option></select></label><p>한국 음력은 윤달을 포함해 변환합니다. 년·월주는 절기 교체 시각을 기준으로 하고, 일주는 자정에 바뀌는 방식을 사용합니다. 시간대의 과거 표준시·서머타임은 기기의 시간대 데이터에 따릅니다.</p><p>경도 보정은 지방평균태양시이며 균시차까지 반영한 진태양시는 아닙니다. 도시의 경도는 대표 지점이므로 경계 출생은 정확한 경도로 수정하세요. 여러 명리 유파의 계산 방식은 다를 수 있습니다.</p></details><div class="form-error" role="alert" hidden></div><p class="privacy-note">정보는 입력 후 서버의 개인 보관함에 저장됩니다. ${authUser?'로그인 계정으로 연결되어 다른 기기에서도 불러올 수 있습니다.':'로그인 전에는 이 브라우저의 보안 쿠키로 연결됩니다. 다른 기기에서 불러오려면 로그인해 주세요.'} 설정에서 내보내기·전체 삭제가 가능합니다.</p><button class="primary" type="submit">관심 주제 선택하기</button></form></div>`;}
@@ -404,25 +406,28 @@ function quotaText(){return coachLoginRequired?'로그인 후 무료 상담 5회
 async function refreshCoachQuota(){
  try{const {response,body}=await coachStatus();if(!response.ok)throw new Error();coachLoginRequired=!!body.loginRequired;coachQuota=body.quota;aiCoach=body.available===true;return true;}catch{coachQuota=null;return false;}
 }
+function purchaseFollowUp(){
+ if(!authUser||!coachQuota||coachQuota.remaining>1)return null;
+ const record=findPurchaseFollowUp(data.records,ct());
+ return record?{label:`${record.result==='pending'&&record.due?'회고 '+dateLabel(record.due):'저장한 선택'} · ${record.title}`,open:()=>recordDetail(record.id)}:null;
+}
 function drawCoachQuota(){
- const subscription=()=>noteMode?null:isAppsInToss()?installTossBilling({page,user:authUser,openModal,notice,resume:()=>nav('chat'),quota:coachQuota,onChanged:async()=>{await refreshCoachQuota();drawCoachQuota();return coachQuota;}}):installSubscription({page,user:authUser,openModal,notice,navigate:nav,native:nativeApp,toss:false});
+ const subscription=()=>noteMode?null:isAppsInToss()?installTossBilling({page,user:authUser,openModal,notice,showExample:consultationPreview,followUp:purchaseFollowUp(),resume:()=>nav('chat'),quota:coachQuota,onChanged:async()=>{await refreshCoachQuota();drawCoachQuota();return coachQuota;}}):installSubscription({page,user:authUser,openModal,notice,showExample:consultationPreview,followUp:purchaseFollowUp(),navigate:nav,native:nativeApp,toss:false});
  const form=document.querySelector('#chat-form');if(!form){subscription();return;}
  document.querySelector('.coach-quota')?.remove();
  const note=document.createElement('div');note.className='coach-quota';
  const status=document.createElement('span');status.setAttribute('role','status');status.title=quotaText();status.textContent=coachLoginRequired?'로그인 후 무료 5회':coachQuota?.paidRemaining?`무료 ${coachQuota.freeRemaining}회 · 이용권 ${coachQuota.paidRemaining}회 남음${coachQuota.paidNextExpiry?` · 가장 이른 만료 ${dateLabel(DateTime.fromISO(coachQuota.paidNextExpiry).setZone('Asia/Seoul').toISODate())}`:''}`:coachQuota?`무료 상담 ${coachQuota.remaining}회 남음`:'이용 횟수 확인 중';note.append(status);form.before(note);
  subscription();
- if(coachQuota?.remaining===0){
-  const conversation=ct();
-  const record=conversation&&data.records.find(r=>r.id===conversation.attachedRecordId)
-   || conversation&&data.records.findLast(r=>r.conversationId===conversation.id);
+ if(coachQuota&&coachQuota.remaining<=1){
+  const record=authUser&&findPurchaseFollowUp(data.records,ct());
   if(record){
    const follow=document.createElement('p');
    follow.className='quota-follow-up';
    follow.textContent=record.nextAction
-    ? `해볼 행동을 마친 뒤 이어서 상담할 수 있어요. ${record.nextAction}`
-    : '저장한 선택을 열어 돌아볼 내용을 확인해 보세요.';
+    ? `기록과 회고는 무료로 계속 이용할 수 있어요. 해볼 행동 · ${record.nextAction}`
+    : '저장한 선택과 회고는 무료로 계속 이용할 수 있어요.';
    const open=document.createElement('button');
-   open.type='button';open.className='text-link';open.textContent='선택 기록 열기';
+   open.type='button';open.className='text-link';open.textContent=record.result==='pending'&&record.due?`회고 ${dateLabel(record.due)} · ${record.title}`:`선택 기록 · ${record.title}`;
    open.onclick=()=>recordDetail(record.id);
    follow.append(' ',open);note.append(follow);
   }else if(chatDraft.trim()){

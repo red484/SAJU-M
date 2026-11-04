@@ -3,7 +3,7 @@ import { businessInfo } from './business-info.js';
 export const PLUS_PLAN = Object.freeze({ price: 4900, answers: 50 });
 export const subscriptionEnabled = ({ native = false, toss = false } = {}) => !native && !toss;
 
-export function installSubscription({ page, user, openModal, notice, navigate, native, toss }) {
+export function installSubscription({ page, user, openModal, notice, navigate, native, toss, showExample, followUp }) {
   if (!subscriptionEnabled({ native, toss })) return;
   const close = () => document.querySelector('#modal').close();
   const bind = (id, handler) => { document.getElementById(id).onclick = handler; };
@@ -40,10 +40,14 @@ export function installSubscription({ page, user, openModal, notice, navigate, n
         <p class="purchase-unavailable" role="status">출시 준비 중 · 이 화면에서 결제하거나 구독을 시작할 수 없어요. 구독이 시작되거나 상담 횟수가 늘어나지 않습니다.</p>
       </article>
       <details><summary>이용·해지 조건 확인</summary><p>출시 후 매월 자동 결제 예정입니다. 상담 횟수는 이월되지 않으며 오류·답변 실패·주제 밖 질문 거절은 차감하지 않습니다. 해지 시 다음 결제를 중단하고 이용기간 종료일까지 이용할 수 있도록 준비 중입니다. 정기결제의 확정 환불 조건은 판매 전에 안내합니다. <a href="/refund/" target="_blank" rel="noopener">환불정책</a>과 <a href="/pricing/" target="_blank" rel="noopener">상품 안내</a>를 확인해 주세요.</p></details>
+      <button class="secondary" id="purchase-example" hidden>상담 예시 보기</button>
+      <p class="hint" id="purchase-record-hint" hidden>기록 열기와 회고는 무료예요.</p><button class="secondary" id="purchase-follow-up" hidden></button>
       <button class="text-link purchase-account" id="subscription-preview">${user?.loginId ? '게스트 결제 전 확인사항' : user ? '결제 상세 정보 확인' : '로그인 방법 보기'}</button>
       <button class="secondary" id="subscription-close">나중에 할게요</button>
       ${businessInfo}
     </section>`);
+    if(showExample){const example=document.getElementById('purchase-example');example.hidden=false;example.onclick=()=>showExample(overview);}
+    if(followUp){const record=document.getElementById('purchase-follow-up');record.hidden=false;record.textContent=followUp.label;record.onclick=followUp.open;document.getElementById('purchase-record-hint').hidden=false;}
     bind('subscription-preview', () => {
       if (!user) { close(); navigate('welcome'); return; }
       if (user.loginId) guestWarning(); else confirmation();

@@ -66,7 +66,7 @@ const getClient = () => clientPromise ||= import('@apps-in-toss/web-framework')
   .then(({ IAP }) => createTossPurchaseClient({ iap: IAP }))
   .catch(error => { clientPromise = null; throw error; });
 
-export function installTossBilling({ page, user, openModal, notice, onChanged, resume, quota: allowance }) {
+export function installTossBilling({ page, user, openModal, notice, onChanged, resume, quota: allowance, showExample, followUp }) {
   async function restore(silent = false) {
     if (busy || !user) return;
     busy = true;
@@ -80,7 +80,9 @@ export function installTossBilling({ page, user, openModal, notice, onChanged, r
   }
   if (user?.id && !restoredAccounts.has(user.id)) void restore(true);
   async function overview() {
-    openModal(`<section class="subscription-sheet purchase-sheet"><p class="eyebrow">자동 갱신 없는 1회 결제</p><h2>삶의 온기 상담 이용권</h2><article class="purchase-plan"><h3>이어서 상담하기</h3><p class="purchase-caption">고민을 함께 정리하고, 선택을 기록한 뒤 결과가 달라졌을 때 같은 상담으로 돌아오세요.</p><div class="purchase-allowance"><b>AI 상담 ${TOSS_PRODUCT.answers}회</b><span>구매 후 ${TOSS_PRODUCT.days}일 · 자동결제 없음</span></div><p class="purchase-amount" id="toss-display-amount">가격 확인 중</p><ul><li>정상 AI 답변에만 횟수 차감</li><li>무료 상담 소진 후 이용권 사용</li><li>구매 후 ${TOSS_PRODUCT.days}일 또는 ${TOSS_PRODUCT.answers}회 소진 시 종료</li><li>동일 토스 계정에 이용권 저장</li></ul><p>환불은 토스 앱의 인앱결제 구매내역에서 신청할 수 있어요. 환불 완료 시 남은 이용권은 사용할 수 없습니다. <a href="/refund/" target="_blank" rel="noopener">환불정책</a> · <a href="/terms/" target="_blank" rel="noopener">이용약관</a> · <a href="/support/" target="_blank" rel="noopener">고객지원</a></p><p id="toss-purchase-status" role="status">상품을 확인하고 있어요.</p><button class="primary" id="toss-purchase" disabled>결제하기</button><button class="secondary" id="toss-restore">구매 복원</button><button class="secondary" id="toss-close">나중에 할게요</button></article>${businessInfo}</section>`);
+    openModal(`<section class="subscription-sheet purchase-sheet"><p class="eyebrow">자동 갱신 없는 1회 결제</p><h2>삶의 온기 상담 이용권</h2><article class="purchase-plan"><h3>이어서 상담하기</h3><p class="purchase-caption">고민을 함께 정리하고, 선택을 기록한 뒤 결과가 달라졌을 때 같은 상담으로 돌아오세요.</p><div class="purchase-allowance"><b>AI 상담 ${TOSS_PRODUCT.answers}회</b><span>구매 후 ${TOSS_PRODUCT.days}일 · 자동결제 없음</span></div><p class="purchase-amount" id="toss-display-amount">가격 확인 중</p><ul><li>정상 AI 답변에만 횟수 차감</li><li>무료 상담 소진 후 이용권 사용</li><li>구매 후 ${TOSS_PRODUCT.days}일 또는 ${TOSS_PRODUCT.answers}회 소진 시 종료</li><li>동일 토스 계정에 이용권 저장</li></ul><p>환불은 토스 앱의 인앱결제 구매내역에서 신청할 수 있어요. 환불 완료 시 남은 이용권은 사용할 수 없습니다. <a href="/refund/" target="_blank" rel="noopener">환불정책</a> · <a href="/terms/" target="_blank" rel="noopener">이용약관</a> · <a href="/support/" target="_blank" rel="noopener">고객지원</a></p><button class="secondary" id="purchase-example" hidden>상담 예시 보기</button><p class="hint" id="purchase-record-hint" hidden>기록 열기와 회고는 무료예요.</p><button class="secondary" id="purchase-follow-up" hidden></button><p id="toss-purchase-status" role="status">상품을 확인하고 있어요.</p><button class="primary" id="toss-purchase" disabled>결제하기</button><button class="secondary" id="toss-restore">구매 복원</button><button class="secondary" id="toss-close">나중에 할게요</button></article>${businessInfo}</section>`);
+    if(showExample){const example=document.getElementById('purchase-example');example.hidden=false;example.onclick=()=>showExample(overview);}
+    if(followUp){const record=document.getElementById('purchase-follow-up');record.hidden=false;record.textContent=followUp.label;record.onclick=followUp.open;document.getElementById('purchase-record-hint').hidden=false;}
     const pay = document.getElementById('toss-purchase'), status = document.getElementById('toss-purchase-status');
     const amount = document.getElementById('toss-display-amount');
     const modal = document.querySelector('#modal');
