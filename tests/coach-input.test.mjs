@@ -26,3 +26,11 @@ test('blocked submission refreshes controls without destroying draft via render'
  assert.doesNotMatch(send,/render\(\)/);
  assert.match(send,/coachQuota.remaining===0/);
 });
+
+test('a failed initial journal load allows login, while unsaved loaded records stay protected', async()=>{
+ const start=source.indexOf('beforeSignIn:async()=>');
+ const callback=source.slice(start+'beforeSignIn:'.length,source.indexOf('}, signedIn:',start)+1);
+ const invoke=loaded=>vm.runInNewContext('('+callback+')()', {loaded,saveState:'error',saveQueue:Promise.resolve()});
+ await invoke(false);
+ await assert.rejects(invoke(true),/파일로 보관/);
+});

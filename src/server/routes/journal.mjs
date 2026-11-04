@@ -1,12 +1,13 @@
 import { readBody, sendJson, validateOrigin } from '../http.mjs';
 import { expiredSessionCookie, getSession, sessionCookie, sessionId } from '../session.mjs';
 import { JournalConflictError } from '../repositories/file-journal-repository.mjs';
+import { authToken } from '../auth.mjs';
 
 const validJournal = (data, revision) => data && typeof data === 'object'
   && Number.isInteger(revision) && revision >= 0
   && Array.isArray(data.records) && Array.isArray(data.conversations);
 
-export function createJournalRoute(repository) {
+export function createJournalRoute(repository, authRepository) {
   return async function journalRoute(req, res) {
     if (!['GET', 'PUT', 'DELETE'].includes(req.method)) {
       return sendJson(res, { error: '허용되지 않은 요청입니다.' }, 405);
@@ -20,6 +21,13 @@ export function createJournalRoute(repository) {
     const headers = session.fresh ? { 'Set-Cookie': sessionCookie(req, session) } : {};
 
     try {
+      const owner = await repository.sessionOwner?.(id);
+      if (owner) {
+        const user = await authRepository?.userFromToken(authToken(req));
+        if (!user || user.id !== owner) {
+          return sendJson(res, { error: '로그인이 만료됐어요. 작성 중인 내용은 파일로 보관한 뒤 다시 로그인해 주세요.', code: 'AUTH_REQUIRED' }, 401);
+        }
+      }
       if (req.method === 'GET') {
         const journal = await repository.get(id);
         return sendJson(res, journal, 200, headers);

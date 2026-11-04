@@ -5,7 +5,7 @@ import { createAuthRoutes } from './auth.mjs';
 import { createTossBillingRoute } from './routes/toss-billing.mjs';
 
 export function createApiHandler({ journalRepository, telemetryRepository, authRepository, coachQuotaRepository, tossBillingRepository, readiness = async () => true }) {
-  const journal = createJournalRoute(journalRepository);
+  const journal = createJournalRoute(journalRepository, authRepository);
   const readings = createReadingRoutes(telemetryRepository, authRepository, coachQuotaRepository);
   const auth = createAuthRoutes(authRepository);
   const billing = createTossBillingRoute(authRepository, tossBillingRepository);

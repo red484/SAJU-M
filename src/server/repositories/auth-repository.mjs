@@ -143,7 +143,9 @@ export class AuthRepository {
     try {
       await client.query('BEGIN');
       await client.query('DELETE FROM app_users WHERE id = $1', [userId]);
-      await client.query('DELETE FROM anonymous_sessions WHERE id = $1', [anonymousId]);
+      // A supplied device session must never cascade into another account's journal.
+      await client.query(`DELETE FROM anonymous_sessions s WHERE s.id = $1 AND s.user_id IS NULL
+        AND NOT EXISTS (SELECT 1 FROM saju_journals j WHERE j.session_id = s.id AND j.user_id IS NOT NULL)`, [anonymousId]);
       await client.query('COMMIT');
     } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
   }

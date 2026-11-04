@@ -77,3 +77,100 @@ test('scheduled cleanup skips overlapping runs and retries after a database fail
   assert.equal(calls,2);
   assert.deepEqual(logs,[{event:'auth.expired_sessions_cleaned',deleted:0}]);
 });
+
+test('account journal requires the matching live login for reads, writes and deletion', async () => {
+  const {PostgresJournalRepository}=await import('../src/server/repositories/postgres-journal-repository.mjs');
+  const {createJournalRoute}=await import('../src/server/routes/journal.mjs');
+  const db=new PGlite();
+  const query=async(sql,args=[])=>{const r=await db.query(sql,args);return {...r,rowCount:r.affectedRows||r.rows.length};};
+  const pool={query,async connect(){return {query,release(){}};}};
+  const auth=new AuthRepository(pool), journals=new PostgresJournalRepository(pool);
+  const route=createJournalRoute(journals,auth);
+  const device='a'.repeat(64), id=digest(device), anonymous='b'.repeat(64);
+  const journal={profile:null,records:[],conversations:[],savedAnswers:[]};
+  async function call(method,token,session=device,revision=1,asCookie=false) {
+    let status;
+    const headers={cookie:`dalbit_session=${session}`+(asCookie?`; dalbit_auth=${token}`:''), ...(token&&!asCookie?{authorization:`Bearer ${token}`}:{})};
+    const req={method,headers,socket:{encrypted:false},async *[Symbol.asyncIterator](){yield Buffer.from(JSON.stringify({data:journal,revision}));}};
+    let body;
+    await route(req,{writeHead(value){status=value;},end(value){body=JSON.parse(value);}});
+    return {status,body};
+  }
+  try {
+    for(const file of (await readdir(new URL('../server/migrations/',import.meta.url))).filter(f=>f.endsWith('.sql')).sort())
+      await db.exec(await readFile(new URL('../server/migrations/'+file,import.meta.url),'utf8'));
+    await journals.put(id,journal,0);
+    const expired=await auth.signIn({provider:'toss',subject:'owner'},id,id);
+    await query("UPDATE auth_sessions SET expires_at=now()-interval '1 second' WHERE token_hash=$1",[digest(expired.token)]);
+    const live=await auth.signIn({provider:'toss',subject:'owner'},id,id);
+    const other=await auth.signIn({provider:'toss',subject:'other'},'other','other');
+    for(const method of ['GET','PUT','DELETE'])for(const token of [null,expired.token,other.token]){
+      const out=await call(method,token);
+      assert.equal(out.status,401,method);
+      assert.equal(out.body.code,'AUTH_REQUIRED');
+      assert.equal(out.body.data,undefined);
+    }
+    await auth.deleteExpiredSessions();
+    assert.equal((await call('GET',expired.token)).status,401);
+    assert.deepEqual((await call('GET',live.token)).body.data,journal);
+    assert.deepEqual((await call('GET',live.token,device,1,true)).body.data,journal);
+    assert.equal((await call('PUT',live.token)).status,200);
+    assert.deepEqual((await journals.get(id)).data,journal);
+    await journals.put(digest(anonymous),journal,0);
+    assert.equal((await call('GET',null,anonymous)).status,200);
+    assert.equal((await call('PUT',null,anonymous)).status,200);
+    assert.equal((await call('DELETE',null,anonymous)).status,200);
+    await auth.deleteAccount(other.userId,id);
+    assert.deepEqual((await journals.get(id)).data,journal,'deleting another account cannot remove this journal');
+    assert.equal((await auth.userFromToken(live.token)).id,live.userId);
+    await query('UPDATE anonymous_sessions SET user_id=NULL WHERE id=$1',[id]);
+    const third=await auth.signIn({provider:'toss',subject:'third'},'third','third');
+    await auth.deleteAccount(third.userId,id);
+    assert.deepEqual((await query('SELECT payload FROM saju_journals WHERE user_id=$1',[live.userId])).rows[0].payload,journal,'legacy unlinked journals must survive another account deletion');
+  } finally {await db.close();}
+});
+
+test('HTTP password re-login restores the journal after authentication expires', async()=>{
+  const {createServer}=await import('node:http');
+  const {createApiHandler}=await import('../src/server/api-handler.mjs');
+  const {PostgresJournalRepository}=await import('../src/server/repositories/postgres-journal-repository.mjs');
+  const db=new PGlite();
+  const query=async(sql,args=[])=>{const r=await db.query(sql,args);return {...r,rowCount:r.affectedRows||r.rows.length};};
+  const pool={query,async connect(){return {query,release(){}};}};
+  let server;
+  try {
+    for(const file of (await readdir(new URL('../server/migrations/',import.meta.url))).filter(f=>f.endsWith('.sql')).sort())
+      await db.exec(await readFile(new URL('../server/migrations/'+file,import.meta.url),'utf8'));
+    const auth=new AuthRepository(pool);
+    const api=createApiHandler({journalRepository:new PostgresJournalRepository(pool),authRepository:auth});
+    server=createServer((req,res)=>void api(req,res));
+    await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+    const base=`http://127.0.0.1:${server.address().port}`;
+    let cookies=new Map();
+    const request=async(path,method='GET',body)=>{
+      const response=await fetch(base+path,{method,headers:{cookie:[...cookies].map(([k,v])=>`${k}=${v}`).join('; '),'Content-Type':'application/json'},...(body&&method!=='GET'?{body:JSON.stringify(body)}:{})});
+      for(const line of response.headers.getSetCookie()){
+        const pair=line.split(';')[0],i=pair.indexOf('=');cookies.set(pair.slice(0,i),pair.slice(i+1));
+      }
+      return {status:response.status,body:await response.json()};
+    };
+    const journal={profile:null,records:[{id:'kept',title:'복원할 기록'}],conversations:[],savedAnswers:[]};
+    await request('/api/journal');
+    assert.equal((await request('/api/journal','PUT',{data:journal,revision:0})).status,200);
+    const password='test-only-password-123';
+    const registered=await request('/api/auth/password/register','POST',{password,acknowledgeRecovery:true});
+    assert.equal(registered.status,200);
+    const oldCookies=new Map(cookies);
+    await query("UPDATE auth_sessions SET expires_at=now()-interval '1 second'");
+    for(const method of ['GET','PUT','DELETE'])assert.equal((await request('/api/journal',method,{data:journal,revision:1})).status,401);
+    assert.equal(await auth.deleteExpiredSessions(),1);
+    assert.equal((await request('/api/auth/me')).body.user,null);
+    assert.equal((await request('/api/auth/password/login','POST',{loginId:registered.body.loginId,password})).status,200);
+    assert.deepEqual((await request('/api/journal')).body.data,journal);
+    cookies=oldCookies;
+    assert.equal((await request('/api/journal')).body.data,null,'rotated session must not retain access to the account');
+  } finally {
+    if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+    await db.close();
+  }
+});

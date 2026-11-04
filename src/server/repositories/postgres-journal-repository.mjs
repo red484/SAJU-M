@@ -16,6 +16,11 @@ export class PostgresJournalRepository {
     this.pool = pool;
   }
 
+  async sessionOwner(id) {
+    const result = await this.pool.query('SELECT user_id FROM anonymous_sessions WHERE id = $1', [id]);
+    return result.rows[0]?.user_id || null;
+  }
+
   async ensureSession(client, id) {
     await client.query(`INSERT INTO anonymous_sessions (id) VALUES ($1)
       ON CONFLICT (id) DO UPDATE SET last_seen_at = now()`, [id]);

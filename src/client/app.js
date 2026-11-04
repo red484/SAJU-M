@@ -76,7 +76,7 @@ function installGuestAccess(context) {
  installAnonymousGuestAccess(context);
  installPasswordAccess({...context, available:authOptions.password!==false, beforeSignIn:async()=>{
   await saveQueue;
-  if(saveState==='error')throw new Error('기록 저장이 완료되지 않았어요. 저장을 다시 시도한 뒤 로그인해 주세요.');
+  if(saveState==='error'&&loaded)throw new Error('기록 저장이 완료되지 않았어요. 현재 내용을 파일로 보관해 주세요. 로그인이 만료됐다면 새로고침 후 다시 로그인해 주세요.');
  }, signedIn:async()=>{
   generation++;coachQuota=null;coachLoginRequired=false;
   await loadAuth();await load();await refreshCoachQuota();nav(p()?'chat':'birth');
