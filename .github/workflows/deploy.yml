@@ -72,6 +72,7 @@ jobs:
             -exec rm -rf {} +
           tar xzf /tmp/saju-release.tar.gz
           rm -f /tmp/saju-release.tar.gz
+          sudo bash deploy/logging/install.sh
           sudo docker compose --env-file .env.production -f docker-compose.prd.yml up -d --build --wait
           sudo docker image prune -f
           EOF

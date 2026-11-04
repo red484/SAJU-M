@@ -22,10 +22,11 @@ docker network inspect levelup-net >/dev/null 2>&1 || docker network create leve
 ## 3. 빌드와 기동
 
 ```sh
-docker compose --env-file .env.production -f docker-compose.prd.yml config
+sudo bash deploy/logging/install.sh
+docker compose --env-file .env.production -f docker-compose.prd.yml config --quiet
 docker compose --env-file .env.production -f docker-compose.prd.yml up -d --build
 docker compose --env-file .env.production -f docker-compose.prd.yml ps
-docker compose --env-file .env.production -f docker-compose.prd.yml logs --tail=100 backend
+sudo tail -n 100 /var/log/saju/containers.log
 ```
 
 `db-init`가 전용 role/database를 만든 뒤 backend가 migration을 적용합니다. DB가 준비되어야 web 컨테이너가 시작됩니다.
@@ -53,6 +54,7 @@ git pull --ff-only
 npm ci
 npm run build
 npm test
+sudo bash deploy/logging/install.sh
 docker compose --env-file .env.production -f docker-compose.prd.yml up -d --build
 SMOKE_BASE_URL=https://saju.ashwoodfriends.com npm run smoke
 ```

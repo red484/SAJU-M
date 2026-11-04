@@ -3,6 +3,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 test -f .env.production
+sudo bash deploy/logging/install.sh
 sha256sum -c deploy/prebuilt/web-code.sha256
 test "$(docker inspect -f '{{.State.Running}}' saju-web)" = true
 test "$(docker inspect -f '{{.State.Running}}' saju-backend)" = true

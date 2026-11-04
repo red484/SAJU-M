@@ -3,6 +3,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 test -f .env.production
+sudo bash deploy/logging/install.sh
 test "$(docker inspect -f '{{.State.Running}}' saju-backend)" = true
 docker exec saju-backend node --input-type=module -e '
 import {access} from "node:fs/promises";

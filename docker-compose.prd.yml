@@ -14,6 +14,13 @@ services:
 
   backend:
     container_name: saju-backend
+    logging:
+      driver: syslog
+      options:
+        syslog-address: unixgram:///var/spool/rsyslog/saju.sock
+        syslog-format: rfc5424micro
+        tag: saju-backend
+        cache-disabled: "true"
     build:
       context: .
       target: backend
@@ -66,6 +73,13 @@ services:
 
   web:
     container_name: saju-web
+    logging:
+      driver: syslog
+      options:
+        syslog-address: unixgram:///var/spool/rsyslog/saju.sock
+        syslog-format: rfc5424micro
+        tag: saju-web
+        cache-disabled: "true"
     build:
       context: .
       target: web

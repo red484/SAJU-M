@@ -14,10 +14,11 @@ const pool = createPool();
 await migrate(pool);
 const tossBilling = new TossBillingRepository(pool);
 const authRepository = new AuthRepository(pool);
+const telemetryRepository = new TelemetryRepository(pool);
 
 const api = createApiHandler({
   journalRepository: new PostgresJournalRepository(pool),
-  telemetryRepository: new TelemetryRepository(pool),
+  telemetryRepository,
   authRepository,
   coachQuotaRepository: new CoachQuotaRepository(pool, tossBilling),
   tossBillingRepository: tossBilling,
@@ -32,23 +33,36 @@ const server = createServer((req, res) => void api(req, res).catch(error => {
 
 server.listen(port, host, () => console.log(`Dalbit Saju backend listening on ${host}:${port}`));
 
-let cleaningSessions = false;
-async function cleanExpiredSessions() {
-  if (cleaningSessions) return;
-  cleaningSessions = true;
+let cleaningData = false;
+async function cleanExpiredData() {
+  if (cleaningData) return;
+  cleaningData = true;
   try {
-    const deleted = await authRepository.deleteExpiredSessions();
-    console.log(JSON.stringify({ event: 'auth.expired_sessions_cleaned', deleted }));
-  } catch (error) {
-    console.error(JSON.stringify({ event: 'auth.session_cleanup_failed', ...errorDetails(error) }));
-  } finally { cleaningSessions = false; }
+    try {
+      const deleted = await authRepository.deleteExpiredSessions();
+      console.log(JSON.stringify({ event: 'auth.expired_sessions_cleaned', deleted }));
+    } catch (error) {
+      console.error(JSON.stringify({ event: 'auth.session_cleanup_failed', ...errorDetails(error) }));
+    }
+    try {
+      const totals = { llm_requests: 0, audit_logs: 0, usage_sessions: 0 };
+      let batch;
+      do {
+        batch = await telemetryRepository.deleteExpiredLogs();
+        for (const table of Object.keys(totals)) totals[table] += batch[table];
+      } while (Object.values(batch).some(count => count === 1000));
+      console.log(JSON.stringify({ event: 'operational.expired_logs_cleaned', deleted: totals }));
+    } catch (error) {
+      console.error(JSON.stringify({ event: 'operational.log_cleanup_failed', ...errorDetails(error) }));
+    }
+  } finally { cleaningData = false; }
 }
-const sessionCleanupTimer = setInterval(cleanExpiredSessions, 60 * 60 * 1000);
-sessionCleanupTimer.unref();
-void cleanExpiredSessions();
+const retentionTimer = setInterval(cleanExpiredData, 60 * 60 * 1000);
+retentionTimer.unref();
+void cleanExpiredData();
 
 async function shutdown() {
-  clearInterval(sessionCleanupTimer);
+  clearInterval(retentionTimer);
   // Idle keep-alive sockets would otherwise hold close() open until Docker sends SIGKILL.
   setTimeout(() => process.exit(1), 10_000).unref();
   server.closeIdleConnections();

@@ -54,11 +54,12 @@ test('expired authentication cleanup is bounded and preserves accounts, journals
 
 test('scheduled cleanup skips overlapping runs and retries after a database failure', async () => {
   const source=await readFile(new URL('../server/index.mjs',import.meta.url),'utf8');
-  const block=source.slice(source.indexOf('let cleaningSessions = false;'),source.indexOf('\nasync function shutdown()'));
+  const block=source.slice(source.indexOf('let cleaningData = false;'),source.indexOf('\nasync function shutdown()'));
   let scheduled, rejectFirst, calls=0, unref=false;
   const errors=[], logs=[];
   vm.runInNewContext(block, {
     errorDetails,
+    telemetryRepository: {async deleteExpiredLogs() {return {llm_requests:0,audit_logs:0,usage_sessions:0};}},
     authRepository: {deleteExpiredSessions() {
       calls++;
       return calls===1?new Promise((_,reject)=>{rejectFirst=reject;}):Promise.resolve(0);
@@ -77,7 +78,7 @@ test('scheduled cleanup skips overlapping runs and retries after a database fail
   assert.deepEqual(errors,[{event:'auth.session_cleanup_failed',code:'ECONNRESET'}]);
   await scheduled();
   assert.equal(calls,2);
-  assert.deepEqual(logs,[{event:'auth.expired_sessions_cleaned',deleted:0}]);
+  assert.deepEqual(logs.filter(log=>log.event.startsWith('auth.')),[{event:'auth.expired_sessions_cleaned',deleted:0}]);
 });
 
 test('account journal requires the matching live login for reads, writes and deletion', async () => {
@@ -175,4 +176,20 @@ test('HTTP password re-login restores the journal after authentication expires',
     if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
     await db.close();
   }
+});
+
+
+test('scheduled retention drains batches of expired operational logs in the same run',async()=>{
+  const source=await readFile(new URL('../server/index.mjs',import.meta.url),'utf8');
+  const block=source.slice(source.indexOf('let cleaningData = false;'),source.indexOf('\nasync function shutdown()'));
+  const logs=[];let calls=0;
+  vm.runInNewContext(block,{
+    errorDetails,authRepository:{async deleteExpiredSessions(){return 0;}},
+    telemetryRepository:{async deleteExpiredLogs(){calls++;return {llm_requests:0,audit_logs:calls===1?1000:5,usage_sessions:0};}},
+    console:{log:v=>logs.push(JSON.parse(v)),error(){assert.fail('unexpected cleanup error');}},
+    setInterval(){return {unref(){}};}
+  });
+  await new Promise(setImmediate);
+  assert.equal(calls,2);
+  assert.deepEqual(logs.find(log=>log.event==='operational.expired_logs_cleaned').deleted,{llm_requests:0,audit_logs:1005,usage_sessions:0});
 });

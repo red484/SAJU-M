@@ -3,6 +3,31 @@ import { randomUUID } from 'node:crypto';
 export class TelemetryRepository {
   constructor(pool) { this.pool = pool; }
 
+  async deleteExpiredLogs() {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const deleted = {};
+      // Fixed table names only. Transactions stay small while the caller drains any backlog.
+      for (const [table, timestamp] of [
+        ['llm_requests', 'created_at'],
+        ['audit_logs', 'created_at'],
+        ['usage_sessions', 'COALESCE(completed_at, started_at)']
+      ]) {
+        const result = await client.query(`DELETE FROM ${table} WHERE id IN (
+          SELECT id FROM ${table} WHERE ${timestamp} <= now() - interval '30 days'
+          ORDER BY ${timestamp} LIMIT 1000 FOR UPDATE SKIP LOCKED
+        )`);
+        deleted[table] = result.rowCount;
+      }
+      await client.query('COMMIT');
+      return deleted;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally { client.release(); }
+  }
+
   async start(sessionId, feature) {
     const id = randomUUID();
     const client = await this.pool.connect();
