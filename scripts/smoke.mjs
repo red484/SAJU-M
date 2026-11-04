@@ -16,6 +16,6 @@ for (const [path, heading] of [
   ['/terms/', '서비스 이용약관'],
   ['/refund/', '청약철회 및 환불정책'],
   ['/privacy/', '개인정보처리방침']
-]) await check(path, body => body.includes(`<h1>${heading}</h1>`));
+]) await check(path, body => body.includes(`<h1>${heading}</h1>`) && body.includes('792-88-03521') && body.includes('ashwoodfriends@ashwoodfriends.com'));
 await check('/legal/legal.css', body => body.includes('.shell{'));
 console.log(`Smoke test passed: ${base}`);

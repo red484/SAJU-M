@@ -1,0 +1,1 @@
+export const businessInfo = '<p class="business-info">(주)애쉬우드프렌즈 · 대표 김현석<br>사업자등록번호 792-88-03521<br>통신판매업 신고번호 제2026-서울구로-1453호<br>서울특별시 구로구 디지털로31길 53, 306호<br>고객센터 <a href="mailto:ashwoodfriends@ashwoodfriends.com">ashwoodfriends@ashwoodfriends.com</a></p>';

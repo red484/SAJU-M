@@ -599,3 +599,7 @@ html:not([data-app=note]) nav button[aria-current=page]{background:#7d3e32;color
 .quota-follow-up{flex-basis:100%;margin:0;overflow-wrap:anywhere}
 
 .welcome-legal{flex-wrap:wrap;row-gap:6px}
+
+.business-info{font-size:.75rem;line-height:1.8;overflow-wrap:anywhere;color:#52665f;margin:20px 0 0}
+.welcome-auth .business-info{font-size:.68rem;color:#c4cdbf;margin:18px 0 0}
+.business-info a{color:inherit}

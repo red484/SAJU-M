@@ -1,3 +1,4 @@
+import { businessInfo } from './business-info.js';
 // Preview only. No payment request, entitlement write, or renewal is performed.
 export const PLUS_PLAN = Object.freeze({ price: 4900, answers: 50 });
 export const subscriptionEnabled = ({ native = false, toss = false } = {}) => !native && !toss;
@@ -41,6 +42,7 @@ export function installSubscription({ page, user, openModal, notice, navigate, n
       <details><summary>이용·해지 조건 확인</summary><p>출시 후 매월 자동 결제 예정입니다. 상담 횟수는 이월되지 않으며 오류·답변 실패·주제 밖 질문 거절은 차감하지 않습니다. 해지 시 다음 결제를 중단하고 이용기간 종료일까지 이용할 수 있도록 준비 중입니다. 정기결제의 확정 환불 조건은 판매 전에 안내합니다. <a href="/refund/" target="_blank" rel="noopener">환불정책</a>과 <a href="/pricing/" target="_blank" rel="noopener">상품 안내</a>를 확인해 주세요.</p></details>
       <button class="text-link purchase-account" id="subscription-preview">${user?.loginId ? '게스트 결제 전 확인사항' : user ? '결제 상세 정보 확인' : '로그인 방법 보기'}</button>
       <button class="secondary" id="subscription-close">나중에 할게요</button>
+      ${businessInfo}
     </section>`);
     bind('subscription-preview', () => {
       if (!user) { close(); navigate('welcome'); return; }

@@ -79,12 +79,10 @@ export async function setupNativeShell({ back, notify, openRecord }) {
   paintNetwork(await Network.getStatus());
   await Network.addListener('networkStatusChange', paintNetwork);
 
-  if (noteMode) {
-    await LocalNotifications.addListener('localNotificationActionPerformed', ({ notification }) => {
-      const id = notification.extra?.recordId;
-      if (id) openRecord?.(id);
-    });
-  }
+  await LocalNotifications.addListener('localNotificationActionPerformed', ({ notification }) => {
+    const id = notification.extra?.recordId;
+    if (id) openRecord?.(id);
+  });
 
   // 정책 페이지는 앱 안에서 유지하고, 계산 출처 같은 외부 사이트만 시스템
   // 브라우저로 엽니다. 사용자가 앱으로 돌아오면 입력 상태가 그대로 남습니다.
