@@ -7,6 +7,16 @@ const hash = value => createHash('sha256').update(value).digest('hex');
 export class AuthRepository {
   constructor(pool) { this.pool = pool; }
 
+  async deleteExpiredSessions() {
+    // ponytail: 1000 per pass; shorten the hourly cadence if an expiry backlog persists.
+    // Other instances skip rows already being cleaned up.
+    const result = await this.pool.query(`DELETE FROM auth_sessions WHERE token_hash IN (
+      SELECT token_hash FROM auth_sessions WHERE expires_at <= now()
+      ORDER BY expires_at LIMIT 1000 FOR UPDATE SKIP LOCKED
+    )`);
+    return result.rowCount;
+  }
+
   async userFromToken(token) {
     if (!token) return null;
     const result = await this.pool.query(`SELECT u.id, u.display_name, u.email, p.login_id

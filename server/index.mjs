@@ -12,11 +12,12 @@ const host = process.env.HOST || '0.0.0.0';
 const pool = createPool();
 await migrate(pool);
 const tossBilling = new TossBillingRepository(pool);
+const authRepository = new AuthRepository(pool);
 
 const api = createApiHandler({
   journalRepository: new PostgresJournalRepository(pool),
   telemetryRepository: new TelemetryRepository(pool),
-  authRepository: new AuthRepository(pool),
+  authRepository,
   coachQuotaRepository: new CoachQuotaRepository(pool, tossBilling),
   tossBillingRepository: tossBilling,
   readiness: async () => { await pool.query('SELECT 1'); }
@@ -30,7 +31,23 @@ const server = createServer((req, res) => void api(req, res).catch(error => {
 
 server.listen(port, host, () => console.log(`Dalbit Saju backend listening on ${host}:${port}`));
 
+let cleaningSessions = false;
+async function cleanExpiredSessions() {
+  if (cleaningSessions) return;
+  cleaningSessions = true;
+  try {
+    const deleted = await authRepository.deleteExpiredSessions();
+    console.log(JSON.stringify({ event: 'auth.expired_sessions_cleaned', deleted }));
+  } catch (error) {
+    console.error(JSON.stringify({ event: 'auth.session_cleanup_failed', code: error?.code || 'UNKNOWN' }));
+  } finally { cleaningSessions = false; }
+}
+const sessionCleanupTimer = setInterval(cleanExpiredSessions, 60 * 60 * 1000);
+sessionCleanupTimer.unref();
+void cleanExpiredSessions();
+
 async function shutdown() {
+  clearInterval(sessionCleanupTimer);
   // Idle keep-alive sockets would otherwise hold close() open until Docker sends SIGKILL.
   setTimeout(() => process.exit(1), 10_000).unref();
   server.closeIdleConnections();

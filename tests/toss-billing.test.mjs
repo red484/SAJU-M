@@ -32,8 +32,8 @@ test('client grant callback fails closed; recovery acknowledges only after grant
   params.onEvent({ type: 'success' }); await buying; assert.equal(cleanup, 1);
   assert.equal(await client.restore(), 1); assert.equal(completed, 1);
 });
-test('Postgres: exact account, idempotent grant, consumption, rollback, expiry, refund', { skip: !process.env.PGLITE_MODULE }, async () => {
-  const { PGlite } = await import(process.env.PGLITE_MODULE);
+test('Postgres: exact account, idempotent grant, consumption, rollback, expiry, refund', async () => {
+  const { PGlite } = await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');
   const db = new PGlite();
   try {
     for (const file of (await readdir(new URL('../server/migrations/', import.meta.url))).filter(f => f.endsWith('.sql')).sort())
