@@ -1,3 +1,4 @@
+import { trackProductEvent } from './product-metrics.js';
 import { businessInfo } from './business-info.js';
 // Preview only. No payment request, entitlement write, or renewal is performed.
 export const PLUS_PLAN = Object.freeze({ price: 4900, answers: 50 });
@@ -27,6 +28,7 @@ export function installSubscription({ page, user, openModal, notice, navigate, n
     bind('subscription-back', overview);
   }
   function overview() {
+    trackProductEvent('purchase_view');
     openModal(`<section class="subscription-sheet purchase-sheet">
       <p class="eyebrow">조금 더 깊은 나의 이야기</p><h2>온기 플러스 요금 안내</h2>
       <article class="purchase-plan" aria-label="온기 플러스 월 구독 상품">

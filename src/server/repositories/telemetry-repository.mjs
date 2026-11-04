@@ -3,6 +3,11 @@ import { randomUUID } from 'node:crypto';
 export class TelemetryRepository {
   constructor(pool) { this.pool = pool; }
 
+  async recordProductEvent({ event, channel }) {
+    await this.pool.query(`INSERT INTO product_event_counts (event, channel) VALUES ($1,$2)
+      ON CONFLICT (day, channel, event) DO UPDATE SET count = product_event_counts.count + 1`, [event, channel]);
+  }
+
   async deleteExpiredLogs() {
     const client = await this.pool.connect();
     try {
@@ -12,7 +17,8 @@ export class TelemetryRepository {
       for (const [table, timestamp] of [
         ['llm_requests', 'created_at'],
         ['audit_logs', 'created_at'],
-        ['usage_sessions', 'COALESCE(completed_at, started_at)']
+        ['usage_sessions', 'COALESCE(completed_at, started_at)'],
+        ['product_event_counts', "day::timestamp AT TIME ZONE 'Asia/Seoul'"]
       ]) {
         const result = await client.query(`DELETE FROM ${table} WHERE id IN (
           SELECT id FROM ${table} WHERE ${timestamp} <= now() - interval '30 days'

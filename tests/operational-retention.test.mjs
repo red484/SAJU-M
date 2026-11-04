@@ -31,9 +31,9 @@ test('30-day cleanup deletes only expired operational rows, including the bounda
     await query("INSERT INTO audit_logs(event_type,created_at) VALUES('recent',now()-interval '29 days')");
     const protectedTables=['app_users','anonymous_sessions','saju_journals','coach_answers','toss_coach_orders','auth_sessions'];
     const before=await Promise.all(protectedTables.map(async t=>(await query(`SELECT * FROM ${t}`)).rows));
-    assert.deepEqual(await repo.deleteExpiredLogs(),{llm_requests:1,audit_logs:1000,usage_sessions:1});
-    assert.deepEqual(await repo.deleteExpiredLogs(),{llm_requests:0,audit_logs:5,usage_sessions:0});
-    assert.deepEqual(await repo.deleteExpiredLogs(),{llm_requests:0,audit_logs:0,usage_sessions:0});
+    assert.deepEqual(await repo.deleteExpiredLogs(),{llm_requests:1,audit_logs:1000,usage_sessions:1,product_event_counts:0});
+    assert.deepEqual(await repo.deleteExpiredLogs(),{llm_requests:0,audit_logs:5,usage_sessions:0,product_event_counts:0});
+    assert.deepEqual(await repo.deleteExpiredLogs(),{llm_requests:0,audit_logs:0,usage_sessions:0,product_event_counts:0});
     assert.equal((await query('SELECT usage_session_id FROM llm_requests')).rows[0].usage_session_id,null);
     assert.equal((await query('SELECT id FROM usage_sessions')).rows[0].id,newRun);
     assert.equal((await query('SELECT event_type FROM audit_logs')).rows[0].event_type,'recent');

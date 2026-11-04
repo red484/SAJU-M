@@ -1,3 +1,4 @@
+import { createProductEventsRoute } from './routes/product-events.mjs';
 import { sendJson } from './http.mjs';
 import { createJournalRoute } from './routes/journal.mjs';
 import { createReadingRoutes } from './routes/readings.mjs';
@@ -5,6 +6,7 @@ import { createAuthRoutes } from './auth.mjs';
 import { createTossBillingRoute } from './routes/toss-billing.mjs';
 
 export function createApiHandler({ journalRepository, telemetryRepository, authRepository, coachQuotaRepository, tossBillingRepository, readiness = async () => true }) {
+  const productEvents = createProductEventsRoute(telemetryRepository);
   const journal = createJournalRoute(journalRepository, authRepository);
   const readings = createReadingRoutes(telemetryRepository, authRepository, coachQuotaRepository);
   const auth = createAuthRoutes(authRepository);
@@ -37,6 +39,7 @@ export function createApiHandler({ journalRepository, telemetryRepository, authR
     }
     if (url.pathname.startsWith('/api/auth/')) return auth(req, res, url);
     if (url.pathname.startsWith('/api/toss-billing/')) return billing(req, res, url);
+    if (url.pathname === '/api/product-events') return productEvents(req, res);
     if (url.pathname === '/api/journal') return journal(req, res);
     if (url.pathname === '/api/coach') return readings.coach(req, res);
     if (url.pathname === '/api/epic') return readings.epic(req, res);

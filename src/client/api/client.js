@@ -1,4 +1,4 @@
-const apiBase = typeof __DALBIT_API_BASE__ === 'undefined' ? '' : __DALBIT_API_BASE__;
+export const apiBase = typeof __DALBIT_API_BASE__ === 'undefined' ? '' : __DALBIT_API_BASE__;
 export const appsInToss = typeof __APPS_IN_TOSS__ !== 'undefined' && __APPS_IN_TOSS__;
 const tossAuthKey = 'dalbit-toss-auth';
 const tossSessionKey = 'dalbit-toss-session';

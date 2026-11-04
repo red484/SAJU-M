@@ -45,7 +45,7 @@ async function cleanExpiredData() {
       console.error(JSON.stringify({ event: 'auth.session_cleanup_failed', ...errorDetails(error) }));
     }
     try {
-      const totals = { llm_requests: 0, audit_logs: 0, usage_sessions: 0 };
+      const totals = { llm_requests: 0, audit_logs: 0, usage_sessions: 0, product_event_counts: 0 };
       let batch;
       do {
         batch = await telemetryRepository.deleteExpiredLogs();

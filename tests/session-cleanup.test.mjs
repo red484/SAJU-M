@@ -59,7 +59,7 @@ test('scheduled cleanup skips overlapping runs and retries after a database fail
   const errors=[], logs=[];
   vm.runInNewContext(block, {
     errorDetails,
-    telemetryRepository: {async deleteExpiredLogs() {return {llm_requests:0,audit_logs:0,usage_sessions:0};}},
+    telemetryRepository: {async deleteExpiredLogs() {return {llm_requests:0,audit_logs:0,usage_sessions:0,product_event_counts:0};}},
     authRepository: {deleteExpiredSessions() {
       calls++;
       return calls===1?new Promise((_,reject)=>{rejectFirst=reject;}):Promise.resolve(0);
@@ -185,11 +185,11 @@ test('scheduled retention drains batches of expired operational logs in the same
   const logs=[];let calls=0;
   vm.runInNewContext(block,{
     errorDetails,authRepository:{async deleteExpiredSessions(){return 0;}},
-    telemetryRepository:{async deleteExpiredLogs(){calls++;return {llm_requests:0,audit_logs:calls===1?1000:5,usage_sessions:0};}},
+    telemetryRepository:{async deleteExpiredLogs(){calls++;return {llm_requests:0,audit_logs:calls===1?1000:5,usage_sessions:0,product_event_counts:0};}},
     console:{log:v=>logs.push(JSON.parse(v)),error(){assert.fail('unexpected cleanup error');}},
     setInterval(){return {unref(){}};}
   });
   await new Promise(setImmediate);
   assert.equal(calls,2);
-  assert.deepEqual(logs.find(log=>log.event==='operational.expired_logs_cleaned').deleted,{llm_requests:0,audit_logs:1005,usage_sessions:0});
+  assert.deepEqual(logs.find(log=>log.event==='operational.expired_logs_cleaned').deleted,{llm_requests:0,audit_logs:1005,usage_sessions:0,product_event_counts:0});
 });
