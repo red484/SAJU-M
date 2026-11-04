@@ -138,6 +138,15 @@ export class AuthRepository {
     } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
   }
 
+  async revokeAppleSessions(subject, eventTime) {
+    // Replays and delayed delivery cannot sign out sessions created after the Apple event.
+    // Keep the account and its journal: disabling Apple credentials is not an app deletion request.
+    const result = await this.pool.query(`DELETE FROM auth_sessions s USING auth_identities i
+      WHERE i.provider = 'apple' AND i.provider_subject = $1 AND s.user_id = i.user_id
+        AND s.created_at <= to_timestamp($2)`, [subject, eventTime]);
+    return result.rowCount;
+  }
+
   async deleteAccount(userId, anonymousId) {
     const client = await this.pool.connect();
     try {

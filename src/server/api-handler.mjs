@@ -1,3 +1,4 @@
+import { createAppleNotificationRoute } from './apple-notifications.mjs';
 import { createProductEventsRoute } from './routes/product-events.mjs';
 import { sendJson } from './http.mjs';
 import { createJournalRoute } from './routes/journal.mjs';
@@ -6,6 +7,7 @@ import { createAuthRoutes } from './auth.mjs';
 import { createTossBillingRoute } from './routes/toss-billing.mjs';
 
 export function createApiHandler({ journalRepository, telemetryRepository, authRepository, coachQuotaRepository, tossBillingRepository, readiness = async () => true }) {
+  const appleNotifications = createAppleNotificationRoute(authRepository);
   const productEvents = createProductEventsRoute(telemetryRepository);
   const journal = createJournalRoute(journalRepository, authRepository);
   const readings = createReadingRoutes(telemetryRepository, authRepository, coachQuotaRepository);
@@ -37,6 +39,7 @@ export function createApiHandler({ journalRepository, telemetryRepository, authR
         return sendJson(res, { ok: false, ready: false }, 503);
       }
     }
+    if (url.pathname === '/api/auth/apple/notifications') return appleNotifications(req, res);
     if (url.pathname.startsWith('/api/auth/')) return auth(req, res, url);
     if (url.pathname.startsWith('/api/toss-billing/')) return billing(req, res, url);
     if (url.pathname === '/api/product-events') return productEvents(req, res);
