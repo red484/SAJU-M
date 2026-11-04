@@ -22,6 +22,15 @@ export function setReviewReminder(id, enabled) {
     else localStorage.removeItem(reminderKey(id));
   } catch { /* The record can still be saved without a device reminder. */ }
 }
+export async function clearReviewReminders() {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('ongi-review-reminder:')) localStorage.removeItem(key);
+    }
+  } catch {}
+  await syncReviewReminders([]);
+}
 export async function reviewReminderStatus(record) {
   if (!reviewReminderEnabled(record.id)) return '이 기기에서 알림 꺼짐';
   try {

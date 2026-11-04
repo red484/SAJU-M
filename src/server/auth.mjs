@@ -46,7 +46,7 @@ async function appleSecret() {
     .setAudience('https://appleid.apple.com').setIssuedAt().setExpirationTime('5m').sign(key);
 }
 
-async function exchange(provider, code, redirectUri, nonce) {
+async function exchange(provider, code, redirectUri, nonce, includeAppleTokens = false) {
   const body = new URLSearchParams({ code, grant_type: 'authorization_code', redirect_uri: redirectUri });
   let endpoint, audience, keys, issuer;
   if (provider === 'google') {
@@ -61,10 +61,22 @@ async function exchange(provider, code, redirectUri, nonce) {
   if (!response.ok || !tokens.id_token) throw new Error(`${provider} token exchange failed`);
   const { payload } = await jwtVerify(tokens.id_token, keys, { audience, issuer });
   if (!nonce || payload.nonce !== nonce) throw new Error(`${provider} nonce verification failed`);
-  return { provider, subject: payload.sub, email: payload.email || null, name: payload.name || null };
+  return { provider, subject: payload.sub, email: payload.email || null, name: payload.name || null,
+    ...(provider === 'apple' && includeAppleTokens ? { appleTokens: { refreshToken: tokens.refresh_token, accessToken: tokens.access_token } } : {}) };
 }
 
-export function createAuthRoutes(repository) {
+export async function revokeAppleTokens(tokens, { request = fetch, secret = appleSecret } = {}) {
+  const refresh = typeof tokens?.refreshToken === 'string' && tokens.refreshToken;
+  const token = refresh || (typeof tokens?.accessToken === 'string' && tokens.accessToken);
+  if (!token) throw new Error('Apple revocation token missing');
+  const body = new URLSearchParams({ client_id: process.env.APPLE_CLIENT_ID, client_secret: await secret(), token,
+    token_type_hint: refresh ? 'refresh_token' : 'access_token' });
+  const response = await request('https://appleid.apple.com/auth/revoke', { method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body, signal: AbortSignal.timeout(15_000) });
+  if (!response.ok) throw new Error('Apple revocation failed');
+}
+
+export function createAuthRoutes(repository, { exchangeIdentity = exchange, revokeApple = revokeAppleTokens } = {}) {
   // The local file mode has no account storage, so no provider can finish a sign-in there.
   const accounts = Boolean(repository.registerPassword);
   const available = provider => accounts && configured(provider);
@@ -116,6 +128,10 @@ export function createAuthRoutes(repository) {
       return sendJson(res, { guest: { id: sessionId(session.token) } }, 200,
         { 'Set-Cookie': sessionCookie(req, session) });
     }
+    if (url.pathname === '/api/auth/deletion-result' && req.method === 'GET') {
+      return sendJson(res, { deleted: readCookie(req, 'dalbit_deleted') === '1' }, 200,
+        { 'Set-Cookie': cookie('dalbit_deleted', '', req, 0) });
+    }
     if (url.pathname === '/api/auth/providers') return sendJson(res, { google: available('google'), apple: available('apple'), toss: available('toss'), password: accounts });
     if (url.pathname === '/api/auth/me') {
       const user = await repository.userFromToken(authToken(req));
@@ -124,6 +140,13 @@ export function createAuthRoutes(repository) {
     if (url.pathname === '/api/auth/start') {
       const provider = url.searchParams.get('provider');
       if (!['google', 'apple'].includes(provider) || !available(provider)) return sendJson(res, { error: '로그인 제공자가 설정되지 않았습니다.' }, 503);
+      const deleting = provider === 'apple' && url.searchParams.get('intent') === 'delete';
+      if (deleting) {
+        if (req.method !== 'POST') return sendJson(res, { error: 'POST 요청이 필요합니다.' }, 405, { Allow: 'POST' });
+        if (!validateOrigin(req)) return sendJson(res, { error: '이 사이트에서 다시 진행해 주세요.' }, 403);
+        const actor = await repository.userFromToken(authToken(req));
+        if (!actor || !await repository.appleSubject(actor.id)) return sendJson(res, { error: '탈퇴 확인부터 다시 진행해 주세요.' }, 401);
+      }
       const state = randomBytes(24).toString('hex');
       const nonce = randomBytes(24).toString('hex');
       const redirectUri = `${baseUrl(req)}/api/auth/callback/${provider}`;
@@ -132,7 +155,9 @@ export function createAuthRoutes(repository) {
       if (provider === 'google') params.set('prompt', 'select_account');
       else params.set('response_mode', 'form_post');
       res.writeHead(302, { Location: `${provider === 'google' ? 'https://accounts.google.com/o/oauth2/v2/auth' : 'https://appleid.apple.com/auth/authorize'}?${params}`,
-        'Set-Cookie': [cookie('dalbit_oauth_state', state, req, 600, provider === 'apple' ? 'None' : 'Lax'), cookie('dalbit_oauth_nonce', nonce, req, 600, provider === 'apple' ? 'None' : 'Lax'), cookie('dalbit_oauth_return', encodeURIComponent(safeReturn(url.searchParams.get('returnTo'))), req, 600, provider === 'apple' ? 'None' : 'Lax')] });
+        'Set-Cookie': [cookie('dalbit_delete_state', deleting ? state : '', req, deleting ? 600 : 0, 'None'),
+          cookie('dalbit_delete_auth', deleting ? authToken(req) : '', req, deleting ? 600 : 0, 'None'),
+          cookie('dalbit_oauth_state', state, req, 600, provider === 'apple' ? 'None' : 'Lax'), cookie('dalbit_oauth_nonce', nonce, req, 600, provider === 'apple' ? 'None' : 'Lax'), cookie('dalbit_oauth_return', encodeURIComponent(safeReturn(url.searchParams.get('returnTo'))), req, 600, provider === 'apple' ? 'None' : 'Lax')] });
       return res.end();
     }
     if (url.pathname === '/api/auth/toss' && req.method === 'POST') {
@@ -164,17 +189,32 @@ export function createAuthRoutes(repository) {
       let params = url.searchParams;
       if (req.method === 'POST') params = new URLSearchParams(await readBody(req, 20_000));
       if (params.get('state') !== readCookie(req, 'dalbit_oauth_state')) return sendJson(res, { error: '로그인 요청을 확인할 수 없습니다.' }, 400);
+      const deleting = provider === 'apple' && !!readCookie(req, 'dalbit_delete_state') && params.get('state') === readCookie(req, 'dalbit_delete_state');
+      const clearDeletion = [cookie('dalbit_delete_auth', '', req, 0, 'None'), cookie('dalbit_delete_state', '', req, 0, 'None')];
       const anonymousId = sessionId(getSession(req).token);
       const rotatedSession = { token: randomBytes(32).toString('hex'), fresh: true };
       try {
-        const identity = await exchange(provider, params.get('code'), `${baseUrl(req)}/api/auth/callback/${provider}`, readCookie(req, 'dalbit_oauth_nonce'));
+        // Read the initiating authentication before revocation can trigger a sign-out notification.
+        const actor = deleting ? await repository.userFromToken(readCookie(req, 'dalbit_delete_auth')) : null;
+        if (deleting && !actor) throw new Error('Deletion confirmation expired');
+        const identity = await exchangeIdentity(provider, params.get('code'), `${baseUrl(req)}/api/auth/callback/${provider}`, readCookie(req, 'dalbit_oauth_nonce'), deleting);
+        if (deleting) {
+          if (identity.provider !== 'apple' || await repository.appleSubject(actor.id) !== identity.subject) throw new Error('Apple account mismatch');
+          await revokeApple(identity.appleTokens);
+          await repository.deleteAccount(actor.id, anonymousId);
+          res.writeHead(302, { Location: '/?account=deleted', 'Set-Cookie': [...clearDeletion,
+            cookie('dalbit_oauth_state', '', req, 0), cookie('dalbit_oauth_nonce', '', req, 0), cookie('dalbit_oauth_return', '', req, 0),
+            cookie('dalbit_auth', '', req, 0), expiredSessionCookie(req), cookie('dalbit_deleted', '1', req, 600)] });
+          return res.end();
+        }
         if (provider === 'apple') identity.name = appleDisplayName(params.get('user'));
         const signed = await repository.signIn(identity, anonymousId, sessionId(rotatedSession.token));
         let location = '/settings';
         try { location = decodeURIComponent(readCookie(req, 'dalbit_oauth_return') || '%2Fsettings'); } catch {}
         res.writeHead(302, { Location: safeReturn(location), 'Set-Cookie': [sessionCookie(req, rotatedSession),cookie('dalbit_auth', signed.token, req, 2_592_000), cookie('dalbit_oauth_state', '', req, 0), cookie('dalbit_oauth_nonce', '', req, 0), cookie('dalbit_oauth_return', '', req, 0)] });
         return res.end();
-      } catch (error) { console.error(JSON.stringify({ event: 'auth.failed', provider, ...errorDetails(error) })); res.writeHead(302, { Location: '/?auth=failed' }); return res.end(); }
+      } catch (error) { console.error(JSON.stringify({ event: 'auth.failed', provider, ...errorDetails(error) })); res.writeHead(302, {
+        Location: deleting ? '/settings?deletion=failed' : '/?auth=failed', 'Set-Cookie': clearDeletion }); return res.end(); }
     }
     if (url.pathname === '/api/auth/logout' && req.method === 'POST') {
       if (!validateOrigin(req)) return sendJson(res, { error: '이 사이트에서 다시 시도해 주세요.' }, 403);
@@ -185,9 +225,17 @@ export function createAuthRoutes(repository) {
       if (!validateOrigin(req)) return sendJson(res, { error: '이 사이트에서 다시 시도해 주세요.' }, 403);
       const user = await repository.userFromToken(authToken(req));
       if (!user) return sendJson(res, { error: '로그인이 필요합니다.' }, 401);
+      let body;
+      try { body = JSON.parse(await readBody(req, 4096, 5000) || '{}'); }
+      catch (error) { return sendJson(res, { error: '탈퇴 요청을 확인해 주세요.' }, error.status === 413 ? 413 : 400); }
+      if (await repository.appleSubject?.(user.id) && body?.manualAppleRevocation !== true) {
+        return sendJson(res, { code: 'APPLE_REAUTH_REQUIRED', reauthorize: available('apple'),
+          error: 'Apple 연결 해제를 위해 다시 본인을 확인해 주세요. Apple 확인이 어려우면 서비스 데이터를 먼저 삭제하고 Apple 연결을 직접 해제할 수 있습니다.' }, 409,
+          { 'Set-Cookie': [cookie('dalbit_delete_auth', '', req, 0, 'None'), cookie('dalbit_delete_state', '', req, 0, 'None')] });
+      }
       const session = getSession(req);
       await repository.deleteAccount(user.id, sessionId(session.token));
-      return sendJson(res, { ok: true }, 200, { 'Set-Cookie': [cookie('dalbit_auth', '', req, 0), expiredSessionCookie(req)] });
+      return sendJson(res, { ok: true }, 200, { 'Set-Cookie': [cookie('dalbit_auth', '', req, 0), expiredSessionCookie(req), cookie('dalbit_deleted', '', req, 0), cookie('dalbit_delete_auth', '', req, 0, 'None'), cookie('dalbit_delete_state', '', req, 0, 'None')] });
     }
     return sendJson(res, { error: '없는 인증 경로입니다.' }, 404);
   };

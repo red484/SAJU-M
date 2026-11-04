@@ -16,7 +16,7 @@ async function device(platform) {
   const values = new Map(), events = new Map();
   const state = { pending: [], permission: 'granted', asked: 0, opened: [] };
   globalThis.location = { search: '' };
-  globalThis.localStorage = { getItem: k => values.get(k) ?? null, setItem: (k,v) => values.set(k,v), removeItem: k => values.delete(k) };
+  globalThis.localStorage = { get length(){return values.size;}, key:i=>[...values.keys()][i]??null, getItem: k => values.get(k) ?? null, setItem: (k,v) => values.set(k,v), removeItem: k => values.delete(k) };
   globalThis.sessionStorage = globalThis.localStorage;
   globalThis.document = { documentElement: { classList: { add() {}, toggle() {} } }, addEventListener() {} };
   globalThis.__device = {
@@ -70,3 +70,13 @@ assert.equal(ios.shell.noteMode, true);
 await ios.shell.syncReviewReminders(records);
 assert.equal(ios.state.pending.length, 2, 'Note app retains its automatic review reminders');
 console.log('native review reminder tests passed');
+
+const deletingDevice = await device('android');
+deletingDevice.values.set('unrelated-preference','keep');
+deletingDevice.shell.setReviewReminder('first',true);
+deletingDevice.shell.setReviewReminder('second',true);
+await deletingDevice.shell.syncReviewReminders(records);
+assert.equal(deletingDevice.state.pending.length,2);
+await deletingDevice.shell.clearReviewReminders();
+assert.equal(deletingDevice.state.pending.length,0);
+assert.deepEqual([...deletingDevice.values],[['unrelated-preference','keep']]);

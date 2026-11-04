@@ -16,8 +16,8 @@ import {mergeJournal} from './journal-merge.js';
 import {getJournal,putJournal,deleteJournal} from './api/journal.js';
 import {coachStatus,requestCoachWithRetry} from './api/readings.js';
 import {unrelatedQuestion,SCOPE_NOTICE} from './consultation-scope.js';
-import {authProviders,currentUser,logout,deleteAccount,loginUrl,loginWithToss,clearTossLogin,isAppsInToss} from './api/auth.js';
-import {nativeApp,noteMode,APP_NAME,setupNativeShell,shareNativeFile,syncReviewReminders,reviewReminderEnabled,setReviewReminder,reviewReminderStatus} from './native-shell.js';
+import {authProviders,currentUser,logout,deleteAccount,deletionResult,loginUrl,loginWithToss,clearTossLogin,isAppsInToss} from './api/auth.js';
+import {nativeApp,noteMode,APP_NAME,setupNativeShell,shareNativeFile,syncReviewReminders,clearReviewReminders,reviewReminderEnabled,setReviewReminder,reviewReminderStatus} from './native-shell.js';
 import {NOTE_PAGES} from './app-mode.js';
 // The 만세력 tables are ~323KB of the bundle and are not needed until a chart
 // is actually cast, so engine.js loads on demand. E is null until then.
@@ -613,7 +613,31 @@ async function sendMessage(text){if(quotaChecking)return;const c=currentConversa
  c.pending=false;
  c.messages.push({id:uid(),role:'assistant',text:reply,source,aiFailure,basis:fallback.basis,at:new Date().toISOString()});persist();render();}
 async function action(a){if(a==='retry'){if(!loaded)await load();else await persist();return;}if(a==='logout'){try{const {response}=await logout();if(!response.ok)throw new Error();clearTossLogin();clearDrafts();setMetricsEnabled(false);authUser=null;coachQuota=null;coachLoginRequired=true;aiCoach=null;page='welcome';await load();notice('로그아웃했어요.');}catch{notice('로그아웃하지 못했어요. 다시 시도해 주세요.');}return;}if(a==='export-json'){download('달빛-보관함.json',JSON.stringify(data,null,2),'application/json');return;}if(a==='export-text'){download('달빛-보관함.txt',exportText());return;}if(a==='chat-history'){chatHistoryModal();return;}
- if(a==='delete-all'){openModal(`<h2>${authUser?'계정과 개인정보를':'개인정보를'} 모두 삭제할까요?</h2><p>현재 보관함의 ${noteMode?'선택 기록과 회고가':'프로필·상담·선택 기록·저장한 답변이'} 삭제됩니다. 내려받은 파일과 캘린더 일정은 별도로 삭제해 주세요.</p><label class="check"><input id="delete-confirm" type="checkbox">복구할 수 없음을 이해했습니다.</label><p id="delete-error" role="alert"></p><button class="danger" id="delete-final">전체 삭제</button>`);$('#delete-final').onclick=async()=>{if(!$('#delete-confirm').checked){$('#delete-error').textContent='위 확인란을 선택해 주세요.';return;}$('#delete-final').disabled=true;await saveQueue;try{const {response}=authUser?await deleteAccount():await deleteJournal();if(!response.ok)throw new Error('삭제하지 못했어요. 잠시 후 다시 시도해 주세요.');generation++;clearTossLogin();clearDrafts();setMetricsEnabled(false);for(const record of data.records)setReviewReminder(record.id,false);await syncReviewReminders([]);authUser=null;data={profile:null,records:[],conversations:[],savedAnswers:[]};revision=0;result=null;activeConversation=null;localStorage.removeItem('dalbit-v2');saveState='ready';$('#modal').close();nav('welcome');notice('계정과 개인 보관함의 정보를 삭제했어요.');}catch(e){$('#delete-error').textContent=e.message;$('#delete-final').disabled=false;}};}}
+ if(a==='delete-all'){deleteAllModal();}}
+async function clearDeletedDeviceData(){
+ clearTossLogin();clearDrafts();chatDraft='';setMetricsEnabled(false);try{localStorage.removeItem('dalbit-v2');}catch{}await clearReviewReminders();
+}
+async function completeDeletion(manualApple=false){
+ await saveQueue;
+ const {response,body}=authUser?await deleteAccount(manualApple):await deleteJournal();
+ if(body?.code==='APPLE_REAUTH_REQUIRED'){
+  openModal(`<h2>Apple 연결도 해제할까요?</h2><p>다시 확인한 Apple 계정이 현재 계정과 같을 때 연결을 해제한 뒤 서비스 계정과 기록을 삭제합니다. 취소하거나 확인에 실패하면 기록은 유지됩니다.</p>${body.reauthorize?'<button class="danger" id="apple-delete-reauth">Apple 확인 후 탈퇴</button>':''}<p>Apple 확인을 이용할 수 없으면 서비스 데이터부터 삭제하고 Apple 설정에서 연결을 직접 해제할 수 있습니다. <a href="https://support.apple.com/102571" target="_blank" rel="noopener">Apple 연결 해제 방법</a></p><button class="secondary" id="apple-delete-manual">Apple 연결은 직접 해제하고 탈퇴</button><button class="secondary" id="apple-delete-cancel">취소</button>`);
+  const reauth=$('#apple-delete-reauth');if(reauth)reauth.onclick=()=>{reauth.disabled=true;const form=document.createElement('form');form.method='POST';form.action='/api/auth/start?provider=apple&intent=delete';document.body.append(form);form.submit();};
+  $('#apple-delete-manual').onclick=async()=>{const button=$('#apple-delete-manual');button.disabled=true;try{await completeDeletion(true);}catch{button.disabled=false;notice('삭제하지 못했어요. 잠시 후 다시 시도해 주세요.');}};
+  $('#apple-delete-cancel').onclick=()=>$('#modal').close();return;
+ }
+ if(!response.ok)throw new Error(body?.error||'삭제하지 못했어요. 잠시 후 다시 시도해 주세요.');
+ generation++;await clearDeletedDeviceData();authUser=null;data={profile:null,records:[],conversations:[],savedAnswers:[]};revision=0;result=null;activeConversation=null;saveState='ready';$('#modal').close();nav('welcome');notice(manualApple?'서비스 계정과 기록을 삭제했어요. Apple 설정에서 연결도 직접 해제해 주세요.':'계정과 개인 보관함의 정보를 삭제했어요.');
+}
+function deleteAllModal(){
+ openModal(`<h2>${authUser?'계정과 개인정보를':'개인정보를'} 모두 삭제할까요?</h2><p>현재 보관함의 ${noteMode?'선택 기록과 회고가':'프로필·상담·선택 기록·저장한 답변이'} 삭제됩니다. 내려받은 파일과 캘린더 일정은 별도로 삭제해 주세요.</p><label class="check"><input id="delete-confirm" type="checkbox">복구할 수 없음을 이해했습니다.</label><p id="delete-error" role="alert"></p><button class="danger" id="delete-final">전체 삭제</button>`);
+ $('#delete-final').onclick=async()=>{
+  if(!$('#delete-confirm').checked){$('#delete-error').textContent='위 확인란을 선택해 주세요.';return;}
+  const button=$('#delete-final');button.disabled=true;
+  try{await completeDeletion();}catch(error){$('#delete-error').textContent=error.message;button.disabled=false;}
+ };
+}
+
 async function load(){saveState='loading';refreshSave();try{const {response:res,body:r}=await getJournal();if(!res.ok)throw new Error(r.error);loaded=true;revision=r.revision;data=r.data||{profile:null,records:[],conversations:[],savedAnswers:[]};data.savedAnswers||=[];
  for(const conversation of data.conversations){
   delete conversation.pending;
@@ -640,8 +664,16 @@ render();
 ensureEngine().catch(()=>{enginePromise=null;engineTry++;});
 // 상담·판독 연결 여부를 한 번에 확인하고, 달라졌으면 화면을 다시 그립니다.
 coachAvailable().then(()=>{if(loaded)render();});
-loadAuth();
-load();
+async function startApp(){
+ const url=new URL(location.href);
+ if(url.searchParams.get('account')==='deleted'){
+  try{const {response,body}=await deletionResult();if(response.ok&&body.deleted){await clearDeletedDeviceData();notice('Apple 연결과 서비스 계정·기록을 삭제했어요.');}}catch{notice('삭제 결과 확인이 지연됐어요. 설정에서 다시 확인해 주세요.');}
+  url.searchParams.delete('account');history.replaceState(null,'',url.pathname+url.search+url.hash);
+ }
+ if(url.searchParams.get('deletion')==='failed'){notice('Apple 확인 또는 탈퇴 결과를 확인하지 못했어요. 설정에서 계정 상태를 확인하고 다시 시도해 주세요. 서비스 데이터만 삭제할 수도 있어요.');url.searchParams.delete('deletion');history.replaceState(null,'',url.pathname+url.search+url.hash);}
+ loadAuth();load();
+}
+startApp();
 // 회고 알림을 누르면 그 기록을 엽니다. 보관함을 불러오기 전이면 불러온 뒤에 엽니다.
 setupNativeShell({back:nativeBack,notify:notice,openRecord:id=>{if(!loaded){openOnLoad=id;return;}page='records';render();recordDetail(id);}});
 

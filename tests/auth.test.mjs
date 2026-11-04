@@ -105,7 +105,8 @@ res = await call('/api/auth/start?provider=google&returnTo=%2Fsettings');
 assert.equal(res.status, 302);
 assert.match(res.headers.Location, /^https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth\?/);
 assert.match(res.headers.Location, /redirect_uri=https%3A%2F%2Fsaju\.example\.com%2Fapi%2Fauth%2Fcallback%2Fgoogle/);
-assert.equal(res.headers['Set-Cookie'].length, 3);
+assert.equal(res.headers['Set-Cookie'].length, 5);
+assert.ok(res.headers['Set-Cookie'].some(value=>value.startsWith('dalbit_delete_auth=;')&&value.includes('Max-Age=0')));
 assert.match(res.headers.Location, /nonce=/);
 assert.doesNotMatch(res.headers.Location, /access_type=offline/, '쓰지 않는 리프레시 토큰은 요청하지 않는다');
 // Without account storage (local file mode) a configured provider still cannot finish signing in.

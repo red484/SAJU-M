@@ -3,7 +3,9 @@ import { apiRequest, appsInToss, setTossAuthToken, setTossSessionToken } from '.
 export const authProviders = () => apiRequest('/api/auth/providers');
 export const currentUser = () => apiRequest('/api/auth/me');
 export const logout = () => apiRequest('/api/auth/logout', { method: 'POST' });
-export const deleteAccount = () => apiRequest('/api/auth/account', { method: 'DELETE' });
+export const deleteAccount = (manualAppleRevocation = false) => apiRequest('/api/auth/account', { method: 'DELETE',
+  ...(manualAppleRevocation ? { body: JSON.stringify({ manualAppleRevocation: true }) } : {}) });
+export const deletionResult = () => apiRequest('/api/auth/deletion-result');
 export const loginUrl = provider => `/api/auth/start?provider=${encodeURIComponent(provider)}&returnTo=${encodeURIComponent('/?auth=success')}`;
 
 export async function loginWithToss() {

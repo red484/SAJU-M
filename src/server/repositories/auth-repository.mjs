@@ -138,6 +138,11 @@ export class AuthRepository {
     } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
   }
 
+  async appleSubject(userId) {
+    const { rows } = await this.pool.query("SELECT provider_subject FROM auth_identities WHERE user_id=$1 AND provider='apple'", [userId]);
+    return rows[0]?.provider_subject || null;
+  }
+
   async revokeAppleSessions(subject, eventTime) {
     // Replays and delayed delivery cannot sign out sessions created after the Apple event.
     // Keep the account and its journal: disabling Apple credentials is not an app deletion request.

@@ -61,6 +61,8 @@ test('duplicate and delayed notifications remove only pre-event Apple sessions, 
       ('other',$2,to_timestamp($3)-interval '1 day',now()+interval '1 day')`,[user,other,event.event_time]);
     const before=(await query('SELECT * FROM saju_journals')).rows;
     const repo=new AuthRepository({query});
+    assert.equal(await repo.appleSubject(user),event.sub);
+    assert.equal(await repo.appleSubject(other),null);
     assert.equal(await repo.revokeAppleSessions(event.sub,event.event_time),2);
     assert.equal(await repo.revokeAppleSessions(event.sub,event.event_time),0);
     assert.equal(await repo.revokeAppleSessions('unknown',event.event_time),0);
