@@ -15,7 +15,11 @@ for (const [path, heading] of [
   ['/pricing/', '상품 및 이용 안내'],
   ['/terms/', '서비스 이용약관'],
   ['/refund/', '청약철회 및 환불정책'],
-  ['/privacy/', '개인정보처리방침']
+  ['/privacy/', '개인정보처리방침'],
+  ['/support/', '고객지원'],
+  ['/account-deletion/', '계정 및 데이터 삭제']
 ]) await check(path, body => body.includes(`<h1>${heading}</h1>`) && body.includes('792-88-03521') && body.includes('ashwoodfriends@ashwoodfriends.com'));
+await check('/account-deletion/', body => body.includes('href="/settings"') && body.includes('mailto:ashwoodfriends@ashwoodfriends.com'));
+await check('/settings', body => body.includes('id="app"') && body.includes('/app.js'));
 await check('/legal/legal.css', body => body.includes('.shell{'));
 console.log(`Smoke test passed: ${base}`);
