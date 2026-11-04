@@ -1,3 +1,4 @@
+import { errorDetails } from './logging.mjs';
 import { createHash, randomBytes } from 'node:crypto';
 import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from 'jose';
 import { clientAddress, readBody, sendJson, validateOrigin } from './http.mjs';
@@ -151,8 +152,8 @@ export function createAuthRoutes(repository) {
           email: toss.email || null, name: displayName }, sessionId(session.token), sessionId(rotatedSession.token));
         return sendJson(res, { token: signed.token, session: rotatedSession.token, user: { id: signed.userId, name: displayName, email: toss.email || null } });
       } catch (error) {
-        console.error(JSON.stringify({ event: 'auth.failed', provider: 'toss', error: error.message }));
-        // Upstream text, certificate paths and DB errors stay in the server log.
+        console.error(JSON.stringify({ event: 'auth.failed', provider: 'toss', ...errorDetails(error) }));
+        // Log only the error classification, never upstream text or credential details.
         const status = error instanceof SyntaxError ? 400 : error.status || 500;
         return sendJson(res, { error: status < 500 ? '로그인 요청을 확인해 주세요.' : 'Toss 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.' }, status);
       }
@@ -173,7 +174,7 @@ export function createAuthRoutes(repository) {
         try { location = decodeURIComponent(readCookie(req, 'dalbit_oauth_return') || '%2Fsettings'); } catch {}
         res.writeHead(302, { Location: safeReturn(location), 'Set-Cookie': [sessionCookie(req, rotatedSession),cookie('dalbit_auth', signed.token, req, 2_592_000), cookie('dalbit_oauth_state', '', req, 0), cookie('dalbit_oauth_nonce', '', req, 0), cookie('dalbit_oauth_return', '', req, 0)] });
         return res.end();
-      } catch (error) { console.error(JSON.stringify({ event: 'auth.failed', provider, error: error.message })); res.writeHead(302, { Location: '/?auth=failed' }); return res.end(); }
+      } catch (error) { console.error(JSON.stringify({ event: 'auth.failed', provider, ...errorDetails(error) })); res.writeHead(302, { Location: '/?auth=failed' }); return res.end(); }
     }
     if (url.pathname === '/api/auth/logout' && req.method === 'POST') {
       if (!validateOrigin(req)) return sendJson(res, { error: '이 사이트에서 다시 시도해 주세요.' }, 403);

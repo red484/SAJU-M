@@ -1,3 +1,4 @@
+import { errorDetails } from '../src/server/logging.mjs';
 import { createServer } from 'node:http';
 import { createPool, migrate } from './db.mjs';
 import { createApiHandler } from '../src/server/api-handler.mjs';
@@ -24,7 +25,7 @@ const api = createApiHandler({
 });
 
 const server = createServer((req, res) => void api(req, res).catch(error => {
-  console.error(JSON.stringify({ event: 'request.error', error: error?.message }));
+  console.error(JSON.stringify({ event: 'request.error', ...errorDetails(error) }));
   if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: '서버 오류가 발생했습니다.' }));
 }));
@@ -39,7 +40,7 @@ async function cleanExpiredSessions() {
     const deleted = await authRepository.deleteExpiredSessions();
     console.log(JSON.stringify({ event: 'auth.expired_sessions_cleaned', deleted }));
   } catch (error) {
-    console.error(JSON.stringify({ event: 'auth.session_cleanup_failed', code: error?.code || 'UNKNOWN' }));
+    console.error(JSON.stringify({ event: 'auth.session_cleanup_failed', ...errorDetails(error) }));
   } finally { cleaningSessions = false; }
 }
 const sessionCleanupTimer = setInterval(cleanExpiredSessions, 60 * 60 * 1000);

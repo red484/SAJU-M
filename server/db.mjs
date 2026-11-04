@@ -1,3 +1,4 @@
+import { errorDetails } from '../src/server/logging.mjs';
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +11,7 @@ export function createPool(connectionString = process.env.DATABASE_URL) {
   if (!connectionString) throw new Error('DATABASE_URL is required');
   const pool = new pg.Pool({ connectionString, max: Number(process.env.DB_POOL_SIZE || 10) });
   // An idle client dropped by a Postgres restart emits here; unhandled, it would end the process.
-  pool.on('error', error => console.error(JSON.stringify({ event: 'db.idle_error', error: error?.message })));
+  pool.on('error', error => console.error(JSON.stringify({ event: 'db.idle_error', ...errorDetails(error) })));
   return pool;
 }
 

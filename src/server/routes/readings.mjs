@@ -1,3 +1,4 @@
+import { errorDetails, llmLogDetails } from '../logging.mjs';
 import { coachReply, enabled as coachEnabled } from '../services/coach-service.mjs';
 import { epicReading, enabled as epicEnabled } from '../services/epic-service.mjs';
 import { clientAddress, readBody, sendJson, validateOrigin } from '../http.mjs';
@@ -12,7 +13,7 @@ const epicByAddress = createMemoryRateLimiter({ windowMs: 600_000, max: 20 });
 
 function logShape(feature, shape) {
   if (!shape) return;
-  console.log(JSON.stringify({ event: 'llm.response', feature, ...shape }));
+  console.log(JSON.stringify({ event: 'llm.response', feature, ...llmLogDetails(shape) }));
 }
 
 const telemetryDetails = (shape, status, errorCode) => ({
@@ -57,7 +58,7 @@ export function createReadingRoutes(telemetry, auth, quota) {
         ? sendJson(res, { text: out.text, references: out.references || [], basis: out.basis || null, offer: out.offer || null, source: out.source, quota: out.quota }, 200, timing)
         : sendJson(res, { reading: out.reading }, 200, timing);
     } catch (error) {
-      console.error(JSON.stringify({ event: 'llm.error', feature, error: error?.message, status: error?.status }));
+      console.error(JSON.stringify({ event: 'llm.error', feature, ...errorDetails(error) }));
       await telemetry.finish(usage, telemetryDetails(null, 'failed', String(error?.status || 'UPSTREAM_ERROR'))).catch(() => {});
       const timing = { 'Server-Timing': `ai;dur=${Date.now() - requestStarted}` };
       if (error?.status === 429) return sendJson(res, { error: `AI ${feature === 'coach' ? '상담' : '판독'} 사용량이 많습니다. 잠시 뒤에 다시 시도해 주세요.` }, 429, timing);

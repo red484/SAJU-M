@@ -1,3 +1,4 @@
+import { errorDetails } from '../logging.mjs';
 import { readBody, sendJson, validateOrigin } from '../http.mjs';
 import { expiredSessionCookie, getSession, sessionCookie, sessionId } from '../session.mjs';
 import { JournalConflictError } from '../repositories/file-journal-repository.mjs';
@@ -54,7 +55,7 @@ export function createJournalRoute(repository, authRepository) {
       if (error instanceof JournalConflictError) {
         return sendJson(res, { error: '다른 탭에서 기록이 변경됐어요. 먼저 내보내기로 현재 내용을 보관한 뒤 새로고침해 주세요.' }, 409);
       }
-      console.error('Journal request failed', error?.message);
+      console.error(JSON.stringify({ event: 'journal.failed', ...errorDetails(error) }));
       return sendJson(res, { error: '저장소에 연결하지 못했어요. 입력 내용은 현재 화면에 유지됩니다. 잠시 후 다시 시도해 주세요.' }, 503);
     }
   };

@@ -1,3 +1,4 @@
+import { errorDetails } from './server/logging.mjs';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -80,7 +81,7 @@ createServer((req, res) => void api(req, res).then(handled => {
   if (handled !== false) return;
   return serveStatic(req, res);
 }).catch(error => {
-    console.error('Static request failed', error?.message);
+    console.error(JSON.stringify({ event: 'static.failed', ...errorDetails(error) }));
     if (res.headersSent) return void res.destroy();
     res.writeHead(500);
     res.end('Internal Server Error');

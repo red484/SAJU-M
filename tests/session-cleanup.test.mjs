@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import vm from 'node:vm';
+import { errorDetails } from '../src/server/logging.mjs';
 import { AuthRepository } from '../src/server/repositories/auth-repository.mjs';
 
 const digest = token => createHash('sha256').update(token).digest('hex');
@@ -57,6 +58,7 @@ test('scheduled cleanup skips overlapping runs and retries after a database fail
   let scheduled, rejectFirst, calls=0, unref=false;
   const errors=[], logs=[];
   vm.runInNewContext(block, {
+    errorDetails,
     authRepository: {deleteExpiredSessions() {
       calls++;
       return calls===1?new Promise((_,reject)=>{rejectFirst=reject;}):Promise.resolve(0);
@@ -70,9 +72,9 @@ test('scheduled cleanup skips overlapping runs and retries after a database fail
   assert.ok(unref);
   await scheduled();
   assert.equal(calls,1,'startup pass must not overlap the periodic pass');
-  rejectFirst(Object.assign(new Error('private database error'),{code:'TEST_FAILURE'}));
+  rejectFirst(Object.assign(new Error('private database error'),{code:'ECONNRESET'}));
   await new Promise(setImmediate);
-  assert.deepEqual(errors,[{event:'auth.session_cleanup_failed',code:'TEST_FAILURE'}]);
+  assert.deepEqual(errors,[{event:'auth.session_cleanup_failed',code:'ECONNRESET'}]);
   await scheduled();
   assert.equal(calls,2);
   assert.deepEqual(logs,[{event:'auth.expired_sessions_cleaned',deleted:0}]);
