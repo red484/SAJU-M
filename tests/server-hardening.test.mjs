@@ -46,6 +46,9 @@ test('static server answers directory paths instead of crashing', async () => {
       await response.arrayBuffer();
       assert.ok(response.status < 500, `${path} -> ${response.status}`);
     }
+    const legal = await fetch(`http://127.0.0.1:${port}/refund/`);
+    assert.equal(legal.status, 200);
+    assert.match(await legal.text(), /<h1>청약철회 및 환불정책<\/h1>/);
     assert.equal(server.exitCode, null);
   } finally { server.kill(); }
 });

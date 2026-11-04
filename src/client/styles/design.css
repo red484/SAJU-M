@@ -597,3 +597,5 @@ html:not([data-app=note]) nav button[aria-current=page]{background:#7d3e32;color
 .choice-summary dd{margin:4px 0 12px;white-space:pre-wrap;overflow-wrap:anywhere}
 .coach-quota:has(.quota-follow-up){flex-wrap:wrap}
 .quota-follow-up{flex-basis:100%;margin:0;overflow-wrap:anywhere}
+
+.welcome-legal{flex-wrap:wrap;row-gap:6px}

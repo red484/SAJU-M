@@ -51,6 +51,10 @@ async function serveStatic(req, res) {
   let info;
   try {
     info = await stat(file);
+    if (info.isDirectory()) {
+      file = join(file, 'index.html');
+      info = await stat(file);
+    }
     if (!info.isFile()) throw new Error('Not a file');
   } catch {
     if (extname(target)) {

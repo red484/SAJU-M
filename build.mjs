@@ -24,7 +24,7 @@ await copyFile('assets/element-plate.webp','dist/client/assets/element-plate.web
 await copyFile('assets/google-g.png','dist/client/assets/google-g.png');
 await copyFile('assets/apple-signin.png','dist/client/assets/apple-signin.png');
 await cp('legal','dist/client/legal',{recursive:true});
-for(const page of ['privacy','terms','support','account-deletion']){
+for(const page of ['privacy','terms','support','account-deletion','pricing','refund']){
  await mkdir(`dist/client/${page}`,{recursive:true});
  await copyFile(`legal/${page}.html`,`dist/client/${page}/index.html`);
 }
