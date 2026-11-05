@@ -6,6 +6,7 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { Network } from '@capacitor/network';
 import { Share } from '@capacitor/share';
 import { resolveNoteMode, reviewReminders, reminderId } from './app-mode.js';
+import { getJournal } from './api/journal.js';
 
 export const nativeApp = Capacitor.isNativePlatform();
 export const noteMode = resolveNoteMode({ platform: Capacitor.getPlatform(), search: location.search, storage: globalThis.sessionStorage });
@@ -37,17 +38,18 @@ export async function reviewReminderStatus(record) {
     await reminderSync;
     const { display } = await LocalNotifications.checkPermissions();
     if (display !== 'granted') return '기기 설정에서 알림 권한이 필요해요.';
-    if (!reviewReminders([record]).length) return '예약할 회고 시간이 없어요.';
     const { notifications } = await LocalNotifications.getPending();
-    return notifications.some(notification => notification.id === reminderId(record.id))
-      ? '이 기기에 알림이 예약됐어요.' : '이 기기에 알림이 예약되지 않았어요.';
+    if (notifications.some(notification => notification.id === reminderId(record.id))) return '이 기기에 알림이 예약됐어요.';
+    return reviewReminders([record]).length ? '이 기기에 알림이 예약되지 않았어요.' : '예약할 회고 시간이 없어요.';
   } catch { return '알림 예약 상태를 확인하지 못했어요.'; }
 }
 
 let reminderSync = Promise.resolve();
 let reminderRecords = [];
+let reminderVersion = 0;
 export function syncReviewReminders(records, { requestPermission = true } = {}) {
-  reminderRecords = records;
+  reminderRecords = records.map(record => ({ ...record }));
+  reminderVersion++;
   if (!nativeApp) return reminderSync;
   const wanted = reviewReminders(noteMode ? records : records.filter(record => reviewReminderEnabled(record.id)));
   reminderSync = reminderSync.then(() => scheduleReviewReminders(wanted, requestPermission));
@@ -84,11 +86,29 @@ export async function setupNativeShell({ back, notify, openRecord, remindersChan
   });
 
   await App.addListener('appStateChange', async ({ isActive }) => {
-    if (!isActive) return;
-    // Returning from OS settings can grant notifications without reloading the WebView.
-    // Reconcile current local choices, but leave permission prompts to an explicit user action.
-    await syncReviewReminders(reminderRecords, { requestPermission: false });
+    if (!isActive || !reminderVersion) return;
+    // Recover permission changes immediately, even offline; never prompt on resume.
+    const syncing = syncReviewReminders(reminderRecords, { requestPermission: false });
+    const version = reminderVersion;
+    await syncing;
+    if (version !== reminderVersion) return;
     remindersChanged?.();
+    try {
+      const { response, body } = await getJournal();
+      const records = body.data === null ? [] : body.data?.records;
+      // Saving, clearing or switching journals while this read was in flight wins.
+      if (version === reminderVersion) {
+        if (response.status === 401) {
+          await syncReviewReminders([], { requestPermission: false });
+          remindersChanged?.();
+        }
+        else if (response.ok && Number.isSafeInteger(body.revision) && Array.isArray(records) &&
+          records.every(record => record && typeof record === 'object')) {
+          await syncReviewReminders(records, { requestPermission: false });
+          remindersChanged?.();
+        }
+      }
+    } catch { /* Keep the last known reservations when offline or the server is unavailable. */ }
   });
 
   const paintNetwork = status => {

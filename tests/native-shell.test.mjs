@@ -14,7 +14,12 @@ const bundle = outputFiles[0].text;
 let instance = 0;
 async function device(platform) {
   const values = new Map(), events = new Map();
-  const state = { pending: [], permission: 'granted', asked: 0, opened: [] };
+  const state = { pending: [], permission: 'granted', asked: 0, opened: [], requests: [], remote: async () => ({ status: 503, body: {} }) };
+  globalThis.fetch = async (url, options) => {
+    state.requests.push({ url, options });
+    const result = await state.remote();
+    return { status: result.status, ok: result.status === 200, json: async () => result.body };
+  };
   globalThis.location = { search: '' };
   globalThis.localStorage = { get length(){return values.size;}, key:i=>[...values.keys()][i]??null, getItem: k => values.get(k) ?? null, setItem: (k,v) => values.set(k,v), removeItem: k => values.delete(k) };
   globalThis.sessionStorage = globalThis.localStorage;
@@ -103,3 +108,78 @@ assert.equal(resume.state.pending.length,0,'foreground does not turn device opt-
 await resume.shell.clearReviewReminders();
 await resume.events.get('appStateChange')({isActive:true});
 assert.equal(resume.state.pending.length,0,'deleted device reminders cannot return on resume');
+
+// Server reads only reconcile native reservations, not the editable journal or drafts.
+const remote = await device('android');
+await remote.events.get('appStateChange')({isActive:true});
+assert.equal(remote.state.requests.length,0,'do not read another journal before startup finishes');
+remote.shell.setReviewReminder('first',true);
+await remote.shell.syncReviewReminders(records);
+const changedDue = new Date(Date.now()+86400000*4).toISOString().slice(0,10);
+remote.state.remote=async()=>({status:200,body:{revision:2,data:{records:[{...records[0],due:changedDue},records[1]]}}});
+await remote.events.get('appStateChange')({isActive:true});
+assert.deepEqual(remote.state.pending.map(n=>n.extra.recordId),['first'],'server records do not enable another device opt-in');
+assert.match(remote.state.pending[0].schedule.at.toISOString(),new RegExp(changedDue));
+assert.equal(records[0].due,due,'a remote read cannot overwrite the open form model');
+assert.match(await remote.shell.reviewReminderStatus({...records[0],due:'2000-01-01'}),/예약됐어요/,'OS reservation takes precedence over the stale form date');
+assert.equal(remote.state.requests[0].url,'/api/journal');
+assert.equal(remote.state.requests[0].options.credentials,'include');
+assert.equal(remote.state.requests[0].options.method,undefined,'foreground journal access is read-only');
+remote.state.remote=async()=>({status:200,body:{revision:3,data:{records:[{...records[0],result:'good'}]}}});
+await remote.events.get('appStateChange')({isActive:true});
+assert.equal(remote.state.pending.length,0,'review completed on another device cancels the reservation');
+await remote.shell.syncReviewReminders(records);
+remote.state.remote=async()=>({status:200,body:{revision:4,data:null}});
+await remote.events.get('appStateChange')({isActive:true});
+assert.equal(remote.state.pending.length,0,'remote journal deletion cancels the reservation');
+await remote.shell.syncReviewReminders(records);
+remote.state.remote=async()=>{throw Error('offline');};
+await remote.events.get('appStateChange')({isActive:true});
+assert.equal(remote.state.pending.length,1,'offline keeps the last known reservation');
+remote.state.remote=async()=>({status:200,body:{}});
+await remote.events.get('appStateChange')({isActive:true});
+assert.equal(remote.state.pending.length,1,'an invalid response is not an empty journal');
+remote.state.remote=async()=>({status:200,body:{revision:3,data:{records:[null]}}});
+await remote.events.get('appStateChange')({isActive:true});
+assert.equal(remote.state.pending.length,1,'invalid records cannot poison later foreground syncs');
+remote.state.remote=async()=>({status:401,body:{}});
+await remote.events.get('appStateChange')({isActive:true});
+assert.equal(remote.state.pending.length,0,'expired account access cancels stale private reminders');
+assert.equal(remote.shell.reviewReminderEnabled('first'),true,'permission to remind is still device-local');
+
+// Resolve a deliberately slow GET after a newer local save/clear; it must not win.
+let resolveRead, startedRead;
+const reading = new Promise(resolve=>{startedRead=resolve;});
+remote.state.remote=()=>new Promise(resolve=>{resolveRead=resolve;startedRead();});
+const returning=remote.events.get('appStateChange')({isActive:true});
+await reading;
+await remote.shell.clearReviewReminders();
+resolveRead({status:200,body:{revision:2,data:{records}}});
+await returning;
+assert.equal(remote.state.pending.length,0,'slow foreground reads cannot restore cleared reminders');
+remote.shell.setReviewReminder('first',true);
+await remote.shell.syncReviewReminders(records);
+const saving=new Promise(resolve=>{startedRead=resolve;});
+const returningAgain=remote.events.get('appStateChange')({isActive:true});
+await saving;
+await remote.shell.syncReviewReminders([{...records[0],due:changedDue}]);
+resolveRead({status:200,body:{revision:2,data:{records}}});
+await returningAgain;
+assert.match(remote.state.pending[0].schedule.at.toISOString(),new RegExp(changedDue),'a newer local save wins over a slow remote read');
+console.log('foreground remote reminder reconciliation tests passed');
+
+const remoteNote = await device('ios');
+await remoteNote.shell.syncReviewReminders(records);
+remoteNote.state.remote=async()=>({status:200,body:{revision:2,data:{records:[{...records[0],due:changedDue}]}}});
+await remoteNote.events.get('appStateChange')({isActive:true});
+assert.equal(remoteNote.state.pending.length,1,'note app also follows remote deletion without requiring Android opt-in');
+assert.match(remoteNote.state.pending[0].schedule.at.toISOString(),new RegExp(changedDue));
+
+const editing = await device('android');
+editing.shell.setReviewReminder('first',true);
+const editableRecords = records.map(record=>({...record}));
+await editing.shell.syncReviewReminders(editableRecords);
+editableRecords[0].due=changedDue;
+editing.state.remote=async()=>{throw Error('offline');};
+await editing.events.get('appStateChange')({isActive:true});
+assert.match(editing.state.pending[0].schedule.at.toISOString(),new RegExp(due),'unsaved edits cannot replace the last synchronized reminder when offline');
