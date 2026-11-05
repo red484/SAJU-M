@@ -232,7 +232,7 @@ try {
 
   const periodFlow=flow(calculate({birth:'1995-05-17',time:'15:30',zone:'Asia/Seoul',longitude:126.978,clock:'civil',calendar:'solar'}),'2026-09-16').slice(0,2)
     .map(v=>({period:v.key,pillar:v.p.gz,god:v.god,stage:v.stage}));
-  const chart = {name:'주연',gender:'female',pillars:['辛巳','己亥','壬辰','丙午'],dayStem:'임',element:'수',strong:['화'],weak:['목'],topics:['진로'],today:'계사일',flowAsOf:'2026-09-16',periodFlow,signals:[],records:[],turnIndex:2};
+  const chart = {name:'PRIVATE_PROFILE_NAME',gender:'female',pillars:['辛巳','己亥','壬辰','丙午'],dayStem:'임',element:'수',strong:['화'],weak:['목'],topics:['진로'],today:'계사일',flowAsOf:'2026-09-16',periodFlow,signals:[],records:[],turnIndex:2};
   const personalized = realtimeSystemPrompt(chart);
   assert.match(personalized,/여러 가능성을 넓게 보지만 끝맺음이 늦어질 수 있음/);
   assert.match(personalized,/이번에 실제로 말한 상황 하나.*해석 단서 하나/);
@@ -242,6 +242,7 @@ try {
   assert.match(personalized,new RegExp(periodFlow[1].pillar));
   assert.match(personalized,/건강·질병·치료 결과의 원인을 현재 흐름으로 설명하지 마세요/);
   assert.match(personalized,/솔로·썸·연애 중·재회·결혼 고민/);
+  assert.doesNotMatch(personalized,/PRIVATE_PROFILE_NAME|^- 성별:|^- 호칭:/m);
   assert.match(personalized,/상대의 숨은 마음을 사주로 알아냈다고 말하지 마세요/);
   assert.doesNotMatch(realtimeSystemPrompt({...chart,dayStem:'무',strong:['금']}),/여러 가능성을 넓게 보지만/,'명식에 따라 해석 단서가 달라진다');
   let sentMessages;
@@ -263,13 +264,21 @@ try {
     globalThis.fetch = async (_url, options) => {
       const messages = JSON.parse(options.body).messages;
       assert.match(messages.at(-2).content, /통근 기준/);
+      assert.doesNotMatch(options.body,/PRIVATE_PROFILE_NAME|linked-choice-1|recordId|PRIVATE_EMAIL|PRIVATE_BIRTH/);
+      const records=JSON.parse(messages.at(-2).content.slice(messages.at(-2).content.indexOf('[')));
+      assert.equal(records[0].id,'R1');
+      assert.equal(records[0].title,'통근 기준');
+      assert.equal(records[0].expectation,'출퇴근은 40분 이내');
+      assert.equal(records[0].action,'근무시간 확인하기');
+      assert.equal(records[0].actual,'회의 시간이 늘었어요');
+      assert.ok(!Object.hasOwn(records[0],'recordId'));
       const content = `${later}\n<참고>R1,R9,C1</참고>`;
       return new Response(JSON.stringify({choices:[{message:{content},finish_reason:'stop'}]}), {
         status:200,headers:{'Content-Type':'application/json'}
       });
     };
     return coachReply({
-      chart:{...chart,records:[{recordId:'linked-choice-1',title:'통근 기준',date:'2026-11-03'}]},
+      chart:{...chart,email:'PRIVATE_EMAIL',birth:'PRIVATE_BIRTH',records:[{recordId:'linked-choice-1',title:'통근 기준',date:'2026-11-03',expectation:'출퇴근은 40분 이내',action:'근무시간 확인하기',actual:'회의 시간이 늘었어요'}]},
       messages:[{role:'user',text:'이직 제안을 받았어요'}]
     });
   })();

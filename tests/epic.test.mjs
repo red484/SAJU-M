@@ -15,7 +15,7 @@ const clean = {
   closing: '어느 구간도 정답은 아닙니다. 지금의 조건을 확인하며 다음 방향을 고를 수 있습니다.'
 };
 const input = {
-  name: '테스트', pillars: ['甲子', '乙丑', '丙寅', '丁卯'], dayStem: '병', element: '화',
+  name: 'PRIVATE_EPIC_NAME', pillars: ['甲子', '乙丑', '丙寅', '丁卯'], dayStem: '병', element: '화',
   strong: ['화'], weak: ['금'], forward: true, start: 4, currentAge: 29,
   cycles: [
     { age: 14, gz: '甲子', label: '갑자', ten: '편관', stage: '장생' },
@@ -40,7 +40,8 @@ try {
   process.env.CAFE24_LLM_API_KEY = 'test-key';
   process.env.CAFE24_LLM_BASE_URL = 'https://llm-router.cafe24.com/api/v1/';
   let calls = 0;
-  globalThis.fetch = async () => {
+  globalThis.fetch = async (_url, options) => {
+    assert.ok(!options.body.includes('PRIVATE_EPIC_NAME'));
     calls++;
     const content = JSON.stringify(calls === 1 ? english : clean);
     return new Response(JSON.stringify({ choices: [{ message: { content }, finish_reason: 'stop' }] }), {
@@ -52,7 +53,8 @@ try {
   assert.deepEqual(recovered.reading, clean);
 
   calls = 0;
-  globalThis.fetch = async () => {
+  globalThis.fetch = async (_url, options) => {
+    assert.ok(!options.body.includes('PRIVATE_EPIC_NAME'));
     calls++;
     return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(english) }, finish_reason: 'stop' }] }), {
       status: 200, headers: { 'Content-Type': 'application/json' }

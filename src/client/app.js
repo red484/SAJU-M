@@ -465,7 +465,7 @@ function recordsFor(conversation) {
   action:r.nextAction,actual:r.actual
  }));
 }
-const chartFor=c=>({name:p().name,gender:p().gender||'',pillars:result.pillars.map(v=>v.gz),dayStem:SK[result.day],
+const chartFor=c=>({pillars:result.pillars.map(v=>v.gz),dayStem:SK[result.day],
  element:ELEMENTS[result.element],strong:result.strong.map(i=>ELEMENTS[i]),weak:result.weak.map(i=>ELEMENTS[i]),
  topics:p().topics,initialConcern:c.historyPreferences?.conversations?(p().question||''):'',today:E.dayName(today()).name+' '+E.dayName(today()).label+'일',
  flowAsOf:today(),periodFlow:E.flow(result,today()).slice(0,2).map(f=>({period:f.key,pillar:f.p.gz,god:f.god,stage:f.stage})),

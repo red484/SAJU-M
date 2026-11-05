@@ -24,7 +24,6 @@ function readInput(raw) {
   })).filter(c => c.age !== null && c.gz && ARC[c.stage]);
   if (cycles.length < 3) return null;
   return {
-    name: str(raw.name, 20),
     pillars: (Array.isArray(raw.pillars) ? raw.pillars : []).slice(0, 4).map(v => str(v, 4)),
     dayStem: str(raw.dayStem, 4), element: str(raw.element, 4),
     strong: (Array.isArray(raw.strong) ? raw.strong : []).slice(0, 5).map(v => str(v, 4)),
