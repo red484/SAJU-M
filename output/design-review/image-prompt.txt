@@ -1,0 +1,4 @@
+Tool: built-in image_gen
+Asset: assets/ongi-botanical.webp (61 KB, generated PNG compressed to WebP)
+
+Create a refined Korean ink botanical illustration for the welcome screen of a thoughtful personal counseling app. Wide horizontal artwork 3:2 aspect ratio. On a pure white background, two slender natural olive-like leafy branches enter from lower left and upper right, framing an imperfect hand brushed open ink circle in the middle. Delicate authentic black and gray sumi-e brushwork, subtle dry brush leaves, airy and graceful, contemporary Korean editorial print, mostly empty center, no lettering, no logo, no interface, no border, no shadows, no gradients, no colored accents. The illustration itself should remain within a generous white margin, nearly black ink with a few very light gray washes. The emotional tone is quiet reflection and hope. This is a finished raster artwork to be integrated above a mobile app welcome title.

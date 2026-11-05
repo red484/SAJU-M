@@ -15,7 +15,7 @@ export function installGuestAccess({ page, user, openModal, navigate, notice }) 
     guestId = '';
     return;
   }
-  const start = document.querySelector('[data-guest-start]');
+  const start = document.querySelector('.welcome-auth [data-guest-start]');
   if (start) {
     const button = document.createElement('button');
     button.className = 'secondary';
