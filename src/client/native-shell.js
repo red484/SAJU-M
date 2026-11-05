@@ -45,30 +45,32 @@ export async function reviewReminderStatus(record) {
 }
 
 let reminderSync = Promise.resolve();
-export function syncReviewReminders(records) {
+let reminderRecords = [];
+export function syncReviewReminders(records, { requestPermission = true } = {}) {
+  reminderRecords = records;
   if (!nativeApp) return reminderSync;
   const wanted = reviewReminders(noteMode ? records : records.filter(record => reviewReminderEnabled(record.id)));
-  reminderSync = reminderSync.then(() => scheduleReviewReminders(wanted));
+  reminderSync = reminderSync.then(() => scheduleReviewReminders(wanted, requestPermission));
   return reminderSync;
 }
 
-async function scheduleReviewReminders(wanted) {
+async function scheduleReviewReminders(wanted, requestPermission) {
   try {
     const { notifications: pending } = await LocalNotifications.getPending();
     if (pending.length) await LocalNotifications.cancel({ notifications: pending.map(({ id }) => ({ id })) });
     if (!wanted.length) return;
     let { display } = await LocalNotifications.checkPermissions();
-    if (display === 'prompt' || display === 'prompt-with-rationale') ({ display } = await LocalNotifications.requestPermissions());
+    if (requestPermission && (display === 'prompt' || display === 'prompt-with-rationale')) ({ display } = await LocalNotifications.requestPermissions());
     if (display !== 'granted') return;
     await LocalNotifications.schedule({
-      notifications: wanted.map(n => ({ id: n.id, title: n.title, body: n.body, schedule: { at: n.at }, extra: n.extra }))
+      notifications: wanted.map(n => ({ ...(Capacitor.getPlatform() === 'android' ? { isExactNotification: false } : {}), id: n.id, title: n.title, body: n.body, schedule: { at: n.at }, extra: n.extra }))
     });
   } catch {
     // Reminders are a convenience; records are already saved on the server.
   }
 }
 
-export async function setupNativeShell({ back, notify, openRecord }) {
+export async function setupNativeShell({ back, notify, openRecord, remindersChanged }) {
   if (!nativeApp || started) return;
   started = true;
   document.documentElement.classList.add('native-app');
@@ -79,6 +81,14 @@ export async function setupNativeShell({ back, notify, openRecord }) {
     if (await back?.()) return;
     if (canGoBack) history.back();
     else await App.exitApp();
+  });
+
+  await App.addListener('appStateChange', async ({ isActive }) => {
+    if (!isActive) return;
+    // Returning from OS settings can grant notifications without reloading the WebView.
+    // Reconcile current local choices, but leave permission prompts to an explicit user action.
+    await syncReviewReminders(reminderRecords, { requestPermission: false });
+    remindersChanged?.();
   });
 
   const paintNetwork = status => {

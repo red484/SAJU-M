@@ -182,7 +182,7 @@ function criteriaLabelField(value=''){
  <datalist id="criteria-labels">${labels.map(label=>`<option value="${esc(label)}"></option>`).join('')}</datalist>`;
 }
 function reminderField(record={}){
- return nativeApp&&!noteMode?`<label class="check"><input type="checkbox" name="reviewReminder" ${reviewReminderEnabled(record.id)?'checked':''}>회고일 저녁 8시에 이 기기로 알림 받기</label>`:'';
+ return nativeApp&&!noteMode?`<label class="check"><input type="checkbox" name="reviewReminder" ${reviewReminderEnabled(record.id)?'checked':''}>회고일 저녁에 이 기기로 알림 받기</label><p class="hint">저녁 8시를 기준으로 예약하며, 기기 설정에 따라 늦어질 수 있어요.</p>`:'';
 }
 function choiceSummary(record){
  return `<section class="card choice-summary"><h3>선택 한 장 요약</h3><dl>
@@ -676,7 +676,7 @@ async function startApp(){
 }
 startApp();
 // 회고 알림을 누르면 그 기록을 엽니다. 보관함을 불러오기 전이면 불러온 뒤에 엽니다.
-setupNativeShell({back:nativeBack,notify:notice,openRecord:id=>{if(!loaded){openOnLoad=id;return;}page='records';render();recordDetail(id);}});
+setupNativeShell({back:nativeBack,notify:notice,remindersChanged:()=>{const status=$('#review-reminder-status'),form=$('#edit-record'),record=data.records.find(r=>r.id===form?.dataset.id);if(status&&record)void reviewReminderStatus(record).then(text=>{if(status.isConnected)status.textContent=text;});},openRecord:id=>{if(!loaded){openOnLoad=id;return;}page='records';render();recordDetail(id);}});
 
 // 정책 문서는 현재 화면 위에서 열고 닫습니다. 입력 중인 내용은 유지합니다.
 document.addEventListener('click',async event=>{

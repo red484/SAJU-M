@@ -21,7 +21,7 @@ async function device(platform) {
   globalThis.document = { documentElement: { classList: { add() {}, toggle() {} } }, addEventListener() {} };
   globalThis.__device = {
     Capacitor: { isNativePlatform: () => true, getPlatform: () => platform },
-    App: { async addListener() {} }, Browser: {}, Directory: {}, Filesystem: {}, Share: {},
+    App: { async addListener(event, callback) { events.set(event, callback); } }, Browser: {}, Directory: {}, Filesystem: {}, Share: {},
     Network: { async getStatus() { return { connected: true }; }, async addListener() {} },
     LocalNotifications: {
       async addListener(event, callback) { events.set(event, callback); },
@@ -33,7 +33,7 @@ async function device(platform) {
     }
   };
   const shell = await import('data:text/javascript;base64,' + Buffer.from(bundle).toString('base64') + '#' + instance++);
-  await shell.setupNativeShell({ openRecord: id => state.opened.push(id) });
+  await shell.setupNativeShell({ openRecord: id => state.opened.push(id), remindersChanged:()=>{state.refreshed=(state.refreshed||0)+1;} });
   return { shell, state, events, values };
 }
 const due = new Date(Date.now()+86400000*2).toISOString().slice(0,10);
@@ -80,3 +80,26 @@ assert.equal(deletingDevice.state.pending.length,2);
 await deletingDevice.shell.clearReviewReminders();
 assert.equal(deletingDevice.state.pending.length,0);
 assert.deepEqual([...deletingDevice.values],[['unrelated-preference','keep']]);
+
+const resume = await device('android');
+resume.shell.setReviewReminder('first',true);
+resume.state.permission='denied';
+await resume.shell.syncReviewReminders(records);
+assert.equal(resume.state.pending.length,0);
+resume.state.permission='granted';
+await resume.events.get('appStateChange')({isActive:false});
+assert.equal(resume.state.pending.length,0);
+await resume.events.get('appStateChange')({isActive:true});
+assert.deepEqual(resume.state.pending.map(n=>n.extra.recordId),['first']);
+assert.equal(resume.state.refreshed,1);
+assert.equal(resume.state.pending[0].isExactNotification,false,'review reminders must not open exact-alarm special access settings');
+resume.state.permission='prompt';
+await resume.events.get('appStateChange')({isActive:true});
+assert.equal(resume.state.asked,0,'foreground return cannot prompt for notification permission');
+assert.equal(resume.state.pending.length,0);
+resume.state.permission='granted';resume.shell.setReviewReminder('first',false);
+await resume.events.get('appStateChange')({isActive:true});
+assert.equal(resume.state.pending.length,0,'foreground does not turn device opt-in back on');
+await resume.shell.clearReviewReminders();
+await resume.events.get('appStateChange')({isActive:true});
+assert.equal(resume.state.pending.length,0,'deleted device reminders cannot return on resume');
