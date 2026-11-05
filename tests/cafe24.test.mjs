@@ -254,6 +254,7 @@ try {
   };
   const coached = await coachReply({chart:{...chart,initialConcern:'전에는 현 직장을 유지할지 고민했어요'},messages:[{role:'user',text:'이직 제안을 받았어요'}]});
   assert.equal(coached.source,'cafe24');
+  assert.deepEqual(coached.shape.routing,{provider:null,model:null},'no provider is guessed from the model name');
   assert.doesNotMatch(sentMessages[0].content,/현 직장을 유지할지/,'자유 입력은 system 지시문에 섞지 않는다');
   assert.match(sentMessages[1].content,/현 직장을 유지할지/);
   assert.equal(sentMessages.at(-1).content,'이직 제안을 받았어요');

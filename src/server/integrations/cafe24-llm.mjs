@@ -1,3 +1,4 @@
+import { routingMetadata } from '../ai-routing.mjs';
 const DEFAULT_BASE_URL = 'https://llm-router.cafe24.com/api/v1';
 
 const apiKeys = () => {
@@ -75,6 +76,7 @@ async function onceWithKey(keyEntry, { messages, maxTokens, temperature, metadat
       // 라우터가 어느 이름으로 주든 잡습니다. 'length'면 토큰이 모자라 끊긴 겁니다.
       finishReason: choice?.finish_reason ?? choice?.finishReason ?? null,
       model: body.model,
+      routing: routingMetadata(body.extra_fields?.routing_info),
       keyLabel: keyEntry.label,
       usage: {
         in: body.usage?.prompt_tokens,
@@ -131,6 +133,7 @@ export async function chatCompletion({ messages, maxTokens, temperature, metadat
     truncated: res.finishReason === 'length',
     continuations: rounds,
     model: res.model,
+    routing: res.routing,
     keyLabel: res.keyLabel,
     usage
   };

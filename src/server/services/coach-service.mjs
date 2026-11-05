@@ -468,7 +468,7 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   }
   const basis = readBasis(normalized);
   const faults = critique(normalized, basis, turn);
-  const shape = { model: res.model, keyLabel: res.keyLabel, usage: res.usage, finishReason: res.finishReason, truncated: res.truncated,
+  const shape = { model: res.model, routing: res.routing, keyLabel: res.keyLabel, usage: res.usage, finishReason: res.finishReason, truncated: res.truncated,
     continuations: res.continuations, turn, sections: hasSections(normalized, turn), leaks: jargonLeaks(stripBasis(normalized)), faults: faults.length, basis };
   if (shape.truncated) return { error: 'AI 답변이 생성 중에 끊겼습니다.', status: 502, shape };
   if (!shape.sections) return { error: '답변 형식이 어긋났습니다.', status: 502, shape };

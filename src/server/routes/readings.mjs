@@ -20,6 +20,7 @@ const telemetryDetails = (shape, status, errorCode) => ({
   status,
   errorCode,
   model: shape?.model,
+  routing: shape?.routing,
   keyLabel: shape?.keyLabel,
   finishReason: shape?.finishReason,
   inputTokens: shape?.usage?.in,

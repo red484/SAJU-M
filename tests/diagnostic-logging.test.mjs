@@ -25,20 +25,22 @@ function request(route) {
 test('AI response and error routes never print interpretation content or upstream error messages', async () => {
   const originalKey=process.env.CAFE24_LLM_API_KEY, originalLog=console.log, originalError=console.error;
   const logs=[];
-  let fail=false;
+  let fail=false, saved;
   process.env.CAFE24_LLM_API_KEY='test-only';
   console.log=console.error=value=>logs.push(JSON.parse(value));
-  const telemetry={async start(){return {id:null,started:Date.now()};},async finish(){}};
+  const telemetry={async start(){return {id:null,started:Date.now()};},async finish(_usage,details){saved=details;}};
   const auth={async userFromToken(){return {id:'diagnostic-test-user'};}};
   const quota={async run(){
     if(fail)throw Object.assign(new Error(privateText),{status:502,code:'ECONNRESET'});
-    return {text:'실제 사용자 답변',source:'cafe24',basis:{summary:privateText},shape:{basis:{summary:privateText},model:privateText,usage:{in:5,out:8},finishReason:'stop',faults:0}};
+    return {text:'실제 사용자 답변',source:'cafe24',basis:{summary:privateText},shape:{routing:{provider:'deepinfra',model:'resolved-model'},basis:{summary:privateText},model:privateText,usage:{in:5,out:8},finishReason:'stop',faults:0}};
   }};
   try {
     const route=createReadingRoutes(telemetry,auth,quota).coach;
     const reply=await request(route);
     assert.equal(reply.status,200);
     assert.equal(reply.body.text,'실제 사용자 답변');
+    assert.deepEqual(saved.routing,{provider:'deepinfra',model:'resolved-model'});
+    assert.ok(!Object.hasOwn(reply.body,'routing'),'diagnostic routing does not become public response data');
     assert.equal(reply.body.basis.summary,privateText,'interpretation evidence must still reach the user');
     fail=true;
     assert.equal((await request(route)).status,502);

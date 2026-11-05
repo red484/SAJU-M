@@ -240,7 +240,7 @@ export async function epicReading(raw, { budgetMs = EPIC_BUDGET_MS } = {}) {
     });
     out = read(res); issues = epicQualityIssues(out);
   }
-  const shape = { model: res.model, keyLabel: res.keyLabel, usage: res.usage, finishReason: res.finishReason, truncated: res.truncated,
+  const shape = { model: res.model, routing: res.routing, keyLabel: res.keyLabel, usage: res.usage, finishReason: res.finishReason, truncated: res.truncated,
     continuations: res.continuations, schema: Boolean(out), qualityIssues: issues };
   if (issues.length) return { error: '판독 문장을 확인하지 못했어요. 잠시 뒤에 다시 시도해 주세요.', status: 502, shape };
   return { reading: out, shape };
