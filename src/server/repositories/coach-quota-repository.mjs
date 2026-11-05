@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 export const COACH_LIMIT = 5;
-export const QUOTA_NOTICE = '무료 상담을 모두 이용했어요. 추가 상담은 준비 중입니다.';
+export const QUOTA_NOTICE = '남은 상담이 없어요. 구독 또는 이용권 안내를 확인해 주세요.';
 const quota = used => ({ limit: COACH_LIMIT, used, remaining: Math.max(0, COACH_LIMIT - used) });
 const failure = (status, code, error, extra = {}) => ({ status, code, error, ...extra });
 
@@ -12,7 +12,7 @@ export class CoachQuotaRepository {
     if (!this.paid) return quota(result.rows[0].used);
     const paid = await this.paid.allowance(userId, client);
     const free = quota(Math.max(0, result.rows[0].used - paid.consumed));
-    return { ...free, freeRemaining: free.remaining, paidRemaining: paid.remaining, paidNextExpiry: paid.next_expiry || null, paidPacks: paid.packs || [], remaining: free.remaining + paid.remaining };
+    return { ...free, freeRemaining: free.remaining, paidRemaining: paid.remaining, paidNextExpiry: paid.next_expiry || null, paidPacks: paid.packs || [], plan: paid.plan || null, planExpiry: paid.planExpiry || null, remaining: free.remaining + paid.remaining };
   }
   // Short transaction under the per-account lock; null when another worker holds it.
   // wait=true blocks for the lock instead, for work that must not be dropped.

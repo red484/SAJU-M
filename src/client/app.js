@@ -13,16 +13,20 @@ import {installPasswordAccess} from './password-access.js';
 import {installSubscription} from './subscription.js';
 import {installTossBilling} from './toss-billing.js';
 import {dressPage} from './design.js';
-import {topics,CITIES,ELEMENTS,SK} from './constants.js';
+import {topics,CITIES,ELEMENTS,SK,PURPOSE} from './constants.js';
 import {captureMessages} from './capture.js';
 import {now,dateLabel} from './time.js';
 import {mergeJournal} from './journal-merge.js';
 import {getJournal,putJournal,deleteJournal} from './api/journal.js';
 import {coachStatus,requestCoachWithRetry} from './api/readings.js';
-import {unrelatedQuestion,SCOPE_NOTICE} from './consultation-scope.js';
+import {unrelatedQuestion,SCOPE_NOTICE,NOTE_SCOPE_NOTICE} from './consultation-scope.js';
 import {authProviders,currentUser,logout,deleteAccount,deletionResult,loginUrl,loginWithToss,clearTossLogin,isAppsInToss} from './api/auth.js';
-import {nativeApp,noteMode,APP_NAME,setupNativeShell,shareNativeFile,syncReviewReminders,reviewReminderEnabled,setReviewReminder,reviewReminderStatus} from './native-shell.js';
+import {nativeApp,noteMode,APP_NAME,setupNativeShell,shareNativeFile,shareLink,syncReviewReminders,reviewReminderEnabled,setReviewReminder,reviewReminderStatus,dailyReminderEnabled,setDailyReminder} from './native-shell.js';
 import {NOTE_PAGES} from './app-mode.js';
+import {installStoreBilling,storeBillingAvailable} from './store-billing.js';
+import {TODAY_QUESTIONS,TIMING_PURPOSES,lifeFlow,bestDays,trend,monthlyPrompt,yearSummary,yearLines,yearCardBlob} from './growth-features.js';
+import {compatibility,summaryOf} from '../shared/compat.mjs';
+import {listInvites,createInvite,deleteInvite,openInvite,acceptInvite} from './api/invites.js';
 // The 만세력 tables are ~323KB of the bundle and are not needed until a chart
 // is actually cast, so engine.js loads on demand. E is null until then.
 configureProductMetrics(Capacitor.getPlatform());
@@ -32,7 +36,11 @@ let E=null,enginePromise=null,engineTry=0;
 // same URL rethrows the cached failure, so a retry has to ask for a new one.
 const ensureEngine=()=>(enginePromise??=import(/* @vite-ignore */ '/engine.js'+(engineTry?'?r='+engineTry:'')).then(m=>(E=m)));
 const engineReady=async()=>{try{await ensureEngine();return true;}catch{enginePromise=null;engineTry++;notice('만세력 자료를 불러오지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요.');return false;}};
-const ENGINE_PAGES=['result','chat','choice','records'];
+const ENGINE_PAGES=['today','result','chat','choice','records'];
+// The note chat ships with the purchase plugin, so an older iOS binary keeps its reviewed screens.
+const noteChat=noteMode&&(!nativeApp||storeBillingAvailable());
+const PUBLIC_ORIGIN='https://saju.ashwoodfriends.com';
+const SUPPORT_MODES={listen:'마음 정리',compare:'선택지 비교',action:'해볼 행동 정하기',rehearse:'어려운 대화 연습',monthly:'한 달 돌아보기'};
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let data={profile:null,records:[],conversations:[],savedAnswers:[]},revision=0,result=null,page=new URLSearchParams(location.search).get('onboarding')==='1'?'birth':location.pathname==='/settings'?'settings':'welcome',loaded=false,saveState='loading',activeConversation=null,month=now().toFormat('yyyy-MM'),selectedDate=now().toISODate(),recordFilter='all',pendingProfile=null,saveQueue=Promise.resolve(),generation=0;
 const concernDraftKey = 'ongi-concern-draft';
@@ -106,6 +114,8 @@ const fieldError=(form,key,msg)=>{const el=form.querySelector(`[name="${key}"]`)
 function storageLabel(){return {loading:'저장소 연결 중',saved:'저장 완료',saving:'저장 중…',error:'저장 실패 · 내용 보관',ready:'저장 준비됨'}[saveState];}
 function refreshSaveError(){const box=$('#save-error');if(!box)return;box.hidden=saveState!=='error';box.querySelector('p').textContent=saveError||'저장하지 못했습니다. 현재 화면의 내용은 남아 있습니다.';}
 function markSaveError(message){saveError=message==='Failed to fetch'?'서버에 연결하지 못했습니다. 현재 내용은 화면에 남아 있습니다. 파일로 보관하거나 연결을 확인한 뒤 다시 저장해 주세요.':message;saveState='error';refreshSave();refreshSaveError();}
+// In note mode data.conversations holds note chats; noteJournal sends only that named list.
+const outgoingJournal=value=>noteMode?{...value,noteConversations:value.conversations}:value;
 function persist(){if(!loaded){notice('저장소 연결 후 다시 시도해 주세요.');return Promise.resolve(false);}const g=generation,snapshot=JSON.parse(JSON.stringify(data));
  for(const conversation of snapshot.conversations){
   delete conversation.pending;
@@ -113,7 +123,7 @@ function persist(){if(!loaded){notice('저장소 연결 후 다시 시도해 주
  }
  saveState='saving';refreshSave();refreshSaveError();saveQueue=saveQueue.then(async()=>{if(g!==generation)return false;try{
   let saved=snapshot;
-  let savedReply=await putJournal(snapshot,revision,noteMode),res=savedReply.response;
+  let savedReply=await putJournal(outgoingJournal(snapshot),revision,noteMode),res=savedReply.response;
   if(res.status===409){
     const latest=await getJournal(noteMode);if(!latest.response.ok)throw new Error('최신 기록을 불러오지 못했습니다.');
     const remote=latest.body,merged=remote.revision===0&&!remote.data?snapshot:mergeJournal(savedBaseline,snapshot,remote.data);
@@ -121,7 +131,7 @@ function persist(){if(!loaded){notice('저장소 연결 후 다시 시도해 주
     const current=mergeJournal(snapshot,data,merged);
     if(!current)throw new Error('저장 중 기록이 다시 변경됐습니다. 현재 내용을 파일로 보관해 주세요.');
     saved=merged;
-    savedReply=await putJournal(merged,remote.revision,noteMode);res=savedReply.response;
+    savedReply=await putJournal(outgoingJournal(merged),remote.revision,noteMode);res=savedReply.response;
     if(res.ok){Object.assign(data,current);notice('다른 탭의 변경 내용과 합쳐 저장했습니다.');}
   }
   const reply=savedReply.body;if(!res.ok)throw new Error(reply.error);
@@ -135,13 +145,13 @@ function refreshSave(){const changed=badgeShown!==saveState;badgeShown=saveState
  paint(settled);
  if(saveState==='saved'&&changed)badgeTimer=setTimeout(()=>paint(true),1800);}
 // 노트 모드(iOS 앱)에는 사주·오늘·상담 화면이 없습니다. 어디서 오든 기록으로 보냅니다.
-const notePage=to=>!noteMode||NOTE_PAGES.includes(to)?to:loaded?'records':'welcome';
-async function nav(to){capturing=null;plusOpen=false;to=notePage(to==='today'?'chat':to);if(!loaded&&to!=='welcome'&&to!=='settings'){notice('저장소 연결이 필요합니다. 잠시 후 다시 시도해 주세요.');return;}if(!noteMode&&!p()&&ENGINE_PAGES.includes(to))to='birth';if(ENGINE_PAGES.includes(to)&&!await engineReady())return;if(!noteMode&&ENGINE_PAGES.includes(to)&&!result){try{result=E.calculate(p());}catch{to='birth';}}page=to;render();}
-const backOf=()=>noteMode?{choice:'records',records:'welcome',settings:loaded?'records':'welcome'}[page]:{birth:'welcome',topic:'birth',settings:p()?'chat':'welcome',chat:'welcome',choice:'chat',records:'chat',result:'welcome'}[page];
+const notePage=to=>!noteMode||NOTE_PAGES.includes(to)||(to==='chat'&&noteChat)?to:loaded?'records':'welcome';
+async function nav(to){capturing=null;plusOpen=false;to=notePage(to);if(!loaded&&to!=='welcome'&&to!=='settings'){notice('저장소 연결이 필요합니다. 잠시 후 다시 시도해 주세요.');return;}if(!noteMode&&!p()&&ENGINE_PAGES.includes(to))to='birth';if(ENGINE_PAGES.includes(to)&&!await engineReady())return;if(!noteMode&&ENGINE_PAGES.includes(to)&&!result){try{result=E.calculate(p());}catch{to='birth';}}if(to==='today')trackProductEvent('today_view');page=to;render();}
+const backOf=()=>noteMode?{chat:'records',choice:'records',records:'welcome',settings:loaded?'records':'welcome'}[page]:{birth:'welcome',topic:'birth',settings:p()?'today':'welcome',today:'welcome',chat:'today',choice:'today',records:'today',result:'today'}[page];
 async function nativeBack(){const back=backOf();if(!back)return false;await nav(back);return true;}
 function header(){const back=backOf()||'welcome';return `<header><button class="header-back" data-nav="${back}" aria-label="이전 화면으로 돌아가기"><span aria-hidden="true">‹</span>뒤로</button><button class="brand" data-nav="welcome"><img src="/assets/${noteMode?'mark.webp':'ongi.svg'}" alt="">${APP_NAME}</button>${authUser?'<button class="plain header-logout" data-action="logout">로그아웃</button>':''}${page==='settings'?'':'<button class="plain header-settings" data-nav="settings" aria-label="개인정보와 저장 설정">설정</button>'}</header>`;}
 function saveBanner(){return `<section id="save-error" class="save-error" role="alert" ${saveState==='error'?'':'hidden'}><p>${esc(saveError||'저장하지 못했습니다. 현재 화면의 내용은 남아 있습니다.')}</p><div><button type="button" data-action="backup">현재 내용 파일로 보관</button><button type="button" data-action="retry">다시 저장</button></div></section>`;}
-function navBar(){return `<nav aria-label="주요 메뉴">${(noteMode?[['choice','새 선택'],['records','기록']]:[['chat','상담'],['result','나 이해하기'],['choice','선택 기록'],['records','나의 기록']]).map(([id,label])=>`<button data-nav="${id}" ${page===id?'aria-current="page"':''}><span aria-hidden="true">${icon[id]}</span>${label}</button>`).join('')}</nav>`;}
+function navBar(){return `<nav aria-label="주요 메뉴">${(noteMode?[...(noteChat?[['chat','대화']]:[]),['choice','새 선택'],['records','기록']]:[['today','오늘'],['chat','상담'],['result','나 이해하기'],['choice','선택 기록'],['records','나의 기록']]).map(([id,label])=>`<button data-nav="${id}" ${page===id?'aria-current="page"':''}><span aria-hidden="true">${icon[id]}</span>${label}</button>`).join('')}</nav>`;}
 function authButton(provider){const enabled=authOptions[provider]&&!tossLoginBusy;const label=provider==='google'?'<img class="google-mark" src="/assets/google-g.png" alt="" aria-hidden="true"><span>Google 계정으로 계속</span>':provider==='apple'?'<img class="apple-signin-art" src="/assets/apple-signin.png" alt="Apple로 계속하기" width="320" height="48">':tossLoginBusy?'토스 로그인 중…':'토스로 계속하기';return `<button class="auth ${provider}" ${enabled?'data-login="'+provider+'"':'disabled'}>${label}</button>`;}
 const authButtons=()=>isAppsInToss()?authButton('toss'):['google','apple'].map(authButton).join('');
 const consultationExamples=[
@@ -168,16 +178,86 @@ function resultPage(){
  return `<div class="section-top"><h1>나를 이해하기</h1><button class="plain" data-nav="birth">프로필 수정</button></div>
  <section class="core"><h2>${esc(reading.summary)}</h2><p>명리학에서 읽은 성향을 실제 경험과 비교해 보세요.</p></section>
  <section class="two-cards"><article class="card"><h3>나의 강점</h3><p>${esc(reading.strength)}</p></article><article class="card"><h3>돌아볼 패턴</h3><p>${esc(reading.caution)} ${esc(reading.balance)}</p></article></section>
+ ${lifeFlowSection()}
+ <section class="card"><h2>관계 살펴보기</h2><p>상대가 링크에서 직접 입력하면 두 사람의 대화 방식을 정리해 드려요. 생년월일은 서버에 보내지 않아요.</p><button class="secondary" data-relations>초대하고 결과 보기</button></section>
  <section class="block"><h2 class="block-title">상담에서 다룰 주제</h2>${p().topics.map(t=>`<button class="secondary" data-topic-chat="${t}">${t} 이야기하기</button>`).join('')}</section>
  <details class="card"><summary>명리학 해석 근거</summary>${basis()}</details>`;
 }
-function currentConversation(){let c=ct();if(!c&&p()){c={id:uid(),created:new Date().toISOString(),profileKey:profileKey(),profileName:p().name,topic:p().topics[0],context:null,messages:[{id:uid(),role:'assistant',text:`안녕하세요${named()?`, ${named()}님`:''}. 온기입니다.\n명리학을 참고해 지금의 고민을 함께 살펴볼게요. 어떤 선택을 고민하고 계신가요?`,at:new Date().toISOString()}]};data.conversations.push(c);selectConversation(c.id,true);if(loaded)persist();}return c;}
+function lifeFlowSection(){
+ const chapters=lifeFlow(E.fortune(result,p()),data.records,now().year);
+ if(!chapters)return `<section class="card"><h2>인생 흐름</h2><p>10년 단위의 흐름은 성별 정보로 방향을 계산해요. 프로필에서 선택하면 볼 수 있어요.</p><button class="secondary" data-nav="birth">프로필 수정</button></section>`;
+ return `<section class="card life-flow"><h2>인생 흐름</h2><p class="hint">10년 단위로 나눈 명리학 해석이에요. 일어날 일을 예언하지 않으며, 내 기록과 비교해 보는 참고 자료예요.</p>${chapters.map(c=>`<details ${c.current?'open':''} class="${c.current?'is-current':c.past?'is-past':''}"><summary><b>만 ${c.age}~${c.age+9}세 · ${esc(c.title)}</b>${c.current?'<span>지금</span>':''}</summary><p>${esc(c.text)}</p><p class="hint">${c.year}~${c.until}년 · ${esc(c.label)} · ${esc(c.ten)}</p>${c.records.length?`<div class="life-flow-records"><p class="hint">이 시기에 남긴 선택 ${c.records.length}개</p>${c.records.slice(-3).map(r=>`<button class="text-link" data-record="${esc(r.id)}">${esc(r.title)}</button>`).join(' ')}</div>`:''}</details>`).join('')}</section>`;
+}
+function todayPage(){
+ const iso=today(),d=E.dayReading(result,iso),question=TODAY_QUESTIONS[d.ten]||'오늘 한 가지만 짚어 본다면 무엇인가요?';
+ const open=data.records.filter(r=>r.result==='pending'&&r.due&&r.due>iso).sort((a,b)=>a.due.localeCompare(b.due))[0];
+ return `<div class="narrow today-page"><p class="eyebrow">${dateLabel(iso)} · ${esc(E.dayName(iso).name)}</p><h1>${esc(d.headline)}</h1>
+ <section class="core"><p>${esc(d.paragraphs[0])}</p></section>
+ <section class="card"><h2>오늘의 질문</h2><p>${esc(question)}</p><button class="primary" data-today-ask>이 질문으로 이야기하기</button><button class="secondary" data-nav="choice">선택 기록하기</button></section>
+ ${dueReviews()}${open?`<section class="card"><h2>진행 중인 선택</h2><button class="record-row" data-record="${esc(open.id)}"><b>${esc(open.title)}</b><span>${dateLabel(open.due)}에 돌아보기</span>${open.nextAction?`<span>해볼 행동 · ${esc(open.nextAction)}</span>`:''}</button></section>`:''}
+ ${nativeApp?`<section class="card"><label class="check"><input type="checkbox" data-daily-reminder ${dailyReminderEnabled()?'checked':''}>매일 아침 8시 30분에 이 기기로 알림 받기</label><p class="hint">기기의 알림 권한이 필요해요.</p></section>`:''}
+ <p class="hint">명리학을 참고한 자기 이해용 글이에요. 중요한 판단은 실제 상황과 전문가의 확인을 우선해 주세요.</p></div>`;
+}
+function relationCard(owner,guest){
+ const c=compatibility(owner,guest);
+ return `<section class="card relation-card"><h3>${esc(c.title)}</h3><p>${esc(c.complement)}</p><p><b>부딪히기 쉬운 지점</b> ${esc(c.friction)}</p><p><b>해볼 행동</b> ${esc(c.action)}</p><p class="hint">${esc(c.basis)} 관계의 좋고 나쁨을 판정하지 않아요.</p></section>`;
+}
+async function relationsModal(){
+ if(!authUser){notice('초대는 로그인 후 만들 수 있어요.');return;}
+ openModal('<p role="status">초대 목록을 불러오고 있어요.</p>');
+ let invites=[];
+ try{const {response,body}=await listInvites();if(!response.ok)throw new Error(body.error);invites=body.invites;}
+ catch(e){openModal(`<p role="alert">${esc(e.message||'초대 목록을 불러오지 못했어요.')}</p>`);return;}
+ openModal(`<h2>관계 살펴보기</h2><p>링크를 받은 사람이 직접 동의하고 입력해야 결과가 만들어져요. 별명과 기운 개수만 30일 동안 서로에게 공유되고, 생년월일은 전송되지 않아요.</p><button class="primary" id="invite-new">초대 링크 만들기</button>
+ ${invites.length?invites.map(v=>`<div class="relation-row">${v.guest?relationCard(v.owner,v.guest):'<p>아직 응답을 기다리고 있어요.</p>'}<button class="plain" data-invite-delete="${esc(v.id)}">삭제</button></div>`).join(''):'<p class="muted">아직 만든 초대가 없어요.</p>'}`);
+ $('#invite-new').onclick=async()=>{
+  const button=$('#invite-new');button.disabled=true;
+  try{
+   const {response,body}=await createInvite(summaryOf(result,named()));
+   if(!response.ok)throw new Error(body.error);
+   trackProductEvent('invite_created');
+   const how=await shareLink(`${PUBLIC_ORIGIN}/?invite=${encodeURIComponent(body.token)}`,`${APP_NAME} 관계 초대`);
+   notice(how==='copied'?'초대 링크를 복사했어요.':'초대 링크를 공유했어요.');
+   relationsModal();
+  }catch(e){button.disabled=false;if(e?.name!=='AbortError')notice(e.message||'초대를 만들지 못했어요.');}
+ };
+ document.querySelectorAll('[data-invite-delete]').forEach(b=>b.onclick=async()=>{await deleteInvite(b.dataset.inviteDelete);relationsModal();});
+}
+async function inviteModal(token){
+ let invite;
+ try{const {response,body}=await openInvite(token);if(!response.ok)throw new Error(body.error);invite=body;}
+ catch(e){openModal(`<h2>초대를 열지 못했어요</h2><p>${esc(e.message||'잠시 후 다시 시도해 주세요.')}</p>`);return;}
+ if(invite.answered){openModal('<h2>이미 응답한 초대예요</h2><p>초대한 분에게 결과가 전달되었어요.</p>');return;}
+ const owner=invite.ownerName||'상대';
+ openModal(`<h2>${esc(owner)}님의 초대</h2><p>두 사람의 대화 방식을 정리해 드려요. 생년월일은 이 기기에서만 계산하고, <b>별명과 기운 개수</b>만 서버에 저장되어 ${esc(owner)}님에게 공유돼요. 30일 뒤 자동 삭제됩니다. 만 14세 이상만 참여할 수 있어요.</p>
+ <form id="invite-form" novalidate><label>별명<input name="name" maxlength="20" placeholder="상대에게 보일 이름"></label><div class="fields"><label>달력<select name="calendar"><option value="solar">양력</option><option value="lunar">한국 음력</option></select></label></div>${birthPicker('1995-05-17',Number(today().slice(0,4)))}<label class="check"><input type="checkbox" name="consent">별명과 기운 개수를 ${esc(owner)}님과 공유하는 데 동의해요.</label><div class="form-error" role="alert" hidden></div><button class="primary">결과 보기</button></form>`);
+ const form=$('#invite-form');bindBirthPicker(form);
+ form.onsubmit=async e=>{
+  e.preventDefault();
+  const f=new FormData(form);
+  if(!f.has('consent'))return fieldError(form,'consent','공유 동의가 필요해요.');
+  if(!await engineReady())return;
+  let calculated;
+  try{calculated=E.calculate({name:'',birth:String(f.get('birth')),calendar:f.get('calendar'),leap:false,unknown:true,time:'12:00',city:'서울',zone:'Asia/Seoul',longitude:126.978,clock:'civil',gender:''});}
+  catch(err){return fieldError(form,'birthYear',err.message);}
+  if(!ageEligibility(calculated.solarDate))return fieldError(form,'birthYear',AGE_NOTICE);
+  const mine=summaryOf(calculated,String(f.get('name')).trim());
+  try{
+   const {response,body}=await acceptInvite(token,mine);
+   if(!response.ok)throw new Error(body.error);
+   trackProductEvent('invite_answered');
+   openModal(`<h2>${esc(owner)}님과의 대화 방식</h2>${relationCard(body.owner,mine)}<button class="secondary" data-close-invite>닫기</button>`);
+   $('[data-close-invite]').onclick=()=>$('#modal').close();
+  }catch(err){return fieldError(form,'name',err.message||'응답을 저장하지 못했어요.');}
+ };
+}
+function currentConversation(){let c=ct();if(!c&&(p()||noteChat)){c={id:uid(),created:new Date().toISOString(),profileKey:profileKey(),profileName:p()?.name||'',topic:p()?.topics[0]||'',context:null,messages:[{id:uid(),role:'assistant',text:noteMode?'안녕하세요. 앞둔 선택이나 마음에 걸리는 일을 함께 정리해 볼게요. 어떤 이야기부터 시작할까요?':`안녕하세요${named()?`, ${named()}님`:''}. 온기입니다.\n명리학을 참고해 지금의 고민을 함께 살펴볼게요. 어떤 선택을 고민하고 계신가요?`,at:new Date().toISOString()}]};data.conversations.push(c);selectConversation(c.id,true);if(loaded)persist();}return c;}
 function profileKey(){return JSON.stringify([p()?.birth,p()?.time,p()?.zone,p()?.calendar,p()?.unknown,p()?.clock,p()?.longitude]);}
-function chatPanel(){const c=currentConversation(),attached=data.records.find(r=>r.id===c?.attachedRecordId);return `<section class="chat-panel"><div class="mentor"><img src="/assets/ongi.svg" alt=""><div><h2>온기</h2><span>${aiCoach?'명리학 기반 AI 인생 상담':'문맥을 이어가는 체험 코칭'}</span></div><button class="plain" data-action="chat-history">이전 상담</button></div><p class="chat-note">일반적인 이메일·휴대전화 표기는 AI 전송 전에 가립니다. 이름·주소 등 모든 개인정보가 가려지는 것은 아니니 불필요한 정보는 입력하지 마세요.</p><p class="chat-note">${coachLoginRequired?'상담은 로그인 후 무료 5회 이용할 수 있어요. 로그인 전에는 메시지를 보낼 수 없습니다. 사람 상담사가 아니며, 건강·투자·법률 판단은 해당 전문가에게 확인해 주세요.':aiCoach?'명리학 해석과 대화 내용을 참고해 답합니다. 사람 상담사가 아니며, 건강·투자·법률 판단은 해당 전문가에게 확인해 주세요.':'AI·전문 상담사와의 실시간 대화가 아닙니다. 명리학 해석과 입력한 상황을 활용한 규칙 기반 코칭이며, 건강·투자·법률 판단은 해당 전문가에게 확인해 주세요.'}</p><div class="messages" role="log" aria-live="polite">${(()=>{const picked=capturedIds();return (c?.messages||[]).map(m=>capturing?`<article class="message ${m.role} pickable${picked.includes(m.id)?' picked':''}"><button class="pick" data-pick="${m.id}" aria-pressed="${picked.includes(m.id)}"><span class="tick" aria-hidden="true"></span><span class="bubble">${esc(m.text)}</span></button></article>`:`<article class="message ${m.role}${m.streaming?' composing':''}"><div class="bubble">${esc(m.text)}</div>${m.role==='assistant'&&m.references?.length?`<details class="answer-basis"><summary>참고한 지난 기록</summary><ul>${m.references.map(ref=>`<li>${esc(ref.kind)} · ${esc(ref.date)} · ${esc(ref.title)}${data.records.some(r=>r.id===ref.recordId)?` <button class="plain" data-record="${esc(ref.recordId)}">기록 열기</button>`:''}</li>`).join('')}</ul></details>`:''}${m.role==='assistant'&&m.basis?`<details class="answer-basis"><summary>명리학 해석 근거</summary><p>${esc(m.basis)}</p></details>`:''}${m.role==='assistant'?`<div class="answer-tools"><time>${DateTime.fromISO(m.at).toFormat('HH:mm')}</time>${m.streaming?'<span class="ai-working" role="status"><span aria-hidden="true"></span>답변을 다듬고 있어요</span>':`<button data-copy="${m.id}">복사</button><button data-save-answer="${m.id}">${data.savedAnswers.some(a=>a.messageId===m.id)?'저장됨':'저장'}</button>`}</div>`:`<time>${DateTime.fromISO(m.at).toFormat('HH:mm')}</time>`}</article>`).join('');})()}</div>${capturing?(()=>{const n=capturedIds().length,off=n?'':' disabled';return `<div class="capture-bar"><div class="capture-guide"><span>${captureGuide()}</span><button class="plain" data-capture="reset"${off}>선택 해제</button></div><div class="capture-acts">${canCopyImage()?`<button data-capture="copy"${off}>복사</button>`:''}${canShareFiles()?`<button data-capture="share"${off}>공유</button>`:''}<button data-capture="save"${off}>저장</button><button class="plain" data-capture="cancel">취소</button></div></div>`;})():''}${(()=>{const cold=(c?.messages||[]).length<2;
- const chips=`<div class="quick-topics">${p().topics.map(t=>`<button data-quick="${t} 고민이 있어요">${t} 이야기</button>`).join('')}</div>`;
+function chatPanel(){const c=currentConversation(),attached=data.records.find(r=>r.id===c?.attachedRecordId);return `<section class="chat-panel"><div class="mentor"><img src="/assets/${noteMode?'mark.webp':'ongi.svg'}" alt=""><div><h2>${noteMode?'AI 대화':'온기'}</h2><span>${noteMode?'선택과 기록을 함께 정리해요':aiCoach?'명리학 기반 AI 인생 상담':'문맥을 이어가는 체험 코칭'}</span></div><button class="plain" data-action="chat-history">이전 상담</button></div><p class="chat-note">일반적인 이메일·휴대전화 표기는 AI 전송 전에 가립니다. 이름·주소 등 모든 개인정보가 가려지는 것은 아니니 불필요한 정보는 입력하지 마세요.</p><p class="chat-note">${noteMode?`${coachLoginRequired?'로그인 후 무료 5회 이용할 수 있어요. ':''}AI가 답하며 사람 상담사가 아니에요. 건강·투자·법률 판단은 해당 전문가에게 확인해 주세요.`:coachLoginRequired?'상담은 로그인 후 무료 5회 이용할 수 있어요. 로그인 전에는 메시지를 보낼 수 없습니다. 사람 상담사가 아니며, 건강·투자·법률 판단은 해당 전문가에게 확인해 주세요.':aiCoach?'명리학 해석과 대화 내용을 참고해 답합니다. 사람 상담사가 아니며, 건강·투자·법률 판단은 해당 전문가에게 확인해 주세요.':'AI·전문 상담사와의 실시간 대화가 아닙니다. 명리학 해석과 입력한 상황을 활용한 규칙 기반 코칭이며, 건강·투자·법률 판단은 해당 전문가에게 확인해 주세요.'}</p>${c?.supportMode?`<p class="chat-note">오늘 필요한 도움 · ${esc(SUPPORT_MODES[c.supportMode]||'대화하며 정하기')} <button class="plain" data-support-mode>바꾸기</button></p>`:c?.historyPreferences?'<p class="chat-note"><button class="plain" data-support-mode>대화 방식 고르기</button></p>':''}<div class="messages" role="log" aria-live="polite">${(()=>{const picked=capturedIds();return (c?.messages||[]).map(m=>capturing?`<article class="message ${m.role} pickable${picked.includes(m.id)?' picked':''}"><button class="pick" data-pick="${m.id}" aria-pressed="${picked.includes(m.id)}"><span class="tick" aria-hidden="true"></span><span class="bubble">${esc(m.text)}</span></button></article>`:`<article class="message ${m.role}${m.streaming?' composing':''}"><div class="bubble">${esc(m.text)}</div>${m.role==='assistant'&&m.references?.length?`<details class="answer-basis"><summary>참고한 지난 기록</summary><ul>${m.references.map(ref=>`<li>${esc(ref.kind)} · ${esc(ref.date)} · ${esc(ref.title)}${data.records.some(r=>r.id===ref.recordId)?` <button class="plain" data-record="${esc(ref.recordId)}">기록 열기</button>`:''}</li>`).join('')}</ul></details>`:''}${m.role==='assistant'&&m.basis&&!noteMode?`<details class="answer-basis"><summary>명리학 해석 근거</summary><p>${esc(m.basis)}</p></details>`:''}${m.role==='assistant'?`<div class="answer-tools"><time>${DateTime.fromISO(m.at).toFormat('HH:mm')}</time>${m.streaming?'<span class="ai-working" role="status"><span aria-hidden="true"></span>답변을 다듬고 있어요</span>':`<button data-copy="${m.id}">복사</button><button data-save-answer="${m.id}">${data.savedAnswers.some(a=>a.messageId===m.id)?'저장됨':'저장'}</button>`}</div>`:`<time>${DateTime.fromISO(m.at).toFormat('HH:mm')}</time>`}</article>`).join('');})()}</div>${capturing?(()=>{const n=capturedIds().length,off=n?'':' disabled';return `<div class="capture-bar"><div class="capture-guide"><span>${captureGuide()}</span><button class="plain" data-capture="reset"${off}>선택 해제</button></div><div class="capture-acts">${canCopyImage()?`<button data-capture="copy"${off}>복사</button>`:''}${canShareFiles()?`<button data-capture="share"${off}>공유</button>`:''}<button data-capture="save"${off}>저장</button><button class="plain" data-capture="cancel">취소</button></div></div>`;})():''}${(()=>{const cold=(c?.messages||[]).length<2;
+ const chips=`<div class="quick-topics">${(p()?.topics||['진로','관계','일상']).map(t=>`<button data-quick="${t} 고민이 있어요">${t} 이야기</button>`).join('')}</div>`;
  const sheet=capturing||!plusOpen?'':`<div class="plus-sheet" id="plus-sheet"><div class="plus-acts">${[['capture','대화 캡처',PLUSICO.capture],['history','이전 상담',PLUSICO.history],['fresh','새 상담',PLUSICO.fresh],['record','선택 기록',PLUSICO.record]].map(([k,label,d])=>`<button data-plus-do="${k}"><span>${d}</span>${label}</button>`).join('')}</div>${cold?'':chips}</div>`;
  return sheet+(capturing||!cold?'':chips)+(!capturing&&c?.offer?'<button class="secondary" data-review-offer>선택 기록 검토하기</button>':'');})()}${!capturing&&attached?`<p class="attached-record">첨부한 기록 · <button class="plain" data-record="${esc(attached.id)}">${esc(attached.title)}</button> <button class="plain" data-detach-record>첨부 해제</button></p>`:''}<form id="chat-form"${capturing?' hidden':''}><button type="button" class="plus${plusOpen?' on':''}" data-plus aria-expanded="${plusOpen}" aria-controls="plus-sheet" aria-label="상담 도구 열기">${PLUSICO.plus}</button><label class="sr-only" for="chat-input">상담 메시지</label><textarea id="chat-input" name="message" rows="1" maxlength="1500" placeholder="${coachLoginRequired?'상담하려면 로그인해 주세요':'무엇이 고민이신가요?'}">${esc(chatDraft)}</textarea><button class="send" aria-label="메시지 보내기">${ico('<path d="M12 19V5M5 12l7-7 7 7"/>')}</button></form></section>`;}
-function choicePage(){return `<div class="narrow"><h1>오늘의 선택을<br>내일의 나에게.</h1><form id="record-form"><fieldset class="presets"><legend>어떤 선택 앞에 있나요?</legend>${[['이직 제안에 답하기','진로'],['마음을 고백하기','연애'],['새로운 일을 시작하기','진로'],['큰 지출을 결정하기','재물']].map(([t,tp])=>`<button type="button" data-preset="${esc(t)}" data-preset-topic="${tp}">${t}</button>`).join('')}</fieldset><label>어떤 선택을 앞두고 있나요?<input name="title" maxlength="100" placeholder="직접 적어도 좋아요" required></label><label>주제<select name="topic">${topics.map(t=>`<option>${t}</option>`).join('')}</select></label><label>선택할 날짜<input name="date" type="date" value="${selectedDate}" required></label><fieldset class="scale"><legend>지금 이 선택에 얼마나 마음이 기울었나요?</legend><div class="scale-poles"><span>아직 망설여요</span><span>마음이 분명해요</span></div><div class="scale-row">${CONFIDENCE.map(([v,label],i)=>`<label class="dot d${i}"><input type="radio" name="confidence" value="${v}" ${v===50?'checked':''}><i></i><span>${label}</span></label>`).join('')}</div></fieldset><label>예상하는 결과와 이유<textarea name="expectation" maxlength="1000" placeholder="기대하는 변화와 걱정되는 점을 남겨보세요."></textarea></label>${noteMode?'':criteriaLabelField()}<label>언제 돌아볼까요?<select name="delay"><option value="1">1일 후</option><option value="3" selected>3일 후</option><option value="7">7일 후</option></select></label>${reminderField()}<p class="privacy-note">${noteMode?'돌아볼 날 저녁 8시에 이 기기로 알림을 보내 드려요. 처음 저장할 때 알림 허용을 여쭤봅니다.':nativeApp?'알림을 선택한 기록은 이 기기에서 알려드려요. 기기의 알림 권한이 필요합니다.':'저장 후 캘린더 일정을 내려받을 수 있어요. 캘린더 앱에서 가져오기를 완료해야 알림이 등록됩니다. 사이트의 푸시·이메일 자동 발송은 아직 연결되지 않았습니다.'}</p><div class="form-error" role="alert" hidden></div><button class="primary">선택 기록 저장하기</button></form></div>`;}
+function choicePage(){return `<div class="narrow"><h1>오늘의 선택을<br>내일의 나에게.</h1><form id="record-form"><fieldset class="presets"><legend>어떤 선택 앞에 있나요?</legend>${[['이직 제안에 답하기','진로'],['마음을 고백하기','연애'],['새로운 일을 시작하기','진로'],['큰 지출을 결정하기','재물']].map(([t,tp])=>`<button type="button" data-preset="${esc(t)}" data-preset-topic="${tp}">${t}</button>`).join('')}</fieldset><label>어떤 선택을 앞두고 있나요?<input name="title" maxlength="100" placeholder="직접 적어도 좋아요" required></label><label>주제<select name="topic">${topics.map(t=>`<option>${t}</option>`).join('')}</select></label><label>선택할 날짜<input name="date" type="date" value="${selectedDate}" required></label>${noteMode?'':`<details class="timing-picker"><summary>날짜 참고하기</summary><label>어떤 일인가요?<select data-timing-purpose><option value="">일의 종류 선택</option>${TIMING_PURPOSES.map(k=>`<option value="${k}">${esc(PURPOSE[k].label)}</option>`).join('')}</select></label><div id="timing-days" role="status"></div><p class="hint">전통 택일 기준을 옮긴 참고 자료예요. 좋고 나쁨을 보장하지 않으니 실제 일정과 상황을 먼저 보세요.</p></details>`}<fieldset class="scale"><legend>지금 이 선택에 얼마나 마음이 기울었나요?</legend><div class="scale-poles"><span>아직 망설여요</span><span>마음이 분명해요</span></div><div class="scale-row">${CONFIDENCE.map(([v,label],i)=>`<label class="dot d${i}"><input type="radio" name="confidence" value="${v}" ${v===50?'checked':''}><i></i><span>${label}</span></label>`).join('')}</div></fieldset><label>예상하는 결과와 이유<textarea name="expectation" maxlength="1000" placeholder="기대하는 변화와 걱정되는 점을 남겨보세요."></textarea></label>${noteMode?'':criteriaLabelField()}<label>언제 돌아볼까요?<select name="delay"><option value="1">1일 후</option><option value="3" selected>3일 후</option><option value="7">7일 후</option></select></label>${reminderField()}<p class="privacy-note">${noteMode?'돌아볼 날 저녁 8시에 이 기기로 알림을 보내 드려요. 처음 저장할 때 알림 허용을 여쭤봅니다.':nativeApp?'알림을 선택한 기록은 이 기기에서 알려드려요. 기기의 알림 권한이 필요합니다.':'저장 후 캘린더 일정을 내려받을 수 있어요. 캘린더 앱에서 가져오기를 완료해야 알림이 등록됩니다. 사이트의 푸시·이메일 자동 발송은 아직 연결되지 않았습니다.'}</p><div class="form-error" role="alert" hidden></div><button class="primary">선택 기록 저장하기</button></form></div>`;}
 function criteriaLabelField(value=''){
  const labels=[...new Set(data.records.map(r=>r.criteriaLabel).filter(Boolean))];
  return `<label>선택 기준 이름 <span class="hint">선택 사항</span>
@@ -259,16 +339,39 @@ function dueReviews(){
  <b>${esc(r.title)}</b><span>회고일 ${dateLabel(r.due)}</span>${r.expectation?`<span>선택 기준 · ${esc(r.expectation)}</span>`:''}
  ${r.nextAction?`<span>해볼 행동 · ${esc(r.nextAction)}</span>`:''}${r.actual?`<span>실제 결과 · ${esc(r.actual)}</span>`:''}</button>`).join('')}</section>`;
 }
-function recordsPage(){const m=E.monthly(data.records,month),filtered=m.list.filter(r=>recordFilter==='all'||(recordFilter==='pending'?r.result==='pending':r.result!=='pending'));const days=DateTime.fromISO(month+'-01').daysInMonth,offset=DateTime.fromISO(month+'-01').weekday%7;return `<div class="section-top"><div><p class="eyebrow">선택이 쌓이면, 나의 기준이 됩니다</p><h1>나의 기록</h1></div><button class="plain" data-nav="choice">+ 새 기록</button></div>${!noteMode&&data.records.length>=2?'<button class="secondary" data-compare-choices>두 선택 비교</button>':''}${dueReviews()}${noteMode?'':repeatedCriteria(data.records)}<div class="month-nav"><button data-month="-1" aria-label="이전 달">‹</button><h2>${month.replace('-','년 ')}월</h2><button data-month="1" aria-label="다음 달">›</button></div><section class="card calendar-card"><div class="calendar">${['일','월','화','수','목','금','토'].map(v=>`<span>${v}</span>`).join('')}${Array.from({length:offset},()=>'<span></span>').join('')}${Array.from({length:days},(_,i)=>{const day=month+'-'+String(i+1).padStart(2,'0'),n=m.list.filter(r=>r.date===day).length;return `<button data-day="${day}" class="${n?'has-record':''}${day===today()?' is-today':''}" ${day===today()?'aria-current="date"':''} aria-label="${dateLabel(day)}, 기록 ${n}개">${i+1}${n?`<small>${n}</small>`:''}</button>`;}).join('')}</div></section><details class="card monthly-review"><summary>이번 달 돌아보기</summary><div class="monthly-review-content"><div class="stats"><div><b>${m.list.length}</b><span>선택 기록</span></div><div><b>${m.done.length}</b><span>결과 기록</span></div><div><b>${m.list.filter(r=>r.mood).length}</b><span>감정 기록</span></div></div><p>${m.insight}</p>${Object.keys(m.moods).length?`<div class="mood-summary">${Object.entries(m.moods).map(([k,v])=>`<span>${esc(k)} ${v}회</span>`).join('')}</div>`:'<p class="hint">결과를 남길 때 감정도 함께 선택해보세요.</p>'}</div></details><div class="filters">${[['all','전체'],['pending','돌아볼 선택'],['done','결과 남김']].map(([id,label])=>`<button data-filter="${id}" aria-pressed="${recordFilter===id}">${label}</button>`).join('')}</div>${filtered.length?filtered.sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<button class="record-row card" data-record="${r.id}"><span class="eyebrow">${dateLabel(r.date)} · ${esc(r.topic)}</span><h3>${esc(r.title)}</h3><p>${r.result==='pending'?`${dateLabel(r.due)}에 돌아보기`:resultLabel(r.result)} · 당시 마음 ${confidenceLabel(r.confidence)}</p></button>`).join(''):'<div class="empty"><h3>아직 이 달의 기록이 없어요.</h3><p>큰 결정이 아니어도 좋아요. 오늘의 작은 선택부터 남겨보세요.</p><button class="secondary" data-nav="choice">첫 선택 기록하기</button></div>'}`;}
+function recordsPage(){const m=E.monthly(data.records,month),filtered=m.list.filter(r=>recordFilter==='all'||(recordFilter==='pending'?r.result==='pending':r.result!=='pending'));const days=DateTime.fromISO(month+'-01').daysInMonth,offset=DateTime.fromISO(month+'-01').weekday%7;return `<div class="section-top"><div><p class="eyebrow">선택이 쌓이면, 나의 기준이 됩니다</p><h1>나의 기록</h1></div><button class="plain" data-nav="choice">+ 새 기록</button></div>${!noteMode&&data.records.length>=2?'<button class="secondary" data-compare-choices>두 선택 비교</button>':''}${dueReviews()}${noteMode?'':repeatedCriteria(data.records)}<div class="month-nav"><button data-month="-1" aria-label="이전 달">‹</button><h2>${month.replace('-','년 ')}월</h2><button data-month="1" aria-label="다음 달">›</button></div><section class="card calendar-card"><div class="calendar">${['일','월','화','수','목','금','토'].map(v=>`<span>${v}</span>`).join('')}${Array.from({length:offset},()=>'<span></span>').join('')}${Array.from({length:days},(_,i)=>{const day=month+'-'+String(i+1).padStart(2,'0'),n=m.list.filter(r=>r.date===day).length;return `<button data-day="${day}" class="${n?'has-record':''}${day===today()?' is-today':''}" ${day===today()?'aria-current="date"':''} aria-label="${dateLabel(day)}, 기록 ${n}개">${i+1}${n?`<small>${n}</small>`:''}</button>`;}).join('')}</div></section><details class="card monthly-review"><summary>이번 달 돌아보기</summary><div class="monthly-review-content"><div class="stats"><div><b>${m.list.length}</b><span>선택 기록</span></div><div><b>${m.done.length}</b><span>결과 기록</span></div><div><b>${m.list.filter(r=>r.mood).length}</b><span>감정 기록</span></div></div><p>${m.insight}</p>${Object.keys(m.moods).length?`<div class="mood-summary">${Object.entries(m.moods).map(([k,v])=>`<span>${esc(k)} ${v}회</span>`).join('')}</div>`:'<p class="hint">결과를 남길 때 감정도 함께 선택해보세요.</p>'}${trendHtml()}${(noteChat||!noteMode)&&m.list.length?`<button class="secondary" data-month-ai>AI와 이 달 돌아보기</button><p class="hint">기록 요약이 입력창에 채워져요. 내용을 확인한 뒤 직접 보내면 상담 1회가 차감돼요.</p>`:''}<button class="secondary" data-year-review>${now().year}년 돌아보기</button></div></details><div class="filters">${[['all','전체'],['pending','돌아볼 선택'],['done','결과 남김']].map(([id,label])=>`<button data-filter="${id}" aria-pressed="${recordFilter===id}">${label}</button>`).join('')}</div>${filtered.length?filtered.sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<button class="record-row card" data-record="${r.id}"><span class="eyebrow">${dateLabel(r.date)} · ${esc(r.topic)}</span><h3>${esc(r.title)}</h3><p>${r.result==='pending'?`${dateLabel(r.due)}에 돌아보기`:resultLabel(r.result)} · 당시 마음 ${confidenceLabel(r.confidence)}</p></button>`).join(''):'<div class="empty"><h3>아직 이 달의 기록이 없어요.</h3><p>큰 결정이 아니어도 좋아요. 오늘의 작은 선택부터 남겨보세요.</p><button class="secondary" data-nav="choice">첫 선택 기록하기</button></div>'}`;}
 const confidenceLabel=v=>CONFIDENCE.reduce((a,b)=>Math.abs(b[0]-v)<Math.abs(a[0]-v)?b:a)[1];
 const resultLabel=v=>({pending:'아직 결과를 기다려요',good:'만족스러운 결과',neutral:'아직 판단하기 어려워요',rethink:'다르게 선택하고 싶어요'}[v]||'결과 미상');
+function trendHtml(){
+ const rows=trend(data.records,month),max=Math.max(1,...rows.map(v=>v.total));
+ if(!rows.some(v=>v.total))return '';
+ return `<div class="trend" aria-label="최근 6개월 기록"><h3>최근 6개월</h3>${rows.map(v=>`<div class="trend-row"><span>${Number(v.month.slice(5))}월</span><progress max="${max}" value="${v.total}"></progress><b>${v.total}건</b><small>돌아봄 ${v.reviewed} · 만족 ${v.good}</small></div>`).join('')}</div>`;
+}
+function yearReview(){
+ const summary=yearSummary(data.records,now().year);
+ trackProductEvent('year_review_view');
+ openModal(`<h2>${summary.year}년의 선택</h2>${summary.total?`<ul class="year-lines">${yearLines(summary).map(t=>`<li>${esc(t)}</li>`).join('')}</ul><button class="primary" id="year-save">이미지로 저장·공유</button>`:'<p class="muted">올해 남긴 선택이 아직 없어요. 작은 선택부터 남겨 보세요.</p>'}`);
+ const save=$('#year-save');
+ if(save)save.onclick=async()=>{
+  save.disabled=true;
+  try{const blob=await yearCardBlob(summary,APP_NAME);if(!blob)throw new Error();await download(`${APP_NAME}-${summary.year}.png`,blob,'image/png');}
+  catch{notice('이미지를 만들지 못했어요.');}
+  finally{save.disabled=false;}
+ };
+}
+function supportModeModal(){
+ const c=currentConversation();
+ openModal(`<h2>대화 방식 고르기</h2><form id="support-mode"><label>오늘 필요한 도움<select name="mode"><option value="">대화하며 정하기</option>${Object.entries(SUPPORT_MODES).filter(([k])=>k!=='monthly').map(([k,v])=>`<option value="${k}" ${c.supportMode===k?'selected':''}>${v}</option>`).join('')}</select></label><button class="primary">적용하기</button></form>`);
+ const form=$('#support-mode');
+ form.onsubmit=e=>{e.preventDefault();c.supportMode=form.elements.mode.value;persist();$('#modal').close();render();};
+}
 function settingsPage(){
  const account=authUser
   ?`<div class="account-state"><b>${esc(authUser.name||authUser.email||'로그인된 사용자')}</b><span>${esc(authUser.email||'계정에 연결됨')}</span></div><p>이 보관함은 계정에 연결되어 다른 기기에서도 다시 불러올 수 있습니다.</p><button class="secondary" data-action="logout">로그아웃</button>`
   :`<p>지금 로그인하면 이 브라우저의 기존 기록이 계정에 연결됩니다. 다른 기기에서도 같은 계정으로 불러올 수 있어요.</p><div class="auth-buttons">${authButtons()}</div>${isAppsInToss()?!authOptions.toss?'<p class="hint">Toss 로그인 연결을 준비하고 있어요.</p>':'':authOptions.password===false||(!authOptions.apple&&!authOptions.google)?'<p class="hint">지금은 로그인을 이용할 수 없어요. 잠시 후 다시 시도해 주세요.</p>':''}`;
- return `<div class="narrow"><p class="eyebrow">나의 이야기, 나의 권한</p><h1>개인 보관함</h1><section class="card account-card"><h2>계정과 동기화</h2>${account}</section><section class="card"><h2>어디에 저장되나요?</h2><p>${noteMode?'선택 기록과 회고는':'프로필·상담·선택 기록·저장한 답변은'} 이 서비스의 서버 보관함에 저장됩니다. ${authUser?'로그인 계정과 연결되어 있습니다.':'로그인 전에는 이 브라우저의 보안 쿠키로 연결됩니다.'}</p>${noteMode?'<p>운영 서버 관리자 접근을 막는 종단간 암호화 서비스는 아닙니다.</p>':'<p>AI 상담을 이용하면 답변 생성에 필요한 명식과 계산된 연·월 흐름, 현재 대화와 관련된 과거 대화·선택 기록·온보딩 고민이 Cafe24 LLM Router로 전송될 수 있습니다. 운영 서버 관리자 접근을 막는 종단간 암호화 서비스는 아닙니다.</p>'}<button class="secondary" data-action="retry" data-save-status>${storageLabel()}</button></section><section class="card"><h2>내 기록 가져가기</h2><p>${noteMode?'선택 기록과 회고를':'프로필·상담·선택 기록을'} JSON 또는 읽기 쉬운 문서로 내보냅니다. 파일에는 개인정보가 포함됩니다.</p><div class="button-row"><button class="secondary" data-action="export-json">JSON 내보내기</button><button class="secondary" data-action="export-text">문서 내보내기</button></div></section>${noteMode?'':`<section class="card"><h2>저장한 상담 답변</h2>${data.savedAnswers.length?data.savedAnswers.map(a=>`<details><summary>${esc(a.text.slice(0,45))}</summary><p class="preline">${esc(a.text)}</p><button class="plain" data-remove-answer="${a.id}">저장 해제</button></details>`).join(''):'<p class="muted">상담 답변 아래의 ‘저장’을 누르면 이곳에 모입니다.</p>'}</section><section class="card"><h2>연결 상태</h2><p>체험 코칭: 사용 가능<br>실제 AI 상담: ${aiCoach?'연결됨':'미연결'}<br>계정 동기화: ${authUser?'연결됨':'로그인 전'}<br>캘린더 회고 일정: 파일 가져오기 방식</p></section>`}<section class="card"><h2>서비스 개선 참여</h2><label class="check"><input type="checkbox" data-product-metrics ${metricsEnabled()?'checked':''}> [선택] 이용 동작 통계 수집에 동의</label><p class="hint">상품 안내·구매·복원, 첫 AI 답변·선택 저장·회고 저장의 동작별 건수를 기기 채널과 한국 날짜별로 합산해 서비스 개선에 사용합니다. 최근 30일 동안 보관하며 상담 내용·계정·주문 식별자는 통계에 저장하지 않습니다. 동의하지 않아도 서비스를 이용할 수 있고, 이 기기에서 언제든 해제할 수 있습니다. 이미 합산된 건수는 개인을 구분할 수 없어 개별 삭제할 수 없습니다. <a href="/privacy/">개인정보처리방침</a></p></section><section class="card legal-links"><h2>정책과 고객지원</h2><div class="legal-link-list"><a href="/privacy/">개인정보 처리방침</a><a href="/terms/">서비스 이용약관</a><a href="/support/">고객지원</a><a href="/account-deletion/">계정 및 데이터 삭제 안내</a></div></section><section class="card danger-zone"><h2>${authUser?'회원 탈퇴':'개인정보 전체 삭제'}</h2><p>${authUser?'계정과 서버에 저장된 모든 보관함 정보를 삭제합니다.':'현재 브라우저의 보관함 정보를 삭제합니다.'} 삭제 후 복구할 수 없습니다.</p><button class="danger" data-action="delete-all">${authUser?'계정과 모든 정보 삭제':'내 정보와 기록 모두 삭제'}</button></section></div>`;
+ return `<div class="narrow"><p class="eyebrow">나의 이야기, 나의 권한</p><h1>개인 보관함</h1><section class="card account-card"><h2>계정과 동기화</h2>${account}</section><section class="card"><h2>어디에 저장되나요?</h2><p>${noteMode?'선택 기록과 회고는':'프로필·상담·선택 기록·저장한 답변은'} 이 서비스의 서버 보관함에 저장됩니다. ${authUser?'로그인 계정과 연결되어 있습니다.':'로그인 전에는 이 브라우저의 보안 쿠키로 연결됩니다.'}</p>${noteMode?`${noteChat?'<p>AI 대화를 이용하면 대화 내용과 참고를 허용한 기록이 Cafe24 LLM Router를 거쳐 AI 제공자로 전송됩니다. 대화를 시작할 때 동의를 받습니다.</p>':''}<p>운영 서버 관리자 접근을 막는 종단간 암호화 서비스는 아닙니다.</p>`:'<p>AI 상담을 이용하면 답변 생성에 필요한 명식과 계산된 연·월 흐름, 현재 대화와 관련된 과거 대화·선택 기록·온보딩 고민이 Cafe24 LLM Router로 전송될 수 있습니다. 운영 서버 관리자 접근을 막는 종단간 암호화 서비스는 아닙니다.</p>'}<button class="secondary" data-action="retry" data-save-status>${storageLabel()}</button></section><section class="card"><h2>내 기록 가져가기</h2><p>${noteMode?'선택 기록과 회고를':'프로필·상담·선택 기록을'} JSON 또는 읽기 쉬운 문서로 내보냅니다. 파일에는 개인정보가 포함됩니다.</p><div class="button-row"><button class="secondary" data-action="export-json">JSON 내보내기</button><button class="secondary" data-action="export-text">문서 내보내기</button></div></section>${noteMode?'':`<section class="card"><h2>저장한 상담 답변</h2>${data.savedAnswers.length?data.savedAnswers.map(a=>`<details><summary>${esc(a.text.slice(0,45))}</summary><p class="preline">${esc(a.text)}</p><button class="plain" data-remove-answer="${a.id}">저장 해제</button></details>`).join(''):'<p class="muted">상담 답변 아래의 ‘저장’을 누르면 이곳에 모입니다.</p>'}</section><section class="card"><h2>연결 상태</h2><p>체험 코칭: 사용 가능<br>실제 AI 상담: ${aiCoach?'연결됨':'미연결'}<br>계정 동기화: ${authUser?'연결됨':'로그인 전'}<br>캘린더 회고 일정: 파일 가져오기 방식</p></section>`}<section class="card"><h2>서비스 개선 참여</h2><label class="check"><input type="checkbox" data-product-metrics ${metricsEnabled()?'checked':''}> [선택] 이용 동작 통계 수집에 동의</label><p class="hint">상품 안내·구매·복원, 첫 AI 답변·선택 저장·회고 저장의 동작별 건수를 기기 채널과 한국 날짜별로 합산해 서비스 개선에 사용합니다. 최근 30일 동안 보관하며 상담 내용·계정·주문 식별자는 통계에 저장하지 않습니다. 동의하지 않아도 서비스를 이용할 수 있고, 이 기기에서 언제든 해제할 수 있습니다. 이미 합산된 건수는 개인을 구분할 수 없어 개별 삭제할 수 없습니다. <a href="/privacy/">개인정보처리방침</a></p></section><section class="card legal-links"><h2>정책과 고객지원</h2><div class="legal-link-list"><a href="/privacy/">개인정보 처리방침</a><a href="/terms/">서비스 이용약관</a><a href="/support/">고객지원</a><a href="/account-deletion/">계정 및 데이터 삭제 안내</a></div></section><section class="card danger-zone"><h2>${authUser?'회원 탈퇴':'개인정보 전체 삭제'}</h2><p>${authUser?'계정과 서버에 저장된 모든 보관함 정보를 삭제합니다.':'현재 브라우저의 보관함 정보를 삭제합니다.'} 삭제 후 복구할 수 없습니다.</p><button class="danger" data-action="delete-all">${authUser?'계정과 모든 정보 삭제':'내 정보와 기록 모두 삭제'}</button></section></div>`;
 }
-function render(){page=notePage(page);const log=$('.messages');chatScroll=log?{top:log.scrollTop,stick:log.scrollHeight-log.scrollTop-log.clientHeight<80,count:log.querySelectorAll('article.message').length,id:activeConversation}:null;const main={welcome,birth,topic:topicPage,result:resultPage,chat:()=>'',choice:choicePage,records:recordsPage,settings:settingsPage}[page];const dual=p()&&page==='chat';$('#app').innerHTML=page==='welcome'?saveBanner()+welcome():`${header()}${saveBanner()}<div class="workspace ${dual?'dual':''}"><main id="main">${main()}</main>${dual?`<aside>${chatPanel()}</aside>`:''}</div>${['birth','topic','settings'].includes(page)?'':navBar()}<button class="save-status" data-action="retry" data-save-status>${storageLabel()}</button>`;document.body.dataset.page=page;if(lastPage!==page){lastPage=page;window.scrollTo(0,0);}dressPage({page,profile:p()});installGuestAccess({page,user:authUser,openModal,navigate:target=>nav(target||(p()?"chat":"birth")),notice});drawCoachQuota();bind();refreshSave();refreshSaveError();scrollChat();}
+function render(){page=notePage(page);const log=$('.messages');chatScroll=log?{top:log.scrollTop,stick:log.scrollHeight-log.scrollTop-log.clientHeight<80,count:log.querySelectorAll('article.message').length,id:activeConversation}:null;const main={welcome,birth,topic:topicPage,today:todayPage,result:resultPage,chat:()=>'',choice:choicePage,records:recordsPage,settings:settingsPage}[page];const dual=(p()||noteChat)&&page==='chat';$('#app').innerHTML=page==='welcome'?saveBanner()+welcome():`${header()}${saveBanner()}<div class="workspace ${dual?'dual':''}"><main id="main">${main()}</main>${dual?`<aside>${chatPanel()}</aside>`:''}</div>${['birth','topic','settings'].includes(page)?'':navBar()}<button class="save-status" data-action="retry" data-save-status>${storageLabel()}</button>`;document.body.dataset.page=page;if(lastPage!==page){lastPage=page;window.scrollTo(0,0);}dressPage({page,profile:p()});installGuestAccess({page,user:authUser,openModal,navigate:target=>nav(target||(p()?"chat":"birth")),notice});drawCoachQuota();bind();refreshSave();refreshSaveError();scrollChat();}
 function scrollChat(){const a=$('.messages');if(!a)return;const c=ct();if(c){const articles=a.querySelectorAll('article.message'),sourceLabel={cafe24:'AI 답변',rules:'기본 답변',safety:'안전 안내',record:'기록 안내'};c.messages.forEach((m,i)=>{const article=articles[i];if(!article)return;const tools=article.querySelector('.answer-tools'),label=sourceLabel[m.source];if(tools&&label){const badge=document.createElement('span');badge.className='response-source';badge.textContent=label;tools.prepend(badge);}if(!m.aiFailure)return;const note=document.createElement('div');note.className='ai-recovery';const p=document.createElement('p');p.textContent=m.aiFailure;note.append(p);if(i===c.messages.length-1){const button=document.createElement('button');button.type='button';button.textContent='AI 답변 다시 시도';button.disabled=!!c.pending;button.onclick=()=>retryAi(c.id,m.id);note.append(button);}article.append(note);});if(c.pending){const send=$('#chat-form .send');if(send)send.disabled=true;}}
  // 새 말풍선이 생겼거나 이미 맨 아래였을 때만 따라 내려갑니다. 위로 올려 읽던 자리는 지킵니다.
  const count=a.querySelectorAll('article.message').length,s=chatScroll;a.scrollTop=!s||s.stick||s.id!==activeConversation||s.count!==count?a.scrollHeight:s.top;}
@@ -281,9 +384,9 @@ const consultationTemplates={
  relationship:['연애','관계에서 마음에 걸리는 일은…\n지키고 싶은 내 기준은…\n상대에게 확인하고 싶은 것은…'],
  daily:['','지금 고민 중인 선택은…\n중요하게 생각하는 기준은…\n작게 해볼 행동은…']
 };
-function chooseHistory(onConfirm, showTemplate=false) {
+function chooseHistory(onConfirm, showTemplate=false, presetMode='') {
  openModal(`<h2>지난 기록을 참고할까요?</h2><p>이번 상담에서 온기가 참고할 항목을 골라 주세요.</p>
- <form id="history-preferences">${showTemplate?`<label>고민 작성 틀<select name="template"><option value="">자유롭게 시작</option><option value="career">이직과 진로</option><option value="relationship">관계</option><option value="daily">일상 선택</option></select></label>`:''}<label>오늘 필요한 도움<select name="mode"><option value="">대화하며 정하기</option><option value="listen">마음 정리</option><option value="compare">선택지 비교</option><option value="action">해볼 행동 정하기</option></select></label><label class="check"><input type="checkbox" name="conversations">이전 대화</label>
+ <form id="history-preferences">${showTemplate?`<label>고민 작성 틀<select name="template"><option value="">자유롭게 시작</option><option value="career">이직과 진로</option><option value="relationship">관계</option><option value="daily">일상 선택</option></select></label>`:''}<label>오늘 필요한 도움<select name="mode"><option value="">대화하며 정하기</option>${Object.entries(SUPPORT_MODES).filter(([k])=>k!=='monthly'||presetMode==='monthly').map(([k,v])=>`<option value="${k}" ${presetMode===k?'selected':''}>${v}</option>`).join('')}</select></label>${noteMode?'<label class="check"><input type="checkbox" name="aiConsent" required>이 대화와 아래에서 고른 기록이 답변 생성을 위해 Cafe24 LLM Router를 거쳐 AI 제공자로 전송되는 데 동의해요.</label><p class="hint"><a href="/privacy/">개인정보처리방침</a></p>':''}<label class="check"><input type="checkbox" name="conversations">이전 대화</label>
  <label class="check"><input type="checkbox" name="records">선택 기록과 회고</label>
  <button class="primary">이 설정으로 상담하기</button></form>`);
  const form=$('#history-preferences');
@@ -294,7 +397,7 @@ function chooseHistory(onConfirm, showTemplate=false) {
   onConfirm(preferences,form.elements.mode.value,form.elements.template?.value);
  };
 }
-function startConversation(topic, recordId, initialDraft) {
+function startConversation(topic, recordId, initialDraft, presetMode='') {
  chooseHistory((preferences,mode,template)=>{
   selectConversation(null);
   const conversation=currentConversation();
@@ -307,12 +410,12 @@ function startConversation(topic, recordId, initialDraft) {
   if(recordId)conversation.attachedRecordId=recordId;
   nav('chat');
   persist();
- },!recordId);
+ },!recordId,presetMode);
 }
 
 function chatHistoryModal(){
  const conversations=data.conversations.slice().reverse();
- openModal(`<h2>이전 상담 이어가기</h2><button class="secondary" id="new-chat">새 상담 시작하기</button><div class="conversation-list">${conversations.length?conversations.map(c=>`<div class="conversation-row"><button class="record-row" data-conversation="${c.id}"><b>${esc(c.profileName)} · ${esc(c.topic||'상담')}</b><span>${dateLabel(c.created.slice(0,10))} · ${c.messages.length}개 메시지 ${c.profileKey!==profileKey()?'· 이전 프로필 (읽기 전용)':''}</span></button><button class="conversation-delete" data-delete-conversation="${c.id}" aria-label="${esc(c.profileName)}의 ${esc(c.topic||'상담')} 상담 삭제">삭제</button></div>`).join(''):'<p class="muted">아직 저장된 상담이 없어요.</p>'}</div>`);
+ openModal(`<h2>이전 상담 이어가기</h2><button class="secondary" id="new-chat">새 상담 시작하기</button><div class="conversation-list">${conversations.length?conversations.map(c=>`<div class="conversation-row"><button class="record-row" data-conversation="${c.id}"><b>${c.profileName?esc(c.profileName)+' · ':''}${esc(c.topic||'상담')}</b><span>${dateLabel(c.created.slice(0,10))} · ${c.messages.length}개 메시지 ${c.profileKey!==profileKey()?'· 이전 프로필 (읽기 전용)':''}</span></button><button class="conversation-delete" data-delete-conversation="${c.id}" aria-label="${esc(c.profileName)}의 ${esc(c.topic||'상담')} 상담 삭제">삭제</button></div>`).join(''):'<p class="muted">아직 저장된 상담이 없어요.</p>'}</div>`);
  $('#new-chat').onclick=()=>startConversation();
  document.querySelectorAll('[data-conversation]').forEach(b=>b.onclick=()=>{selectConversation(b.dataset.conversation);$('#modal').close();render();});
  document.querySelectorAll('[data-delete-conversation]').forEach(b=>b.onclick=()=>{
@@ -359,7 +462,7 @@ function recordDetail(id){const r=data.records.find(r=>r.id===id);if(!r)return;c
  };
 }
 async function download(name,content,type='text/plain;charset=utf-8'){const blob=new Blob([content],{type});try{if(await shareNativeFile(blob,name,`${APP_NAME} 파일`)){notice('공유·저장할 앱을 선택해 주세요.');return;}}catch(e){if(e?.name==='AbortError'||/cancel/i.test(e?.message||''))return;notice('파일 공유창을 열지 못했어요.');return;}const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
-document.addEventListener('click',async e=>{const button=e.target.closest('[data-login]');if(!button)return;const provider=button.dataset.login;if(provider!=='toss'){location.href=loginUrl(provider);return;}tossLoginBusy=true;render();try{const {body}=await loginWithToss();authUser=body.user||null;await load();page=result?'chat':'birth';notice('토스 계정으로 로그인했어요.');}catch(error){notice(error.message||'토스 로그인을 완료하지 못했어요.');}finally{tossLoginBusy=false;render();}});
+document.addEventListener('click',async e=>{const button=e.target.closest('[data-login]');if(!button)return;const provider=button.dataset.login;if(provider!=='toss'){location.href=loginUrl(provider);return;}tossLoginBusy=true;render();try{const {body}=await loginWithToss();authUser=body.user||null;await load();page=result?'today':'birth';notice('토스 계정으로 로그인했어요.');}catch(error){notice(error.message||'토스 로그인을 완료하지 못했어요.');}finally{tossLoginBusy=false;render();}});
 document.addEventListener('click',e=>{
  if(e.target.closest('[data-auth-refresh]')){authStatus='loading';render();loadAuth();}
 });
@@ -377,6 +480,22 @@ function bind(root=document){
  const metrics=root.querySelector('[data-product-metrics]');
  if(metrics)metrics.onchange=()=>{metrics.checked=setMetricsEnabled(metrics.checked);notice(metrics.checked?'이 기기의 서비스 개선 참여를 켰어요.':'이 기기의 통계 전송을 껐어요.');};
  root.querySelector('[data-compare-choices]')?.addEventListener('click',compareChoices);
+ root.querySelector('[data-relations]')?.addEventListener('click',relationsModal);
+ root.querySelector('[data-year-review]')?.addEventListener('click',yearReview);
+ root.querySelector('[data-support-mode]')?.addEventListener('click',supportModeModal);
+ root.querySelector('[data-today-ask]')?.addEventListener('click',()=>startConversation(undefined,undefined,TODAY_QUESTIONS[E.dayReading(result,today()).ten]||''));
+ root.querySelector('[data-month-ai]')?.addEventListener('click',()=>startConversation(undefined,undefined,monthlyPrompt(data.records,month),'monthly'));
+ const dailyToggle=root.querySelector('[data-daily-reminder]');
+ if(dailyToggle)dailyToggle.onchange=async()=>{setDailyReminder(dailyToggle.checked);await syncReviewReminders(data.records);notice(dailyToggle.checked?'매일 아침 알림을 켰어요.':'매일 아침 알림을 껐어요.');};
+ const timingPurpose=root.querySelector('[data-timing-purpose]');
+ if(timingPurpose)timingPurpose.onchange=()=>{
+  const form=timingPurpose.closest('form'),box=root.querySelector('#timing-days'),purpose=timingPurpose.value;
+  box.innerHTML='';if(!purpose)return;
+  const from=today()>form.elements.date.value?today():form.elements.date.value;
+  const days=bestDays([...E.goodDays(from.slice(0,7),purpose),...E.goodDays(DateTime.fromISO(from).plus({months:1}).toFormat('yyyy-MM'),purpose)],from);
+  box.innerHTML=days.length?days.map(d=>`<button type="button" class="secondary" data-timing-day="${d.iso}">${dateLabel(d.iso)}</button>`).join(''):'<p class="hint">가까운 날 중 참고할 날을 찾지 못했어요.</p>';
+  box.querySelectorAll('[data-timing-day]').forEach(b=>b.onclick=()=>{form.elements.date.value=b.dataset.timingDay;notice('선택할 날짜에 넣었어요.');});
+ };
  root.querySelector('[data-consultation-preview]')?.addEventListener('click',consultationPreview);
  root.querySelector('[data-detach-record]')?.addEventListener('click',()=>{delete ct().attachedRecordId;persist();render();});
  root.querySelector('[data-review-offer]')?.addEventListener('click',()=>reviewChoice(currentConversation()));
@@ -412,7 +531,8 @@ root.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{const id=b.datase
 }
 // 실제 상담이 붙어 있는지 한 번만 확인합니다. 확인에 실패하면 없는 것으로
 // 봅니다 — 규칙 기반 코칭이 늘 답을 내주므로 대화가 끊기지 않습니다.
-function quotaText(){return coachLoginRequired?'로그인 후 무료 상담 5회를 이용해 주세요.':coachQuota?.remaining===0?(isAppsInToss()?'남은 상담이 없어요. 상담 이용권을 확인해 주세요.':'무료 상담을 모두 이용했어요.'):coachQuota?(coachQuota.paidRemaining?`무료 ${coachQuota.freeRemaining}회 · 이용권 ${coachQuota.paidRemaining}회 남음${coachQuota.paidNextExpiry?` · 가장 이른 만료 ${dateLabel(DateTime.fromISO(coachQuota.paidNextExpiry).setZone('Asia/Seoul').toISODate())}`:''}`:`무료 상담 ${coachQuota.remaining} / 5회 남음 · 정상 AI 답변만 차감`):'상담 이용 횟수를 확인하고 있어요.';}
+function paidLabel(){return coachQuota?.plan==='unlimited'?`무제한 구독 · 오늘 ${coachQuota.paidRemaining}회 남음`:`${coachQuota?.plan?'구독':'이용권'} ${coachQuota?.paidRemaining}회 남음`;}
+function quotaText(){return coachLoginRequired?'로그인 후 무료 상담 5회를 이용해 주세요.':coachQuota?.remaining===0?(coachQuota.plan==='unlimited'?'오늘 이용 한도를 모두 썼어요. 내일 다시 이용할 수 있어요.':isAppsInToss()||storeBillingAvailable()?'남은 상담이 없어요. 구독 또는 이용권을 확인해 주세요.':'무료 상담을 모두 이용했어요.'):coachQuota?(coachQuota.paidRemaining?`무료 ${coachQuota.freeRemaining}회 · ${paidLabel()}${coachQuota.paidNextExpiry?` · ${coachQuota.plan?'다음 갱신일':'가장 이른 만료'} ${dateLabel(DateTime.fromISO(coachQuota.paidNextExpiry).setZone('Asia/Seoul').toISODate())}`:''}`:`무료 상담 ${coachQuota.remaining} / 5회 남음 · 정상 AI 답변만 차감`):'상담 이용 횟수를 확인하고 있어요.';}
 async function refreshCoachQuota(){
  try{const {response,body}=await coachStatus();if(!response.ok)throw new Error();coachLoginRequired=!!body.loginRequired;coachQuota=body.quota;aiCoach=body.available===true;return true;}catch{coachQuota=null;return false;}
 }
@@ -422,11 +542,12 @@ function purchaseFollowUp(){
  return record?{label:`${record.result==='pending'&&record.due?'회고 '+dateLabel(record.due):'저장한 선택'} · ${record.title}`,open:()=>recordDetail(record.id)}:null;
 }
 function drawCoachQuota(){
- const subscription=()=>noteMode?null:isAppsInToss()?installTossBilling({page,user:authUser,openModal,notice,showExample:consultationPreview,followUp:purchaseFollowUp(),resume:()=>nav('chat'),quota:coachQuota,onChanged:async()=>{await refreshCoachQuota();drawCoachQuota();return coachQuota;}}):installSubscription({page,user:authUser,openModal,notice,showExample:consultationPreview,followUp:purchaseFollowUp(),navigate:nav,native:nativeApp,toss:false});
+ const billingContext=()=>({page,user:authUser,openModal,notice,showExample:noteMode?null:consultationPreview,followUp:purchaseFollowUp(),resume:()=>nav('chat'),navigate:nav,quota:coachQuota,onChanged:async()=>{await refreshCoachQuota();drawCoachQuota();return coachQuota;}});
+ const subscription=()=>storeBillingAvailable()?installStoreBilling(billingContext()):noteMode?null:isAppsInToss()?installTossBilling({page,user:authUser,openModal,notice,showExample:consultationPreview,followUp:purchaseFollowUp(),resume:()=>nav('chat'),quota:coachQuota,onChanged:async()=>{await refreshCoachQuota();drawCoachQuota();return coachQuota;}}):installSubscription({page,user:authUser,openModal,notice,showExample:consultationPreview,followUp:purchaseFollowUp(),navigate:nav,native:nativeApp,toss:false});
  const form=document.querySelector('#chat-form');if(!form){subscription();return;}
  document.querySelector('.coach-quota')?.remove();
  const note=document.createElement('div');note.className='coach-quota';
- const status=document.createElement('span');status.setAttribute('role','status');status.title=quotaText();status.textContent=coachLoginRequired?'로그인 후 무료 5회':coachQuota?.paidRemaining?`무료 ${coachQuota.freeRemaining}회 · 이용권 ${coachQuota.paidRemaining}회 남음${coachQuota.paidNextExpiry?` · 가장 이른 만료 ${dateLabel(DateTime.fromISO(coachQuota.paidNextExpiry).setZone('Asia/Seoul').toISODate())}`:''}`:coachQuota?`무료 상담 ${coachQuota.remaining}회 남음`:'이용 횟수 확인 중';note.append(status);form.before(note);
+ const status=document.createElement('span');status.setAttribute('role','status');status.title=quotaText();status.textContent=coachLoginRequired?'로그인 후 무료 5회':coachQuota?.paidRemaining?`무료 ${coachQuota.freeRemaining}회 · ${paidLabel()}`:coachQuota?`무료 상담 ${coachQuota.remaining}회 남음`:'이용 횟수 확인 중';note.append(status);form.before(note);
  subscription();
  if(coachQuota&&coachQuota.remaining<=1){
   const record=authUser&&findPurchaseFollowUp(data.records,ct());
@@ -468,7 +589,10 @@ function recordsFor(conversation) {
   action:r.nextAction,actual:r.actual
  }));
 }
-const chartFor=c=>({pillars:result.pillars.map(v=>v.gz),dayStem:SK[result.day],
+const noteChartFor=c=>({note:true,records:recordsFor(c),supportMode:c.supportMode,
+ pastConversations:c.historyPreferences?.conversations?data.conversations.filter(v=>v.id!==c.id&&v.messages.some(m=>m.role==='user')).slice(-3).map(v=>({title:v.topic||'대화',date:v.created.slice(0,10),excerpt:v.messages.filter(m=>m.role==='user').at(-1).text})):[],
+ turnIndex:(c?.messages||[]).filter(m=>m.role==='user').length||1});
+const chartFor=c=>noteMode?noteChartFor(c):({pillars:result.pillars.map(v=>v.gz),dayStem:SK[result.day],
  element:ELEMENTS[result.element],strong:result.strong.map(i=>ELEMENTS[i]),weak:result.weak.map(i=>ELEMENTS[i]),
  topics:p().topics,initialConcern:c.historyPreferences?.conversations?(p().question||''):'',today:E.dayName(today()).name+' '+E.dayName(today()).label+'일',
  flowAsOf:today(),periodFlow:E.flow(result,today()).slice(0,2).map(f=>({period:f.key,pillar:f.p.gz,god:f.god,stage:f.stage})),
@@ -547,7 +671,7 @@ async function saveCapture(how){
  const picked=(c?.messages||[]).filter(m=>ids.includes(m.id));
  if(!picked.length)return;
  try{
-  const blob=await captureMessages(picked,{title:'온기',subtitle:dateLabel(picked[0].at.slice(0,10))+' 상담'});
+  const blob=await captureMessages(picked,{title:noteMode?APP_NAME:'온기',subtitle:dateLabel(picked[0].at.slice(0,10))+(noteMode?' 대화':' 상담')});
   if(!blob)throw new Error('빈 이미지');
   if(how==='copy'){
    await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
@@ -595,9 +719,9 @@ async function sendMessage(text){if(quotaChecking)return;const c=currentConversa
  // 규칙 기반 답을 먼저 만들어 둡니다. 실제 상담이 없거나 실패해도 이 답이
  // 나가므로 사용자는 빈 화면을 보지 않습니다.
  persist(); // AI를 기다리는 중 창을 닫아도 사용자의 질문은 먼저 남깁니다.
- const fallback=E.coach(result,p(),c,text);
+ const fallback=noteMode?{phase:E.safety(text)?'safety':'open',text:E.safety(text)||'지금은 AI 답변을 받지 못했어요. 잠시 뒤 다시 시도해 주세요.'}:E.coach(result,p(),c,text);
  if(fallback.phase!=='safety'&&unrelatedQuestion(text)){
-  c.messages.push({id:uid(),role:'assistant',text:SCOPE_NOTICE,source:'scope',at:new Date().toISOString()});
+  c.messages.push({id:uid(),role:'assistant',text:noteMode?NOTE_SCOPE_NOTICE:SCOPE_NOTICE,source:'scope',at:new Date().toISOString()});
   persist();render();return;
  }
  if(fallback.topic)c.topic=fallback.topic;
@@ -652,7 +776,7 @@ async function load(){saveState='loading';refreshSave();try{const {response:res,
    .sort((a,b)=>(b.messages.at(-1)?.at||b.created).localeCompare(a.messages.at(-1)?.at||a.created))[0];
   selectConversation(previous?.id||null,true);
  }
- if(afterLogin){page=noteMode?'records':result?'chat':'birth';afterLogin=false;const url=new URL(location.href);url.searchParams.delete('auth');history.replaceState(null,'',url.pathname+url.search+url.hash);}saveError='';saveState=revision?'saved':'ready';render();syncReviewReminders(data.records);if(openOnLoad){const id=openOnLoad;openOnLoad=null;page='records';render();recordDetail(id);}const legacy=!noteMode&&localStorage.getItem('dalbit-v2');if(legacy&&!r.data)offerMigration(legacy);}catch(e){markSaveError(e.message||'저장소에 연결하지 못했어요. 설정에서 다시 시도해 주세요.');render();}}
+ if(noteMode&&!ct())selectConversation(data.conversations.at(-1)?.id||null);if(afterLogin){page=noteMode?'records':result?'today':'birth';afterLogin=false;const url=new URL(location.href);url.searchParams.delete('auth');history.replaceState(null,'',url.pathname+url.search+url.hash);}saveError='';saveState=revision?'saved':'ready';render();syncReviewReminders(data.records);if(openOnLoad){const id=openOnLoad;openOnLoad=null;page='records';render();recordDetail(id);}const legacy=!noteMode&&localStorage.getItem('dalbit-v2');if(legacy&&!r.data)offerMigration(legacy);}catch(e){markSaveError(e.message||'저장소에 연결하지 못했어요. 설정에서 다시 시도해 주세요.');render();}}
 function offerMigration(raw){let old;try{old=JSON.parse(raw);}catch{return;}if(!old.birth)return;openModal('<h2>이전 기록을 발견했어요</h2><p>이 브라우저에 있던 프로필과 선택 기록을 서버 보관함으로 옮길 수 있어요. 현재 버전은 생년월일·상담·기록을 서버에 저장합니다.</p><button class="primary" id="migrate">이전 기록 가져와 서버에 저장</button><button class="secondary" id="skip-migrate">지금은 건너뛰기</button>');$('#skip-migrate').onclick=()=>$('#modal').close();$('#migrate').onclick=async()=>{if(!ageEligibility(old.birth))return notice(AGE_NOTICE);data.profile={name:old.name,birth:old.birth,time:old.time||'12:00',unknown:!!old.unknownTime,calendar:'solar',city:'서울',zone:'Asia/Seoul',longitude:126.978,clock:'civil',topics:old.topics?.length?old.topics:['진로'],question:old.topicNote||''};data.records=(old.records||[]).map(r=>({id:uid(),date:String(r.d).slice(0,10),title:r.title,topic:'진로',confidence:50,expectation:r.sub||'',actual:r.kind==='결과'?r.sub:'',due:String(r.d).slice(0,10),result:r.kind==='결과'?'neutral':'pending',mood:r.mood||'',legacy:true}));if(!await engineReady())return;try{result=E.calculate(p());const ok=await persist();if(ok)localStorage.removeItem('dalbit-v2');$('#modal').close();nav('result');}catch(e){notice(e.message);}};}
 async function loadAuth(){
  await Promise.allSettled([
@@ -675,12 +799,15 @@ async function startApp(){
   url.searchParams.delete('account');history.replaceState(null,'',url.pathname+url.search+url.hash);
  }
  if(url.searchParams.get('deletion')==='failed'){notice('Apple 확인 또는 탈퇴 결과를 확인하지 못했어요. 설정에서 계정 상태를 확인하고 다시 시도해 주세요. 서비스 데이터만 삭제할 수도 있어요.');url.searchParams.delete('deletion');history.replaceState(null,'',url.pathname+url.search+url.hash);}
+ const invite=!noteMode&&url.searchParams.get('invite');
+ if(invite){url.searchParams.delete('invite');history.replaceState(null,'',url.pathname+url.search+url.hash);}
  await confirmAge();render();coachAvailable().then(()=>{if(loaded)render();});
  loadAuth();load();
+ if(invite)inviteModal(invite);
 }
 startApp();
 // 회고 알림을 누르면 그 기록을 엽니다. 보관함을 불러오기 전이면 불러온 뒤에 엽니다.
-setupNativeShell({back:nativeBack,notify:notice,remindersChanged:()=>{const status=$('#review-reminder-status'),form=$('#edit-record'),record=data.records.find(r=>r.id===form?.dataset.id);if(status&&record)void reviewReminderStatus(record).then(text=>{if(status.isConnected)status.textContent=text;});},openRecord:id=>{if(!loaded){openOnLoad=id;return;}page='records';render();recordDetail(id);}});
+setupNativeShell({back:nativeBack,notify:notice,openPage:target=>{if(loaded)nav(target);},remindersChanged:()=>{const status=$('#review-reminder-status'),form=$('#edit-record'),record=data.records.find(r=>r.id===form?.dataset.id);if(status&&record)void reviewReminderStatus(record).then(text=>{if(status.isConnected)status.textContent=text;});},openRecord:id=>{if(!loaded){openOnLoad=id;return;}page='records';render();recordDetail(id);}});
 
 // 정책 문서는 현재 화면 위에서 열고 닫습니다. 입력 중인 내용은 유지합니다.
 document.addEventListener('click',async event=>{

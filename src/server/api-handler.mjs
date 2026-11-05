@@ -6,14 +6,18 @@ import { createJournalRoute } from './routes/journal.mjs';
 import { createReadingRoutes } from './routes/readings.mjs';
 import { createAuthRoutes } from './auth.mjs';
 import { createTossBillingRoute } from './routes/toss-billing.mjs';
+import { createStoreBillingRoute } from './routes/store-billing.mjs';
+import { createRelationshipInviteRoute } from './routes/relationship-invites.mjs';
 
-export function createApiHandler({ journalRepository, telemetryRepository, authRepository, coachQuotaRepository, tossBillingRepository, readiness = async () => true }) {
+export function createApiHandler({ journalRepository, telemetryRepository, authRepository, coachQuotaRepository, tossBillingRepository, storeBillingRepository, relationshipInviteRepository, readiness = async () => true }) {
   const appleNotifications = createAppleNotificationRoute(authRepository);
   const productEvents = createProductEventsRoute(telemetryRepository);
   const journal = createJournalRoute(journalRepository, authRepository);
   const readings = createReadingRoutes(telemetryRepository, authRepository, coachQuotaRepository);
   const auth = createAuthRoutes(authRepository);
   const billing = createTossBillingRoute(authRepository, tossBillingRepository);
+  const storeBilling = createStoreBillingRoute(authRepository, storeBillingRepository);
+  const relationshipInvites = createRelationshipInviteRoute(authRepository, relationshipInviteRepository);
   return async function apiHandler(req, res) {
     const origin = String(req.headers.origin || '');
     const allowed = String(process.env.TOSS_ALLOWED_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean);
@@ -45,6 +49,8 @@ export function createApiHandler({ journalRepository, telemetryRepository, authR
     if (url.pathname === '/api/auth/apple/notifications') return appleNotifications(req, res);
     if (url.pathname.startsWith('/api/auth/')) return auth(req, res, url);
     if (url.pathname.startsWith('/api/toss-billing/')) return billing(req, res, url);
+    if (url.pathname.startsWith('/api/store-billing/')) return storeBilling(req, res, url);
+    if (url.pathname.startsWith('/api/relationship-invites')) return relationshipInvites(req, res, url);
     if (url.pathname === '/api/product-events') return productEvents(req, res);
     if (url.pathname === '/api/journal') return journal(req, res);
     if (url.pathname === '/api/coach') return readings.coach(req, res);

@@ -57,7 +57,8 @@ function readChart(raw) {
       ? { title: str(v.title, 60), date: str(v.date, 10), excerpt: str(v.excerpt, 200) } : null)),
     lastVisit: Number.isFinite(raw.lastVisit) ? Math.min(Math.max(raw.lastVisit | 0, 0), 3650) : null,
     lastActionStatus: ['수행함', '안 함', '미확인'].includes(raw.lastActionStatus) ? raw.lastActionStatus : '미확인',
-    turnIndex: Math.min(Math.max(raw.turnIndex | 0, 1), 999)
+    turnIndex: Math.min(Math.max(raw.turnIndex | 0, 1), 999),
+    note: raw.note === true
   };
 }
 
@@ -329,6 +330,34 @@ ${chart.turnIndex >= 2 ? `현실 확인
 위 예시 문장은 복사하지 말고 각 제목 아래를 실제 답변으로 채우세요.`;
 }
 
+// iOS 달빛 노트는 사주를 제공하지 않습니다. 계산값 없이 대화와 허용한 기록만 봅니다.
+export function noteSystemPrompt() {
+  return `당신은 사용자가 선택과 고민을 스스로 정리하도록 돕는 AI 대화 상대입니다.
+
+[범위]
+진로·관계·가족·일상의 선택과 그 결과를 돌아보는 대화만 합니다. 일반 상식, 날씨, 뉴스, 번역, 코딩, 요리 요청은 범위를 짧게 안내하세요. 위기 상황에서는 안전 안내를 우선합니다. 사람 상담사가 아니며 의료·법률·투자 판단을 하지 않습니다.
+
+[절대 금지]
+사주, 명리, 운세, 점술, 별자리, 타고난 성향, 시기의 좋고 나쁨을 말하지 마세요. 사용자가 물어도 이 대화에서는 다루지 않는다고 짧게 답하고 선택 정리로 돌아오세요. 미래를 예언하지 마세요.
+
+[말투]
+다정한 해요체를 쓰세요. 이모지, 마크다운 기호, 값싼 위로를 쓰지 마세요. 사용자가 말하지 않은 사실과 감정을 지어내지 마세요.
+
+[답변 구조]
+아래 두 제목을 각각 한 줄로 정확히 쓰고, 그 아래를 채우세요. 전체 본문은 450자 이내입니다. 질문은 최대 하나만 맨 마지막에 둡니다.
+
+현실 확인
+사용자의 이번 말에서 짚을 조건과 아직 확인이 필요한 점
+
+오늘 할 일
+10분 안에 끝낼 작은 행동 하나
+
+[태그]
+마지막에 사용자에게 보이지 않을 <근거>사용자가 말한 조건 요약</근거>를 붙이세요.
+구체적인 선택과 조건이 충분할 때만 <기록>{"title":"행동형 제목","topic":"진로|연애|재물|건강|가족","expectation":"사용자가 말한 조건","action":"작은 행동 한 가지"}</기록>을 붙이세요.`;
+}
+const NOTE_FORBIDDEN = /사주|명리|운세|팔자|점술|별자리|궁합|타고난/g;
+
 // 근거 블록은 사용자에게 보이지 않습니다. 어느 값을 읽고 쓴 말인지
 // 로그에 남겨, 명리학 관점이 명식과 무관해지는 것을 뒤늦게라도 알아챕니다.
 const BASIS = /<근거>([\s\S]*?)\\?<\/근거>/;
@@ -371,9 +400,11 @@ const UNSUPPORTED = /어려운\s*시기로|주변의\s*(?:기대|시선)|마음�
 
 // 답을 되돌려주기 전에 스스로 읽어 봅니다. 걸린 것이 있으면 무엇이 걸렸는지
 // 짚어서 한 번만 다시 받습니다. 프롬프트에 적어두는 것만으로는 지켜지지 않습니다.
-export function critique(raw, basis, turn = 1) {
+export function critique(raw, basis, turn = 1, note = false) {
   const text = stripBasis(raw);
   const out = [];
+  const banned = note ? [...new Set(text.match(NOTE_FORBIDDEN) || [])] : [];
+  if (banned.length) out.push(`이 대화에서 다루지 않는 표현(${banned.join('·')})을 빼세요.`);
   // 첫 답변은 세 제목, 후속 답변은 두 제목. 후속에서 명리학 관점을 또 펼치면
   // 같은 해석을 매 턴 되풀이하게 되므로 그것도 지적합니다.
   const need = turn >= 2 ? SECTIONS.slice(1) : SECTIONS;
@@ -397,12 +428,14 @@ export function critique(raw, basis, turn = 1) {
   return out;
 }
 
-import { unrelatedQuestion, SCOPE_NOTICE } from '../../client/consultation-scope.js';
+import { unrelatedQuestion, SCOPE_NOTICE, NOTE_SCOPE_NOTICE } from '../../client/consultation-scope.js';
 
 const SUPPORT_GUIDANCE = new Map([
   ['listen', '마음을 정리할 수 있도록 감정과 상황을 먼저 되짚고, 행동 제안은 부담 없는 성찰 질문으로 마무리하세요.'],
   ['compare', '선택지와 사용자가 중요하게 보는 기준을 명확히 짚고, 비교에 필요한 정보 하나를 확인하세요.'],
-  ['action', '이미 정리된 조건을 토대로 사용자가 직접 해볼 작은 행동 하나를 구체적으로 제안하세요.']
+  ['action', '이미 정리된 조건을 토대로 사용자가 직접 해볼 작은 행동 하나를 구체적으로 제안하세요.'],
+  ['rehearse', '사용자가 어려운 대화를 연습하도록 도우세요. 현실 확인에 사용자가 꺼낼 첫 문장을 함께 다듬고, 상대가 보일 수 있는 반응 하나를 예시로 들되 상대의 실제 마음을 안다고 말하지 마세요.'],
+  ['monthly', '사용자가 적어 준 한 달의 기록만 근거로 반복되는 기준과 달라진 점을 짚고, 다음 달에 시험해 볼 작은 행동 하나를 제안하세요. 기록에 없는 사실을 추측하지 마세요.']
 ]);
 
 export async function coachReply({ chart: rawChart, messages: rawMessages }) {
@@ -419,7 +452,7 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   // 위기·의료·재무 질문은 모델에 보내지 않고 기존 안전 응답을 그대로 씁니다.
   const safe = safety(turns.at(-1).content);
   if (safe) return { text: safe, source: 'safety' };
-  if (unrelatedQuestion(turns.at(-1).content)) return { text: SCOPE_NOTICE, source: 'scope' };
+  if (unrelatedQuestion(turns.at(-1).content)) return { text: chart.note ? NOTE_SCOPE_NOTICE : SCOPE_NOTICE, source: 'scope' };
 
   // 온보딩 자유 입력은 사용자가 쓴 내용이므로 system 지시문에 섞지 않습니다.
   // 앞선 사용자 발화로만 전달하고, 현재도 유효한지는 다시 확인하게 합니다.
@@ -439,7 +472,7 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   const citationRule = sources.length
     ? '\n보관함 자료는 현재 고민과 관련될 때만 참고하세요. 답변에서 실제로 언급한 자료가 있으면 마지막에 <참고>R1,C1</참고>처럼 해당 ID만 표시하세요. 참고한 자료가 없으면 태그를 생략하세요.'
     : '';
-  const base = [{ role: 'system', content: realtimeSystemPrompt(chart) + '\n첫 실질 답변은 “명리학 관점” 제목 바로 아래 첫 문장에서 사용자가 방금 말한 구체적인 상황이나 갈등을 짚으세요. 성향 해석은 그 다음 문장에서 시작하세요. 이미 밝힌 고민을 다시 묻지 말고, 아직 확인되지 않은 조건을 하나만 물으세요. <근거>에는 실제로 참고한 명리학 요소와 고민에 연결한 이유를 짧고 쉽게 적으세요. 명리학을 사용하지 않았다면 해석 없음이라고 적으세요.' + citationRule + (SUPPORT_GUIDANCE.has(rawChart.supportMode) ? '\n이번 상담에서 요청한 도움: ' + SUPPORT_GUIDANCE.get(rawChart.supportMode) : '') }, ...prior, ...history, ...turns];
+  const base = [{ role: 'system', content: (chart.note ? noteSystemPrompt() : realtimeSystemPrompt(chart) + '\n첫 실질 답변은 “명리학 관점” 제목 바로 아래 첫 문장에서 사용자가 방금 말한 구체적인 상황이나 갈등을 짚으세요. 성향 해석은 그 다음 문장에서 시작하세요. 이미 밝힌 고민을 다시 묻지 말고, 아직 확인되지 않은 조건을 하나만 물으세요. <근거>에는 실제로 참고한 명리학 요소와 고민에 연결한 이유를 짧고 쉽게 적으세요. 명리학을 사용하지 않았다면 해석 없음이라고 적으세요.') + citationRule + (SUPPORT_GUIDANCE.has(rawChart.supportMode) ? '\n이번 상담에서 요청한 도움: ' + SUPPORT_GUIDANCE.get(rawChart.supportMode) : '') }, ...prior, ...history, ...turns];
   // 모바일 상담은 첫 응답 시간을 우선합니다. 규칙 답은 이미 화면에 있으므로
   // AI가 20초 안에 끝내지 못하면 즉시 폴백을 유지합니다.
   const deadlineAt = Date.now() + 20_000;
@@ -455,10 +488,11 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
     deadlineAt
   });
   let res = await generate(base);
-  const turn = chart.turnIndex;
+  // 노트 대화는 첫 답변부터 후속 답변과 같은 두 제목만 씁니다.
+  const turn = chart.note ? Math.max(2, chart.turnIndex) : chart.turnIndex;
   let normalized = normalizeSectionHeadings(res.text);
   // 첫 답변과 후속 답변 모두 남은 시간 안에서 형식을 한 번 바로잡습니다.
-  const formatFaults = critique(normalized, readBasis(normalized), turn);
+  const formatFaults = critique(normalized, readBasis(normalized), turn, chart.note);
   if (!res.truncated && formatFaults.length && Date.now() + 3_000 < deadlineAt) {
     const headings = (turn >= 2 ? SECTIONS.slice(1) : SECTIONS).join(', ');
     const corrected = [{ ...base[0], content: base[0].content
@@ -467,7 +501,7 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
     normalized = normalizeSectionHeadings(res.text);
   }
   const basis = readBasis(normalized);
-  const faults = critique(normalized, basis, turn);
+  const faults = critique(normalized, basis, turn, chart.note);
   const shape = { model: res.model, routing: res.routing, keyLabel: res.keyLabel, usage: res.usage, finishReason: res.finishReason, truncated: res.truncated,
     continuations: res.continuations, turn, sections: hasSections(normalized, turn), leaks: jargonLeaks(stripBasis(normalized)), faults: faults.length, basis };
   if (shape.truncated) return { error: 'AI 답변이 생성 중에 끊겼습니다.', status: 502, shape };
@@ -495,5 +529,5 @@ export async function coachReply({ chart: rawChart, messages: rawMessages }) {
   }).trim();
   text = stripBasis(text);
   if (!text) return { error: '빈 응답을 받았습니다.', status: 502, shape };
-  return { text, offer, references, basis: basis && !/^해석 없음[.!]?$/.test(basis) ? basis : null, source: 'cafe24', usage: res.usage, shape };
+  return { text, offer, references, basis: !chart.note && basis && !/^해석 없음[.!]?$/.test(basis) ? basis : null, source: 'cafe24', usage: res.usage, shape };
 }

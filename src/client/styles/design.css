@@ -603,3 +603,20 @@ html:not([data-app=note]) nav button[aria-current=page]{background:#7d3e32;color
 .business-info{font-size:.75rem;line-height:1.8;overflow-wrap:anywhere;color:#52665f;margin:20px 0 0}
 .welcome-auth .business-info{font-size:.68rem;color:#c4cdbf;margin:18px 0 0}
 .business-info a{color:inherit}
+
+/* 오늘·인생 흐름·관계·회고 */
+.life-flow details{border-top:1px solid #dadfd5;padding:10px 0}
+.life-flow summary{display:flex;justify-content:space-between;gap:8px;cursor:pointer}
+.life-flow summary span{color:#7d3e32;font-weight:700;white-space:nowrap}
+.life-flow .is-past summary b{opacity:.65}
+.today-page .card button{margin-top:8px}
+.timing-picker{margin:4px 0 12px}
+.timing-picker #timing-days{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.timing-picker #timing-days button{width:auto;min-height:40px}
+.trend h3{margin-top:14px}
+.trend-row{display:grid;grid-template-columns:2.6em 1fr 2.8em;gap:4px 8px;align-items:center;margin:6px 0}
+.trend-row progress{width:100%;height:8px}
+.trend-row small{grid-column:2/4;opacity:.7}
+.relation-row{margin-top:12px}
+.year-lines{padding-left:1.2em;line-height:1.9}
+nav button{min-width:0}

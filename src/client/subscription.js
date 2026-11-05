@@ -2,6 +2,7 @@ import { trackProductEvent } from './product-metrics.js';
 import { businessInfo } from './business-info.js';
 // Preview only. No payment request, entitlement write, or renewal is performed.
 export const PLUS_PLAN = Object.freeze({ price: 4900, answers: 50 });
+export const UNLIMITED_PLAN = Object.freeze({ price: 49000, dailyLimit: 200 });
 export const subscriptionEnabled = ({ native = false, toss = false } = {}) => !native && !toss;
 
 export function installSubscription({ page, user, openModal, notice, navigate, native, toss, showExample, followUp }) {
@@ -39,6 +40,7 @@ export function installSubscription({ page, user, openModal, notice, navigate, n
         <p class="purchase-tax">부가세 포함 · 출시 예정 요금</p>
         <ul><li>정상 답변에만 상담 횟수 차감</li><li>한도를 다 써도 자동 추가 결제 없음</li><li>자기 이해 요약·기록·회고는 계속 무료</li></ul>
         <p class="purchase-tax">활용 예시 · 이직 조건 비교 → 출근길 확인 → 결과를 가지고 이어서 상담</p>
+        <p class="purchase-tax">온기 무제한 · 월 ${UNLIMITED_PLAN.price.toLocaleString('ko-KR')}원 · AI 상담 무제한(공정 사용 기준 하루 ${UNLIMITED_PLAN.dailyLimit}회) · 출시 예정</p>
         <p class="purchase-unavailable" role="status">출시 준비 중 · 이 화면에서 결제하거나 구독을 시작할 수 없어요. 구독이 시작되거나 상담 횟수가 늘어나지 않습니다.</p>
       </article>
       <details><summary>이용·해지 조건 확인</summary><p>출시 후 매월 자동 결제 예정입니다. 상담 횟수는 이월되지 않으며 오류·답변 실패·주제 밖 질문 거절은 차감하지 않습니다. 해지 시 다음 결제를 중단하고 이용기간 종료일까지 이용할 수 있도록 준비 중입니다. 정기결제의 확정 환불 조건은 판매 전에 안내합니다. <a href="/refund/" target="_blank" rel="noopener">환불정책</a>과 <a href="/pricing/" target="_blank" rel="noopener">상품 안내</a>를 확인해 주세요.</p></details>

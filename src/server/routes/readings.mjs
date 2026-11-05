@@ -33,6 +33,7 @@ export function createReadingRoutes(telemetry, auth, quota) {
   async function run(req, res, feature, enabled, allowed, execute) {
     const requestStarted = Date.now();
     const user = feature === 'coach' ? await auth?.userFromToken(authToken(req)) : null;
+    if (req.method === 'GET' && feature === 'coach' && user) await quota?.paid?.refresh?.(user.id)?.catch(() => {});
     if (req.method === 'GET') return sendJson(res, { available: enabled(), ...(feature === 'coach' ? { loginRequired: !user, quota: user && quota ? await quota.status(user.id) : null } : {}) });
     if (req.method !== 'POST') return sendJson(res, { error: '허용되지 않은 요청입니다.' }, 405);
     if (!validateOrigin(req)) return sendJson(res, { error: '이 사이트에서 다시 시도해 주세요.' }, 403);

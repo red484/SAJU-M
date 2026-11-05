@@ -15,7 +15,7 @@ assert.equal(resolveNoteMode({ platform: 'web', search: '', storage: tab }), tru
 assert.equal(resolveNoteMode({ platform: 'web', search: '?app=saju', storage: tab }), false);
 assert.equal(resolveNoteMode({ platform: 'web', search: '?app=note', storage: { getItem() { throw new Error(); }, setItem() { throw new Error(); } } }), true);
 
-// No saju, daily-flow or consultation screens in the note app.
+// No saju or daily-flow screens in the note app. Its chat is gated on the purchase plugin.
 for (const page of ['birth', 'topic', 'result', 'today', 'chat']) assert.equal(NOTE_PAGES.includes(page), false);
 
 const id = '1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed';

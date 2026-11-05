@@ -13,6 +13,25 @@ export const noteMode = resolveNoteMode({ platform: Capacitor.getPlatform(), sea
 export const APP_NAME = noteMode ? '달빛 노트' : '삶의 온기';
 let started = false;
 
+const DAILY_KEY = 'ongi-daily-reminder';
+const DAILY_ID = 2147480001;
+export function dailyReminderEnabled() {
+  try { return localStorage.getItem(DAILY_KEY) === 'on'; } catch { return false; }
+}
+export function setDailyReminder(enabled) {
+  try {
+    if (enabled) localStorage.setItem(DAILY_KEY, 'on');
+    else localStorage.removeItem(DAILY_KEY);
+  } catch { /* The screen still works without a device reminder. */ }
+}
+const dailyReminder = () => noteMode || !dailyReminderEnabled() ? [] : [{ id: DAILY_ID, title: '오늘의 질문이 도착했어요', body: '오늘 한 가지만 짚어 볼까요?', schedule: { on: { hour: 8, minute: 30 } }, extra: { page: 'today' } }];
+export async function shareLink(url, title) {
+  if (nativeApp) { await Share.share({ title, url, dialogTitle: title }); return 'shared'; }
+  if (navigator.share) { await navigator.share({ title, url }); return 'shared'; }
+  await navigator.clipboard.writeText(url);
+  return 'copied';
+}
+
 const reminderKey = id => `ongi-review-reminder:${id}`;
 export function reviewReminderEnabled(id) {
   try { return localStorage.getItem(reminderKey(id)) === 'on'; } catch { return false; }
@@ -51,7 +70,7 @@ export function syncReviewReminders(records, { requestPermission = true } = {}) 
   reminderRecords = records.map(record => ({ ...record }));
   reminderVersion++;
   if (!nativeApp) return reminderSync;
-  const wanted = reviewReminders(noteMode ? records : records.filter(record => reviewReminderEnabled(record.id)));
+  const wanted = [...dailyReminder(), ...reviewReminders(noteMode ? records : records.filter(record => reviewReminderEnabled(record.id)))];
   reminderSync = reminderSync.then(() => scheduleReviewReminders(wanted, requestPermission));
   return reminderSync;
 }
@@ -65,14 +84,14 @@ async function scheduleReviewReminders(wanted, requestPermission) {
     if (requestPermission && (display === 'prompt' || display === 'prompt-with-rationale')) ({ display } = await LocalNotifications.requestPermissions());
     if (display !== 'granted') return;
     await LocalNotifications.schedule({
-      notifications: wanted.map(n => ({ ...(Capacitor.getPlatform() === 'android' ? { isExactNotification: false } : {}), id: n.id, title: n.title, body: n.body, schedule: { at: n.at }, extra: n.extra }))
+      notifications: wanted.map(n => ({ ...(Capacitor.getPlatform() === 'android' ? { isExactNotification: false } : {}), id: n.id, title: n.title, body: n.body, schedule: n.schedule || { at: n.at }, extra: n.extra }))
     });
   } catch {
     // Reminders are a convenience; records are already saved on the server.
   }
 }
 
-export async function setupNativeShell({ back, notify, openRecord, remindersChanged }) {
+export async function setupNativeShell({ back, notify, openRecord, openPage, remindersChanged }) {
   if (!nativeApp || started) return;
   started = true;
   document.documentElement.classList.add('native-app');
@@ -121,6 +140,7 @@ export async function setupNativeShell({ back, notify, openRecord, remindersChan
   await LocalNotifications.addListener('localNotificationActionPerformed', ({ notification }) => {
     const id = notification.extra?.recordId;
     if (id) openRecord?.(id);
+    else if (notification.extra?.page) openPage?.(notification.extra.page);
   });
 
   // 정책 페이지는 앱 안에서 유지하고, 계산 출처 같은 외부 사이트만 시스템

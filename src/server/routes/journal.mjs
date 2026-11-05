@@ -1,4 +1,4 @@
-import {noteJournal,validNoteRecords,applyNoteRecords} from '../../shared/note-journal.mjs';
+import {noteJournal,validNoteRecords,validNoteConversations,applyNoteRecords} from '../../shared/note-journal.mjs';
 import {eligibleProfile} from '../profile-age.mjs';
 import {AGE_NOTICE} from '../../shared/age-policy.mjs';
 import { errorDetails } from '../logging.mjs';
@@ -62,10 +62,10 @@ export function createJournalRoute(repository, authRepository) {
       }
       let savedData=body.data;
       if(noteMode){
-        if(!validNoteRecords(body.data.records)||body.data.profile!=null||body.data.conversations.length||body.data.savedAnswers?.length)return sendJson(res,{error:'노트에서는 선택·회고 기록만 저장할 수 있어요.'},400);
+        if(!validNoteRecords(body.data.records)||body.data.profile!=null||!validNoteConversations(body.data.conversations)||body.data.savedAnswers?.length)return sendJson(res,{error:'노트에서는 선택·회고 기록만 저장할 수 있어요.'},400);
         const current=await repository.get(id);
         if(current.revision!==body.revision)throw new JournalConflictError('Journal revision conflict');
-        savedData=applyNoteRecords(current.data,body.data.records);
+        savedData=applyNoteRecords(current.data,body.data.records,body.data.conversations);
       }
       if(!eligibleProfile(savedData.profile))return sendJson(res,{code:'AGE_RESTRICTED',error:AGE_NOTICE},403);
       const saved = await repository.put(id, savedData, body.revision);

@@ -34,6 +34,8 @@ export function requiresAge(req,url) {
  if(path==='/api/journal')return req.method!=='DELETE';
  if(['/api/coach','/api/epic'].includes(path))return req.method==='POST';
  if(path.startsWith('/api/toss-billing/'))return req.method==='POST';
+ if(path==='/api/store-billing/sync')return req.method==='POST';
+ if(path.startsWith('/api/relationship-invites'))return req.method==='POST';
  if(path==='/api/auth/start')return !(req.method==='POST' && url.searchParams.get('provider')==='apple' && url.searchParams.get('intent')==='delete');
  if(path.startsWith('/api/auth/callback/')){
   if(path!=='/api/auth/callback/apple')return true;

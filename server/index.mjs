@@ -7,12 +7,16 @@ import { TelemetryRepository } from '../src/server/repositories/telemetry-reposi
 import { AuthRepository } from '../src/server/repositories/auth-repository.mjs';
 import { CoachQuotaRepository } from '../src/server/repositories/coach-quota-repository.mjs';
 import { TossBillingRepository } from '../src/server/toss-billing.mjs';
+import { CoachPaidAllowance, StoreBillingRepository } from '../src/server/store-billing.mjs';
+import { RelationshipInviteRepository } from '../src/server/routes/relationship-invites.mjs';
 
 const port = Number(process.env.PORT || 9090);
 const host = process.env.HOST || '0.0.0.0';
 const pool = createPool();
 await migrate(pool);
 const tossBilling = new TossBillingRepository(pool);
+const storeBilling = new StoreBillingRepository(pool);
+const relationshipInvites = new RelationshipInviteRepository(pool);
 const authRepository = new AuthRepository(pool);
 const telemetryRepository = new TelemetryRepository(pool);
 
@@ -20,8 +24,10 @@ const api = createApiHandler({
   journalRepository: new PostgresJournalRepository(pool),
   telemetryRepository,
   authRepository,
-  coachQuotaRepository: new CoachQuotaRepository(pool, tossBilling),
+  coachQuotaRepository: new CoachQuotaRepository(pool, new CoachPaidAllowance(tossBilling, storeBilling)),
   tossBillingRepository: tossBilling,
+  storeBillingRepository: storeBilling,
+  relationshipInviteRepository: relationshipInvites,
   readiness: async () => { await pool.query('SELECT 1'); }
 });
 
@@ -32,6 +38,18 @@ const server = createServer((req, res) => void api(req, res).catch(error => {
 }));
 
 server.listen(port, host, () => console.log(`Dalbit Saju backend listening on ${host}:${port}`));
+
+async function cleanExpiredInvites() {
+  try {
+    const deleted = await relationshipInvites.deleteExpired();
+    console.log(JSON.stringify({ event: 'relationship_invites.expired_cleaned', deleted }));
+  } catch (error) {
+    console.error(JSON.stringify({ event: 'relationship_invites.cleanup_failed', ...errorDetails(error) }));
+  }
+}
+const inviteTimer = setInterval(cleanExpiredInvites, 60 * 60 * 1000);
+inviteTimer.unref();
+void cleanExpiredInvites();
 
 let cleaningData = false;
 async function cleanExpiredData() {
@@ -63,6 +81,7 @@ void cleanExpiredData();
 
 async function shutdown() {
   clearInterval(retentionTimer);
+  clearInterval(inviteTimer);
   // Idle keep-alive sockets would otherwise hold close() open until Docker sends SIGKILL.
   setTimeout(() => process.exit(1), 10_000).unref();
   server.closeIdleConnections();
