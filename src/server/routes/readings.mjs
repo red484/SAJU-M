@@ -1,3 +1,5 @@
+import {eligibleProfile} from '../profile-age.mjs';
+import {AGE_NOTICE} from '../../shared/age-policy.mjs';
 import { errorDetails, llmLogDetails } from '../logging.mjs';
 import { coachReply, enabled as coachEnabled } from '../services/coach-service.mjs';
 import { epicReading, enabled as epicEnabled } from '../services/epic-service.mjs';
@@ -48,6 +50,7 @@ export function createReadingRoutes(telemetry, auth, quota) {
         ? sendJson(res, { error: '요청 내용이 너무 길어요. 줄여서 다시 시도해 주세요.' }, 413)
         : sendJson(res, { error: '요청 형식을 확인하지 못했어요. 화면을 새로고침해 주세요.' }, 400);
     }
+    if(!eligibleProfile(payload?.profile))return sendJson(res,{code:'AGE_RESTRICTED',error:AGE_NOTICE},403);
     const usage = await telemetry.start(id, feature).catch(() => ({ id: null, started: Date.now() }));
     try {
       const out = feature === 'coach' ? await quota.run(user.id, payload, execute) : await execute(payload);

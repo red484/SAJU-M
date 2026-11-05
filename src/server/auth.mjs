@@ -219,7 +219,7 @@ export function createAuthRoutes(repository, { exchangeIdentity = exchange, revo
     if (url.pathname === '/api/auth/logout' && req.method === 'POST') {
       if (!validateOrigin(req)) return sendJson(res, { error: '이 사이트에서 다시 시도해 주세요.' }, 403);
       await repository.logout(authToken(req), sessionId(getSession(req).token));
-      return sendJson(res, { ok: true }, 200, { 'Set-Cookie': [cookie('dalbit_auth', '', req, 0), expiredSessionCookie(req)] });
+      return sendJson(res, { ok: true }, 200, { 'Set-Cookie': [cookie('dalbit_auth', '', req, 0), cookie('ongi_age', '', req, 0), expiredSessionCookie(req)] });
     }
     if (url.pathname === '/api/auth/account' && req.method === 'DELETE') {
       if (!validateOrigin(req)) return sendJson(res, { error: '이 사이트에서 다시 시도해 주세요.' }, 403);

@@ -324,3 +324,5 @@ dialog[open]:has(.daysheet) .modal-close{position:absolute;top:10px;right:12px;z
 /* 모달 스크롤바가 둥근 모서리를 깎아내지 않도록 트랙을 투명하게 두고 위아래 여백을 줍니다. */
 dialog::-webkit-scrollbar{width:10px}dialog::-webkit-scrollbar-track{background:transparent;margin-block:18px}dialog::-webkit-scrollbar-thumb{background:#c9c6b4;border-radius:10px;border:3px solid var(--paper)}
 #password-error:not(:empty){color:var(--red);font-weight:600}
+
+.age-gate{box-sizing:border-box;width:min(560px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;padding:clamp(20px,5vw,40px);border:1px solid #d4d9d1;border-radius:16px;background:#fcfaf5;color:#302e29}.age-gate::backdrop{background:#153a36e8}.age-gate h1{font-size:clamp(26px,6vw,36px);line-height:1.35}.age-gate a{text-decoration:underline}.age-gate input{max-width:100%;box-sizing:border-box}

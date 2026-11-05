@@ -158,6 +158,7 @@ test('HTTP password re-login restores the journal after authentication expires',
       return {status:response.status,body:await response.json()};
     };
     const journal={profile:null,records:[{id:'kept',title:'복원할 기록'}],conversations:[],savedAnswers:[]};
+    await request('/api/eligibility','POST',{birth:'1990-01-01'});
     await request('/api/journal');
     assert.equal((await request('/api/journal','PUT',{data:journal,revision:0})).status,200);
     const password='test-only-password-123';

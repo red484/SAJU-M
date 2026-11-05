@@ -1,5 +1,6 @@
 export const apiBase = typeof __DALBIT_API_BASE__ === 'undefined' ? '' : __DALBIT_API_BASE__;
 export const appsInToss = typeof __APPS_IN_TOSS__ !== 'undefined' && __APPS_IN_TOSS__;
+const ageHeader = () => { try { const token=globalThis.sessionStorage?.getItem('ongi-age-token');return token?{'X-Ongi-Age':token}:{}; } catch { return {}; } };
 const tossAuthKey = 'dalbit-toss-auth';
 const tossSessionKey = 'dalbit-toss-session';
 
@@ -47,6 +48,7 @@ export async function apiRequest(path, options = {}) {
       credentials: appsInToss ? 'omit' : 'include',
       headers: {
         ...(requestOptions.body ? { 'Content-Type': 'application/json' } : {}),
+        ...ageHeader(),
         ...(auth ? { Authorization: `Bearer ${auth}` } : {}),
         ...(session ? { 'X-Dalbit-Session': session } : {}),
         ...requestOptions.headers
@@ -54,6 +56,7 @@ export async function apiRequest(path, options = {}) {
       signal: requestOptions.signal || controller.signal
     });
     const body = await response.json().catch(() => ({}));
+    if(body.code==='AGE_CONFIRMATION_REQUIRED')globalThis.dispatchEvent?.(new Event('ongi-age-required'));
     return { response, body };
   } catch (error) {
     if (controller.signal.aborted && !requestOptions.signal?.aborted) {

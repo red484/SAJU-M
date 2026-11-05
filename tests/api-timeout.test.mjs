@@ -27,3 +27,15 @@ test('shared Docker network routes only to this app backend', () => {
   assert.doesNotMatch(config, /http:\/\/backend:/);
   assert.equal(config.match(/http:\/\/saju-backend:9090/g).length, 2);
 });
+
+
+test('age proof travels through shared API and expiration requests confirmation without automatic retry', async () => {
+  const source = readFileSync(new URL('../src/client/api/client.js', import.meta.url), 'utf8').replaceAll('export ', '');
+  let headers,events=0,calls=0;
+  const ctx=vm.createContext({AbortController,setTimeout,clearTimeout,Event,
+    sessionStorage:{getItem:()=> 'signed-age-proof'},dispatchEvent:event=>{assert.equal(event.type,'ongi-age-required');events++;},
+    fetch:async (_,options)=>{headers=options.headers;calls++;return {status:403,ok:false,json:async()=>({code:'AGE_CONFIRMATION_REQUIRED'})};}
+  });
+  vm.runInContext(source,ctx);await vm.runInContext("apiRequest('/api/journal')",ctx);
+  assert.equal(headers['X-Ongi-Age'],'signed-age-proof');assert.equal(events,1);assert.equal(calls,1);
+});

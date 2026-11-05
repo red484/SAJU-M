@@ -1,3 +1,4 @@
+import {ageRoute,ageVerified,requiresAge} from './age-gate.mjs';
 import { createAppleNotificationRoute } from './apple-notifications.mjs';
 import { createProductEventsRoute } from './routes/product-events.mjs';
 import { sendJson } from './http.mjs';
@@ -20,7 +21,7 @@ export function createApiHandler({ journalRepository, telemetryRepository, authR
       const cors = {
         'Access-Control-Allow-Origin': allowed.includes('*') ? '*' : origin,
         'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Dalbit-Session',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Dalbit-Session, X-Ongi-Age',
         'Vary': 'Origin'
       };
       const writeHead = res.writeHead.bind(res);
@@ -28,6 +29,8 @@ export function createApiHandler({ journalRepository, telemetryRepository, authR
       if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
     }
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    if (url.pathname === '/api/eligibility') return ageRoute(req,res);
+    if (requiresAge(req,url) && !ageVerified(req)) return sendJson(res,{code:'AGE_CONFIRMATION_REQUIRED',error:'만 14세 이상 이용 확인이 필요해요. 화면에서 연령을 확인한 뒤 다시 시도해 주세요.'},403);
     if (url.pathname === '/health' || url.pathname === '/api/health') {
       return sendJson(res, { ok: true, service: 'dalbit-saju-backend', ai: readings.availability() });
     }

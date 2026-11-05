@@ -79,7 +79,7 @@ export async function setupNativeShell({ back, notify, openRecord, remindersChan
 
   await App.addListener('backButton', async ({ canGoBack }) => {
     const dialog = document.querySelector('dialog[open]');
-    if (dialog) { dialog.close(); return; }
+    if (dialog) { if(!dialog.classList.contains('age-gate'))dialog.close(); return; }
     if (await back?.()) return;
     if (canGoBack) history.back();
     else await App.exitApp();

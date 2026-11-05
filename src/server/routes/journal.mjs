@@ -1,3 +1,5 @@
+import {eligibleProfile} from '../profile-age.mjs';
+import {AGE_NOTICE} from '../../shared/age-policy.mjs';
 import { errorDetails } from '../logging.mjs';
 import { readBody, sendJson, validateOrigin } from '../http.mjs';
 import { expiredSessionCookie, getSession, sessionCookie, sessionId } from '../session.mjs';
@@ -31,6 +33,7 @@ export function createJournalRoute(repository, authRepository) {
       }
       if (req.method === 'GET') {
         const journal = await repository.get(id);
+        if(!eligibleProfile(journal.data?.profile))return sendJson(res,{code:'AGE_RESTRICTED',error:AGE_NOTICE+' 기존 기록 삭제는 설정 또는 고객지원에서 요청해 주세요.'},403);
         return sendJson(res, journal, 200, headers);
       }
       if (req.method === 'DELETE') {
@@ -49,6 +52,7 @@ export function createJournalRoute(repository, authRepository) {
       if (!validJournal(body.data, body.revision)) {
         return sendJson(res, { error: '데이터 형식이 올바르지 않아요.' }, 400);
       }
+      if(!eligibleProfile(body.data.profile))return sendJson(res,{code:'AGE_RESTRICTED',error:AGE_NOTICE},403);
       const saved = await repository.put(id, body.data, body.revision);
       return sendJson(res, { ok: true, revision: saved.revision }, 200, headers);
     } catch (error) {

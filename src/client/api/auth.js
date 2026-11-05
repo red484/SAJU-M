@@ -2,7 +2,7 @@ import { apiRequest, appsInToss, setTossAuthToken, setTossSessionToken } from '.
 
 export const authProviders = () => apiRequest('/api/auth/providers');
 export const currentUser = () => apiRequest('/api/auth/me');
-export const logout = () => apiRequest('/api/auth/logout', { method: 'POST' });
+export const logout = async () => { const result=await apiRequest('/api/auth/logout', { method: 'POST' });if(result.response.ok){try{sessionStorage.removeItem('ongi-age-token');}catch{}}return result; };
 export const deleteAccount = (manualAppleRevocation = false) => apiRequest('/api/auth/account', { method: 'DELETE',
   ...(manualAppleRevocation ? { body: JSON.stringify({ manualAppleRevocation: true }) } : {}) });
 export const deletionResult = () => apiRequest('/api/auth/deletion-result');
