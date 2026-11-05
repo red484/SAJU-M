@@ -1,0 +1,58 @@
+# 스토어 개인정보 답변 초안
+
+2026-11-05 · 기능 대조 기준 main `8bccef2` · **검토용이며 미제출**. 아래는 소스의 동작과 분류 후보다. 콘솔의 최종 체크값이나 심사 통과 판정이 아니다. 설치·배포 버전과 외부 계약을 확인한 뒤 운영자가 확정한다.
+
+## 공통 등록 자료
+
+| 항목 | 현재 값·근거 |
+|---|---|
+| 개인정보 URL | https://saju.ashwoodfriends.com/privacy/ |
+| 계정 삭제 URL | https://saju.ashwoodfriends.com/account-deletion/ — 연령 재입력 없이 현재 연결 데이터 삭제, 인증 불가 시 이메일 요청 |
+| 고객지원 URL | https://saju.ashwoodfriends.com/support/ |
+| 운영·문의 | (주)애쉬우드프렌즈 / ashwoodfriends@ashwoodfriends.com |
+| 연령 제한 | 만 14세 이상. 자기신고 날짜 판정이며 본인인증·스토어 연령 등급 지정은 아님 |
+| Android | 삶의 온기 / `com.ashwoodfriends.dalbitsaju` / 소스 versionName 1.0.2, versionCode 3 |
+| iOS | 달빛 노트. 실제 서명 아카이브의 식별자·버전·SDK 선언을 제출 직전 확인 |
+| 토스 | 별도 채널. 토스 주문 정보를 독립 Android·iOS의 신규 구매 기능으로 표시하지 않음 |
+
+앱은 운영 웹을 읽는다(`capacitor.config.json`). 네이티브 소스 버전만으로 현재 제공 동작을 판단하지 말고 원격 웹 변경도 대조한다. 웹 미리보기 가격·토스 SDK 금액·스토어 결제 승인 여부를 혼동하지 않는다.
+
+## 처리 항목과 목적
+
+| 데이터와 코드 근거 | 실제 처리·목적 | 선택과 연결 | 분류 검토 후보 |
+|---|---|---|---|
+| 로그인 이름·이메일·계정/제공자 ID (`auth.mjs`, `auth-repository.mjs`) | 인증·계정 관리. 익명 보관함도 서버에 저장 | 로그인은 선택이지만 로그인하면 계정에 연결. 익명 식별자를 ‘수집 없음’으로 보지 않음 | 양쪽 Name, Email, User IDs |
+| 양력 생년월일 연령 확인 (`age-policy.mjs`, `age-gate.mjs`) | 공통 이용 조건 판정. 날짜는 요청 중에만 사용하고 확인값만 발급 | 서비스 진입에 필요. 삭제·문의는 예외 | Play Other info의 일시 처리 검토. Apple 실시간 처리 정의와 확인값을 구분해 검토 |
+| 명리 프로필의 생년월일·성별·출생 도시·시간대·경도 | Android/웹 상담 계산·맥락, 서버 보관함 저장 | 상담 계산에 필요한 필드와 별명 등의 선택 필드 구분. 계정 또는 익명 보관함과 연결 | Play Other info; Apple Other Data Types 등. 출생 장소·경도를 현재 기기 위치나 GPS 권한으로 단정하지 말 것 |
+| 고민·대화·선택 기준·행동·회고·결과 (`app.js`, journal API) | 서버 저장·동기화, 허용한 자료의 AI 처리 | 자유 입력은 선택이나 기록 핵심 내용은 주 기능. 계정 연결 가능 | Play Other user-generated content / Other in-app messages 후보, Apple Other User Content |
+| 선택형 동작 건수 (`product-metrics.js`, `product-events.mjs`) | 동의 기기만 고정 이벤트·채널을 전송해 합산. 분석 목적 | 기본 꺼짐. 요청에 계정·주문·대화 ID를 넣지 않음. 서버 인프라의 IP 처리까지 포함해 연결 여부 확인 | Play App interactions, Apple Product Interaction 후보. 선택 동의를 이유로 신고 제외를 가정하지 않음 |
+| 서버 진단·응답 상태·쿠키/세션 (`logging.mjs`, telemetry) | 기능 운영·오류 대응·보안 | 주 기능 요청에서 발생. 계정/세션과 연결되는 경로가 있음 | Diagnostics·Identifiers 등 실제 항목별 검토. 운영 기록을 모두 익명 통계와 동일하게 분류하지 않음 |
+| 토스 주문·이용권 (`toss-billing.mjs`) | 토스 채널 지급·복원·환불 상태 처리 | 구매 선택, 계정 연결 | Purchase history. 독립 앱의 새 구매 UI는 없지만 같은 계정의 공용 정보 처리 범위 확인 |
+| 문의 문안·실제 문의 이메일 (`support-request.js`) | 문안은 화면에서만 처리. 사용자가 발송한 이메일은 지원 업무에 사용 | 작성·발송 선택. 문의로 제공한 정보에 따라 계정 확인 가능 | Customer Support 등. 문안 만들기만으로 서버 접수됐다고 신고하지 않음 |
+| 로컬 회고 알림·내보내기 (`native-shell.js`) | 기기 알림과 사용자가 선택한 파일·캘린더 전달 | Android 알림은 기기별 선택, iOS 기존 자동 예약. 기록 자체는 이미 서버 저장 | 로컬 처리와 서버 보관함을 구분. 주소록·기기 캘린더 읽기·GPS·광고 ID 수집 기능으로 추정하지 않음 |
+
+자유 입력은 건강·재정·민감한 정보를 포함할 수 있다. 서비스가 해당 내용을 질문·수집하는 방식과 실제 사용을 검토해 Health/Financial/Sensitive 관련 항목을 확정한다. 전용 센서·API가 없다는 이유만으로 해당 내용의 처리까지 없다고 확정하지 않는다.
+
+## iOS에서 특히 확인할 범위
+
+달빛 노트의 새 화면은 선택 기록·회고만 제공하며 명리 프로필 입력·AI 답변 생성·구매 UI를 제공하지 않는다. 그러나 `load()`가 공용 journal 전체를 받고 `persist()`가 같은 데이터를 저장한다. 같은 계정에 웹 프로필·대화·저장 답변이 있으면 노트 화면에서 보이지 않아도 처리된다. iOS를 ‘모든 출생 정보·대화 처리 없음’ 또는 ‘기기 내 저장만’으로 신고할 근거가 없다. 기능 분리와 데이터 분리는 다르다.
+
+데이터 분리를 원하면 서버의 읽기 투영, 동시 수정 충돌 처리, 쓰기 시 다른 채널의 프로필·대화 보존과 내보내기·삭제 범위를 함께 구현·검증해야 한다. 이번 작업에서 필드를 빼거나 기존 데이터를 삭제하지 않았다.
+
+`PrivacyInfo.xcprivacy`의 파일 시각 API 사유 C617.1은 필요한 API 사용 사유다. 이 선언 하나가 App Store 개인정보 라벨 전체나 SDK의 모든 처리 선언을 대신하지 않는다.
+
+## 최종 답변을 막는 확인 사항
+
+- AI 제공자·호스팅·SDK의 실제 처리와 계약: 서비스 제공자 예외나 ‘공유 없음’을 코드만으로 선택하지 않는다. 라우팅 최종 응답 코드만으로 모든 외부 수신자를 확정하지 않는다.
+- 로그인·보관함 등은 사용자 연결 데이터가 존재한다. 선택형 합계만 보고 앱 전체를 연결되지 않은 데이터로 표시하지 않는다.
+- 자체 코드에서 광고 ID·광고 SDK·타사 광고 목적 연결은 확인되지 않았다. 최종 Tracking 답변은 배포 SDK·사업자 처리까지 확인한 뒤 확정한다. ATT 권한이 없다는 사실만으로 결론을 내리지 않는다.
+- HTTPS 사용과 종단간 암호화는 다르다. 현재 서비스는 서버가 내용을 처리하므로 종단간 암호화로 표시하지 않는다.
+- Play의 배포 중인 버전 범위와 Apple의 제출 앱 버전, 원격 웹·정책 변경을 확인한다. 콘솔 등록·제출, 실계정·실기기 검증은 미수행이다. 보존·백업 점검은 제외했다.
+
+## 공식 판단 기준
+
+- [Google Play Data safety](https://support.google.com/googleplay/android-developer/answer/10787469?hl=en): 앱이 관리하는 WebView와 일시적인 기기 밖 처리도 답변 검토에 포함한다. 서비스 제공자 예외는 처리 관계를 확인해야 한다.
+- [Apple App privacy details](https://developer.apple.com/app-store/app-privacy-details/): 기기 내 처리와 실시간 요청 처리를 구분하고, 선택형 기능이라는 이유만으로 주 기능의 수집을 신고에서 제외하지 않는다.
+- [Apple Manage app privacy](https://developer.apple.com/help/app-store-connect/manage-app-information/manage-app-privacy/): 제출 버전과 실제 개인정보 응답을 맞춘다.
+
+공식 자료는 2026-11-05 확인했다. 위 분류 후보는 이 소스와 공식 정의를 대조한 해석이며 외부 계약·콘솔 답변의 확정을 대신하지 않는다.
