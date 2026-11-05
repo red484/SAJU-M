@@ -1,3 +1,4 @@
+import {redactModelMessages} from '../ai-contact-redaction.mjs';
 import { routingMetadata } from '../ai-routing.mjs';
 const DEFAULT_BASE_URL = 'https://llm-router.cafe24.com/api/v1';
 
@@ -50,7 +51,7 @@ async function onceWithKey(keyEntry, { messages, maxTokens, temperature, metadat
       },
       body: JSON.stringify({
         model: modelName || model(),
-        messages,
+        messages:redactModelMessages(messages),
         max_tokens: maxTokens,
         temperature,
         // Gemini 2.5 Flash는 기본값에서 동적 사고가 켜져 있어 짧은 상담에도

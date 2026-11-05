@@ -271,7 +271,8 @@ try {
       assert.equal(records[0].title,'통근 기준');
       assert.equal(records[0].expectation,'출퇴근은 40분 이내');
       assert.equal(records[0].action,'근무시간 확인하기');
-      assert.equal(records[0].actual,'회의 시간이 늘었어요');
+      assert.equal(records[0].actual,'회의 시간이 늘었어요 [이메일 비공개] [휴대전화 비공개]');
+      assert.doesNotMatch(options.body,/person@example\.com|010-1234-5678/);
       assert.ok(!Object.hasOwn(records[0],'recordId'));
       const content = `${later}\n<참고>R1,R9,C1</참고>`;
       return new Response(JSON.stringify({choices:[{message:{content},finish_reason:'stop'}]}), {
@@ -279,7 +280,7 @@ try {
       });
     };
     return coachReply({
-      chart:{...chart,email:'PRIVATE_EMAIL',birth:'PRIVATE_BIRTH',records:[{recordId:'linked-choice-1',title:'통근 기준',date:'2026-11-03',expectation:'출퇴근은 40분 이내',action:'근무시간 확인하기',actual:'회의 시간이 늘었어요'}]},
+      chart:{...chart,email:'PRIVATE_EMAIL',birth:'PRIVATE_BIRTH',records:[{recordId:'linked-choice-1',title:'통근 기준',date:'2026-11-03',expectation:'출퇴근은 40분 이내',action:'근무시간 확인하기',actual:'회의 시간이 늘었어요 person@example.com 010-1234-5678'}]},
       messages:[{role:'user',text:'이직 제안을 받았어요'}]
     });
   })();
