@@ -22,7 +22,7 @@
 - 가격: 무료
 - 연령 등급: 설문 응답에 따라 결정
 
-Xcode 프로젝트는 `ios/App/App.xcodeproj`이며 Team ID `LRSLC2RMQ`, 자동 서명,
+Xcode 프로젝트는 `ios/App/App.xcodeproj`이며 Team ID `LRLSLC2RMQ`, 자동 서명,
 iPhone 전용 세로 화면으로 설정되어 있다. Xcode에서 회사 팀을 확인한 후
 Product → Archive → Distribute App → App Store Connect로 업로드한다.
 
@@ -42,19 +42,7 @@ npm run native:ios
 - 광고: 없음
 - 계정 생성: Google·Apple 소셜 로그인과 비회원 이용 지원
 
-Play Console에는 서명된 AAB가 필요하다. 업로드 키는 저장소 밖에 보관하고
-아래 환경 변수로만 전달한다.
-
-```sh
-export DALBIT_UPLOAD_STORE_FILE=/절대경로/dalbit-upload.jks
-export DALBIT_UPLOAD_STORE_PASSWORD='...'
-export DALBIT_UPLOAD_KEY_ALIAS='dalbit-upload'
-export DALBIT_UPLOAD_KEY_PASSWORD='...'
-
-cd android
-JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' \
-GRADLE_USER_HOME=../.gradle ./gradlew bundleRelease
-```
+빌드·서명·업로드는 [store.md](store.md)의 `make release`로 한다. 업로드 키는 저장소 밖 `~/.saju`에 둔다.
 
 결과 파일은 `android/app/build/outputs/bundle/release/app-release.aab`이다.
 Play App Signing을 활성화하고 먼저 내부 테스트 트랙에 업로드한다.

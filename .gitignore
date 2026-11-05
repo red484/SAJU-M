@@ -10,3 +10,4 @@ src/generated-assets.js
 .data/
 secrets/
 *.ait
+ios/build-export/

@@ -1,0 +1,42 @@
+// A release build must never silently produce an unsigned artifact, or one signed with a key Play rejects.
+// Signing comes from the Android Gradle Plugin's injected signing properties
+// (scripts/store-release.py passes them as ORG_GRADLE_PROJECT_android.injected.signing.*).
+// Upload key registered in Play Console → App signing (SHA-1 of its certificate).
+def expectedUploadSha1 = '5154463C8F5A3B56B8A8781D2902EC9F2C383B98'
+
+def validateSigning = tasks.register('validateReleaseSigning') {
+    doLast {
+        def injected = project.findProperty('android.injected.signing.store.file')
+        if (!injected) {
+            throw new GradleException('Release signing is missing. Run make release-setup-saju KEYSTORE=<path>, then make release.')
+        }
+        def storeFile = new File(injected.toString())
+        def storePassword = project.findProperty('android.injected.signing.store.password')?.toString()
+        def keyAlias = project.findProperty('android.injected.signing.key.alias')?.toString()
+        if (!storePassword || !keyAlias || !project.findProperty('android.injected.signing.key.password')) {
+            throw new GradleException('Injected release signing is incomplete (store password, key alias, key password).')
+        }
+        if (!storeFile.isFile()) {
+            throw new GradleException('Release keystore file does not exist. Run the signing setup command again.')
+        }
+        def store
+        try {
+            store = java.security.KeyStore.getInstance(storeFile, storePassword.toCharArray())
+        } catch (Exception ignored) {
+            throw new GradleException('Cannot open the release keystore; verify the configured password.')
+        }
+        def certificate = store.getCertificate(keyAlias)
+        if (certificate == null) {
+            throw new GradleException('The configured release key alias does not exist: ' + keyAlias)
+        }
+        def actualSha1 = java.security.MessageDigest.getInstance('SHA-1').digest(certificate.encoded).encodeHex().toString().toUpperCase(java.util.Locale.ROOT)
+        if (actualSha1 != expectedUploadSha1) {
+            throw new GradleException('Release key does not match the upload key registered in Play Console (SHA-1 ' + actualSha1 + ').')
+        }
+    }
+}
+tasks.configureEach {
+    if (name == 'preReleaseBuild') {
+        dependsOn(validateSigning)
+    }
+}

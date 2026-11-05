@@ -1,0 +1,103 @@
+# Store releases of the app, through the same command a person runs by hand (`make release`):
+# scripts/store-release.py builds it and uploads it — Android to Google Play (track PLAY_TRACK, repository variable,
+# default internal), iOS to App Store Connect / TestFlight.
+#
+# The store app shows https://saju.ashwoodfriends.com (capacitor.config.json server.url), so web changes reach it
+# through deploy.yml. Only changes to the native shell need a new store build, and only those trigger this workflow.
+#
+# A push to main that touches the native app runs on the self-hosted macOS runner (the team Mac: Xcode, Android Studio
+# and the keys in ~/.saju are already there). If that Mac is off, run the workflow by hand with runner = github:
+# a GitHub-hosted Mac then gets the keys from the repository secrets instead (docs/store.md).
+name: mobile
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - capacitor.config.json
+      - package.json
+      - package-lock.json
+      - android/**
+      - ios/**
+      - native/**
+      - resources/**
+      - scripts/store-release.py
+      - scripts/android-release-signing.gradle
+      - .github/workflows/mobile.yml
+  workflow_dispatch:
+    inputs:
+      apps:
+        type: choice
+        options: [all, saju]
+        default: all
+      only:
+        description: Platform
+        type: choice
+        options: [both, android, ios]
+        default: both
+      track:
+        description: Google Play track
+        type: choice
+        options: [internal, alpha, beta, production]
+        default: internal
+      runner:
+        description: self-hosted (the team Mac) or github (a GitHub-hosted Mac, keys from secrets)
+        type: choice
+        options: [self-hosted, github]
+        default: self-hosted
+
+concurrency:
+  group: mobile-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ${{ inputs.runner == 'github' && 'macos-15' || fromJSON('["self-hosted", "macOS"]') }}
+    timeout-minutes: 120
+    env:
+      PLAY_TRACK: ${{ inputs.track || vars.PLAY_TRACK || 'internal' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── GitHub-hosted fallback only: tools and the keys from secrets ──
+      - if: inputs.runner == 'github'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - if: inputs.runner == 'github'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - if: inputs.runner == 'github'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - if: inputs.runner == 'github'
+        name: Keys from secrets
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_SAJU_KEYSTORE_BASE64 }}
+          SIGNING: ${{ secrets.ANDROID_SAJU_SIGNING_JSON }}
+          PLAY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_KEY: ${{ secrets.APP_STORE_CONNECT_KEY }}
+        # the same files `make release-setup-saju` writes on the Mac; a GitHub-hosted Mac has no Apple account
+        # signed in to Xcode, so the App Store Connect key is required here
+        run: |
+          d="$RUNNER_TEMP/sjsecrets"; install -m 700 -d "$d"
+          printf '%s' "$KEYSTORE" | base64 -d > "$d/saju-keystore.jks"
+          printf '%s' "$SIGNING" > "$d/saju-signing.json"
+          printf '%s' "$PLAY" > "$d/play-service-account.json"
+          printf '{"key_id": "%s", "issuer_id": "%s"}' "$ASC_KEY_ID" "$ASC_ISSUER_ID" > "$d/app-store-connect.json"
+          printf '%s\n' "$ASC_KEY" > "$d/AuthKey_$ASC_KEY_ID.p8"
+          chmod 600 "$d"/*
+          echo "SAJU_SECRETS=$d" >> "$GITHUB_ENV"
+
+      - name: Build and upload
+        run: |
+          only=${{ inputs.only || 'both' }}
+          python3 scripts/store-release.py release ${{ inputs.apps || 'all' }} $([ "$only" = both ] || echo "--only $only")
+      - if: always() && inputs.runner == 'github'
+        name: Remove keys
+        run: rm -rf "$RUNNER_TEMP/sjsecrets"
