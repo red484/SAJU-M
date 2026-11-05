@@ -24,7 +24,7 @@ export function slotForTime(time) {
   return ['late', ...Array.from({ length: 12 }, (_, i) => String(i))].find(value => slotTime(value) === time) || 'exact';
 }
 
-export function improveBirthForm(profile) {
+export function improveBirthForm() {
   const form = document.getElementById('birth-form');
   if (!form) return;
   const time = form.elements.time;
@@ -35,8 +35,10 @@ export function improveBirthForm(profile) {
   picker.options[0].text = '00:00~01:00 · 자시 (새벽)';
   picker.add(new Option('23:00~24:00 · 자시 (밤)', 'late'));
   picker.add(new Option('정확한 시간 직접 입력', 'exact'));
+  // Nothing is preselected: a preset range would silently decide the hour pillar.
+  picker.add(new Option('시간대를 선택해 주세요', ''), 0);
   // Preserve existing exact times; selecting a range deliberately uses its midpoint.
-  picker.value = profile ? slotForTime(time.value) : String(hourIndex(time.value));
+  picker.value = time.value ? slotForTime(time.value) : '';
   label.hidden = picker.value !== 'exact';
   label.before(picker);
   const caption = document.createElement('label');
@@ -50,9 +52,8 @@ export function improveBirthForm(profile) {
   label.after(hint);
   picker.addEventListener('change', () => {
     label.hidden = picker.value !== 'exact';
-    if (picker.value !== 'exact') time.value = slotTime(picker.value);
+    if (picker.value !== 'exact') time.value = picker.value ? slotTime(picker.value) : '';
   });
-  if (!profile) picker.dispatchEvent(new Event('change'));
   const sync = () => { picker.disabled = form.elements.unknown.checked; };
   form.elements.unknown.addEventListener('change', sync);
   sync();

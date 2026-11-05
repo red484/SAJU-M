@@ -5,7 +5,7 @@ import { improveBirthForm } from './form-usability.js';
 let motionPaused = false;
 
 export function dressPage({page, profile}) {
-  if (page === 'birth') improveBirthForm(profile);
+  if (page === 'birth') improveBirthForm();
   document.body.classList.add('moonbook');
   document.body.classList.toggle('apps-in-toss', appsInToss);
   if (appsInToss && ['result', 'today', 'chat'].includes(page)) {

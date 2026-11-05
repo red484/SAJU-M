@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { countryForCity, hourIndex } from '../src/client/form-usability.js';
-import { unrelatedQuestion, SCOPE_NOTICE } from '../src/client/consultation-scope.js';
+import { smallTalkReply, unrelatedQuestion, SCOPE_NOTICE } from '../src/client/consultation-scope.js';
 import { coachReply, realtimeSystemPrompt } from '../src/server/services/coach-service.mjs';
 
 assert.equal(countryForCity('서울'), '한국');
@@ -17,7 +17,7 @@ const oldFetch=globalThis.fetch;
 globalThis.fetch=()=>{throw new Error('Out-of-scope questions must not call AI');};
 try{
   for (const text of ['냠냠', 'ㅋㅋㅋㅋ', '테스트', '1234', '🍚']) {
-    assert.ok(unrelatedQuestion(text));
+    assert.ok(smallTalkReply(text));
     const blocked = await coachReply({chart,messages:[{role:'user',text}]});
     assert.equal(blocked.source, 'scope');
   }

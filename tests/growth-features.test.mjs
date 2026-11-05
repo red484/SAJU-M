@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIFE_CHAPTERS, TODAY_QUESTIONS, TIMING_PURPOSES, bestDays, lifeFlow, monthlyPrompt, trend, yearLines, yearSummary } from '../src/client/growth-features.js';
-import { PURPOSE } from '../src/client/constants.js';
+import { ELEMENTS, PURPOSE } from '../src/client/constants.js';
+import { SCOPE_NOTICE, smallTalkReply, unrelatedQuestion } from '../src/client/consultation-scope.js';
+import { birthDayCount, birthPicker } from '../src/client/birth-picker.js';
 import { compatibility, summaryOf, validSummary } from '../src/shared/compat.mjs';
-import { calculate, fortune, dayReading, goodDays } from '../src/client/engine.js';
-import { critique, noteSystemPrompt } from '../src/server/services/coach-service.mjs';
+import { calculate, fortune, dayReading, goodDays, reading, safety } from '../src/client/engine.js';
+import { critique, noteSystemPrompt, realtimeSystemPrompt } from '../src/server/services/coach-service.mjs';
 import { applyNoteRecords, noteJournal, validNoteConversations } from '../src/shared/note-journal.mjs';
 
 const profile = { name: '', birth: '1995-05-17', calendar: 'solar', time: '15:30', city: '서울', zone: 'Asia/Seoul', longitude: 126.978, clock: 'civil', gender: 'female', topics: ['진로'] };
@@ -83,4 +85,58 @@ test('note chat rejects saju wording and its history stays apart from saju consu
   assert.equal(noteJournal(saved).profile, null);
   assert.equal(validNoteConversations([{ id: 'a', messages: [{ role: 'system', text: 'x' }] }]), false);
   assert.equal(validNoteConversations('x'), false);
+});
+
+test('greetings are welcomed without a charge, and unrelated requests are still declined', () => {
+  for (const text of ['안녕하세요', '안녕', 'ㅎㅇ', 'hello!']) { assert.match(smallTalkReply(text), /안녕하세요/); assert.equal(unrelatedQuestion(text), false); }
+  for (const text of ['ㅠㅠ', 'ㅜㅜㅜ']) assert.match(smallTalkReply(text), /힘드신가/);
+  for (const text of ['ㅋㅋ', '...', '🙂', 'test', '1234']) assert.match(smallTalkReply(text), /듣고 있어요/);
+  for (const text of ['이직 고민이 있어요', '음?', '요즘 너무 힘들어요ㅠㅠ']) assert.equal(smallTalkReply(text), null);
+  assert.doesNotMatch(smallTalkReply('안녕', true), /명리|사주/);
+  assert.equal(unrelatedQuestion('오늘 날씨 알려줘'), true);
+  assert.equal(unrelatedQuestion('파이썬 코드 짜줘'), true);
+  assert.doesNotMatch(SCOPE_NOTICE, /온기은/);
+});
+
+test('crisis wording always gets the safety reply', () => {
+  for (const text of ['죽고 싶어요', '사라지고 싶어요', '살고 싶지 않아', '다 끝내고 싶어요', '인생을 끝내고 싶어', '죽을 것 같아요', '힘들어 죽을 것 같아요', '자해를 했어요', '살 이유가 없어요', '그만 살고 싶어요', '뛰어내리고 싶어요', '목숨을 끊고 싶어요', '자살하고 싶어요', '깨어나지 않았으면 좋겠어요'])
+    assert.match(safety(text) || '', /109/, text);
+  for (const text of ['좋아 죽을 것 같아요', '보고 싶어 죽을 것 같아', '자살골을 넣었어요', '이 프로젝트를 끝내고 싶어요', '목숨 걸고 일했어요'])
+    assert.doesNotMatch(safety(text) || '', /109/, text);
+});
+
+test('career and relationship words no longer trigger canned refusals, real requests still do', () => {
+  for (const text of ['주식회사로 이직할까 고민이에요', '코인노래방 알바 그만둘까요', '치료사로 전직할까요', '계약을 할까 고민이에요', '예약을 미룰까요', '계약직 제안을 받았어요', '재무팀으로 옮길까요', '투자 받은 스타트업으로 이직할까요', '시간을 투자할까요', '변호사 시험 준비를 그만둘까요', '이혼할까 고민이에요'])
+    assert.equal(safety(text), null, text);
+  for (const [text, expected] of [['주식 언제 살까요', /투자/], ['코인 사도 될까요', /투자/], ['대출 받을까요', /투자/], ['약을 먹어도 될까요', /의료/], ['치료 결과가 궁금해요', /의료/], ['임신할 수 있을까요', /의료/], ['소송에서 이길까요', /변호사/], ['계약서 봐주세요', /변호사/], ['이혼 소송 어떻게 해요', /변호사/]])
+    assert.match(safety(text) || '', expected, text);
+});
+
+test('the reading uses the right particle for every element', () => {
+  const seen = new Set();
+  for (let month = 1; month <= 12; month++) for (let day = 1; day <= 28; day += 3) {
+    const result = calculate({ ...profile, birth: `1990-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}` });
+    const text = reading(result, profile);
+    seen.add(ELEMENTS[result.strong[0]]);
+    assert.doesNotMatch(text.summary + text.balance, /[화토수]은 |[목금]는 /);
+  }
+  assert.ok(seen.size >= 3);
+});
+
+test('the realtime prompt has no romantic persona and carries crisis guidance', () => {
+  const prompt = realtimeSystemPrompt({ turnIndex: 1, strong: [], weak: [], pillars: [], topics: [], signals: [], records: [], pastConversations: [] });
+  assert.doesNotMatch(prompt, /설레|설렘|여성에게는|남성에게는/);
+  assert.match(prompt, /109/);
+  assert.match(noteSystemPrompt(), /109/);
+});
+
+test('the birth picker starts empty and reports a date only when complete', () => {
+  const html = birthPicker('', 2026);
+  assert.doesNotMatch(html, /selected/);
+  assert.match(html, /name="birth" value=""/);
+  assert.ok(html.indexOf('2026년') < html.indexOf('1900년'));
+  assert.match(birthPicker('1990-02-03', 2026), /value="1990" selected/);
+  assert.equal(birthDayCount('', '', 'solar'), 31);
+  assert.equal(birthDayCount('2024', '2', 'solar'), 29);
+  assert.equal(birthDayCount('', '', 'lunar'), 30);
 });

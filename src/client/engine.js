@@ -77,7 +77,7 @@ export function topicReading(r,t,iso=DateTime.now().setZone('Asia/Seoul').toISOD
  if(t==='연애')return loveTopicReading(r,iso);
  const a=TOPIC[t]||TOPIC.진로,trait=TRAITS[r.strong[0]];return {title:a[0],body:`명리학에서는 ${trait[1]}으로 읽혀요. ${t}에서는 ${trait[3]}이 나와 잘 맞는지 천천히 살펴보세요. ${a[1]}`,action:a[2]};
 }
-export function reading(r,p){const e=r.strong[0],w=r.weak[0];return {summary:`${p.name&&p.name!=='방문자'?p.name+'님의':'나의'} 일간은 ${ELEMENTS[r.element]}입니다. ${r.total}글자에서 ${r.strong.length>1?'가장 많이 나타난 기운 중':'가장 많이 나타난'} ${ELEMENTS[e]}은 ${TRAITS[e][0]}으로 읽어볼 수 있어요.`,strength:TRAITS[e][0],caution:TRAITS[e][2],environment:TRAITS[e][3],balance:`${ELEMENTS[w]}은 ${r.cnt[w]}개로 상대적으로 적게 나타납니다. ${TRAITS[w][0]}을 일상의 습관으로 보완해보는 관점입니다. 없는 기운이 곧 결핍이나 불운이라는 뜻은 아니에요.`,action:topicReading(r,p.topics?.[0]||'진로').action};}
+export function reading(r,p){const e=r.strong[0],w=r.weak[0];return {summary:`${p.name&&p.name!=='방문자'?p.name+'님의':'나의'} 일간은 ${ELEMENTS[r.element]}입니다. ${r.total}글자에서 ${r.strong.length>1?'가장 많이 나타난 기운 중':'가장 많이 나타난'} ${topicMark(ELEMENTS[e])} ${TRAITS[e][0]}으로 읽어볼 수 있어요.`,strength:TRAITS[e][0],caution:TRAITS[e][2],environment:TRAITS[e][3],balance:`${topicMark(ELEMENTS[w])} ${r.cnt[w]}개로 상대적으로 적게 나타납니다. ${TRAITS[w][0]}을 일상의 습관으로 보완해보는 관점입니다. 없는 기운이 곧 결핍이나 불운이라는 뜻은 아니에요.`,action:topicReading(r,p.topics?.[0]||'진로').action};}
 // 흐름 카드. 천간은 십성으로 주제를, 지지는 십이운성으로 세기를 말하고,
 // 원국 지지와 부딪히면 그 자리도 함께 짚습니다. 예전에는 천간을 오행 다섯
 // 관계로만 눌러 써서 편인과 정인이 같은 문장을 받았습니다.
@@ -103,7 +103,14 @@ function groundClash(r,b){
  }
  return null;
 }
-export function safety(text){if(/자살|죽고\s*싶|죽을|자해|목숨|살기\s*싫|해치고\s*싶/.test(text))return '지금은 해석보다 안전이 먼저예요. 혼자 견디지 말고 믿을 수 있는 사람에게 지금의 상황을 알려주세요. 즉시 위험하다면 한국에서는 119 또는 112에 연락하거나 가까운 응급실로 가세요. 자살예방상담전화 109는 24시간 연결됩니다. 해외라면 현지 긴급전화나 위기상담 서비스를 이용해 주세요. 지금 혼자 계신가요?';if(/흉통|호흡\s*곤란|(?:가슴|흉부).{0,8}(?:아프|통증|조이)|숨(?:이)?\s*(?:안\s*쉬|못\s*쉬|막히)/.test(text))return '지금 가슴 통증이나 호흡 곤란을 겪고 있다면 사주 상담을 멈추고 즉시 119 또는 가까운 응급실에 도움을 요청해 주세요.';if(/진단|처방|치료|임신|질환|무슨\s*병|어떤\s*병|약을|약\s*먹|복용|암\s*(?:인가|일까|진단|치료)/.test(text))return '명리학으로 질병이나 치료 결과를 판단할 수 없어요. 어떤 점이 걱정되는지 정리해 의료 전문가에게 확인해 주세요. 지금 가장 궁금한 점은 무엇인가요?';if(/투자|주식|코인|매수|매도|대출|재무|수익/.test(text))return '명리학으로 투자 수익이나 매매 시점을 예측하지 않습니다. 손실을 감당할 수 있는 범위, 수수료와 부채를 먼저 확인하세요. 구체적인 투자·대출 결정은 자격 있는 금융 전문가와 상의하고, 오늘은 자산과 지출을 정리하는 데 집중해보세요.';if(/법률|소송|고소|이혼|계약|재판|변호사/.test(text))return '사주는 법률 판단이나 사건 결과를 예측하는 근거가 아닙니다. 계약서·관련 자료와 기한을 정리하고 변호사 또는 공인된 법률상담기관에 확인하세요. 오늘은 놓치면 안 되는 기한 하나를 확인해보세요.';return null;}
+// 안전은 넓게 잡습니다. 다만 '좋아 죽을', '자살골'처럼 위기가 아닌 말은 거릅니다.
+const CRISIS=/자살(?!골)|죽고\s*싶|(?<!(?:좋아|웃겨|배고파|졸려|귀여워|맛있어|설레|행복해|보고\s*싶어|더워|추워)\s*)죽을|죽어\s*버리|죽었으면|자해|목숨(?:을)?\s*끊|살기\s*싫|(?:안|못)\s*살겠|살고\s*싶지\s*않|살\s*이유가?\s*없|살아갈\s*이유|그만\s*살|사라지고\s*싶|없어지고\s*싶|사라졌으면|(?:다|모두|전부|모든\s*걸|삶을|인생을|내\s*삶|내\s*인생)\s*끝내고\s*싶|생을\s*마감|뛰어내리|깨어나지\s*않았으면|해치고\s*싶/;
+// 진로·관계 고민에 섞이는 낱말(치료사, 계약을, 주식회사, 코인노래방, 계약직)은 모델이 답합니다.
+// 모델 지시도 질병·투자·법률 결과의 단정을 막습니다.
+const MEDICAL=/(?<!경영|조직|자가|사업|회사|컨설팅\s)진단|처방|치료(?!사|제\s*개발)|임신.{0,6}(?:될까|할까|가능|언제|되나|할\s*수)|질환|무슨\s*병|어떤\s*병|(?<![가-힣])약을|(?<![가-힣])약\s*먹|복용|암\s*(?:인가|일까|진단|치료)/;
+const MONEY=/(?<!시간(?:을)?\s*|노력(?:을)?\s*|자기\s*|감정(?:을)?\s*|마음(?:을)?\s*)투자(?!\s*(?:회사|사|은행|팀|유치|자\s*미팅|(?:를|을)?\s*받))|주식(?!\s*회사)|코인(?!\s*(?:노래|세탁|빨래))|매수|매도|대출|재무(?!팀|부|담당|직)|수익(?:률|성\s*보장|\s*날|\s*낼|\s*볼|이\s*날)/;
+const LEGAL=/법률|소송|고소(?!한|하)|이혼\s*(?:소송|재산|위자료|양육권|절차|합의)|계약서|위약금|재판|변호사(?!\s*(?:시험|되|준비))/;
+export function safety(text){if(CRISIS.test(text))return '지금은 해석보다 안전이 먼저예요. 혼자 견디지 말고 믿을 수 있는 사람에게 지금의 상황을 알려주세요. 즉시 위험하다면 한국에서는 119 또는 112에 연락하거나 가까운 응급실로 가세요. 자살예방상담전화 109는 24시간 연결됩니다. 해외라면 현지 긴급전화나 위기상담 서비스를 이용해 주세요. 지금 혼자 계신가요?';if(/흉통|호흡\s*곤란|(?:가슴|흉부).{0,8}(?:아프|통증|조이)|숨(?:이)?\s*(?:안\s*쉬|못\s*쉬|막히)/.test(text))return '지금 가슴 통증이나 호흡 곤란을 겪고 있다면 사주 상담을 멈추고 즉시 119 또는 가까운 응급실에 도움을 요청해 주세요.';if(MEDICAL.test(text))return '명리학으로 질병이나 치료 결과를 판단할 수 없어요. 어떤 점이 걱정되는지 정리해 의료 전문가에게 확인해 주세요. 지금 가장 궁금한 점은 무엇인가요?';if(MONEY.test(text))return '명리학으로 투자 수익이나 매매 시점을 예측하지 않습니다. 손실을 감당할 수 있는 범위, 수수료와 부채를 먼저 확인하세요. 구체적인 투자·대출 결정은 자격 있는 금융 전문가와 상의하고, 오늘은 자산과 지출을 정리하는 데 집중해보세요.';if(LEGAL.test(text))return '사주는 법률 판단이나 사건 결과를 예측하는 근거가 아닙니다. 계약서·관련 자료와 기한을 정리하고 변호사 또는 공인된 법률상담기관에 확인하세요. 오늘은 놓치면 안 되는 기한 하나를 확인해보세요.';return null;}
 // Conditions people actually weigh, each with the checks that turn a feeling
 // into something comparable. A factor is claimed only when the user's own
 // words name it, so a reply never invents a concern they did not raise.
@@ -119,6 +126,7 @@ const FACTOR=[
  ['지출 구조',/지출|저축|대출|생활비|비상금?/,'고정 지출과 비상 자금의 개월 수','줄일 수 있는 항목 한 가지']];
 const figures=t=>[...t.matchAll(/(\d+(?:\.\d+)?)\s*(%|퍼센트|배|만 ?원|억|개월|달|년|주|시간|분)/g)].map(m=>m[1]+m[2].replace(/\s/g,'').replace('퍼센트','%'));
 const batchim=w=>{const c=w.charCodeAt(w.length-1);return c>=0xAC00&&c<=0xD7A3&&(c-0xAC00)%28!==0;};
+const topicMark=w=>w+(batchim(w)?'은':'는');
 const yeyo=w=>w+(batchim(w)?'이에요':'예요');
 function readFactors(latest,earlier){const out=[];for(const [label,re,a,b] of FACTOR){const fresh=re.test(latest);if(fresh||re.test(earlier))out.push({label,checks:[a,b],fresh:fresh&&!re.test(earlier)});}return out;}
 
