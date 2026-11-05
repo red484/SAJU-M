@@ -146,6 +146,8 @@ export function createAuthRoutes(repository, { exchangeIdentity = exchange, revo
         if (!validateOrigin(req)) return sendJson(res, { error: '이 사이트에서 다시 진행해 주세요.' }, 403);
         const actor = await repository.userFromToken(authToken(req));
         if (!actor || !await repository.appleSubject(actor.id)) return sendJson(res, { error: '탈퇴 확인부터 다시 진행해 주세요.' }, 401);
+        let confirmation;try{confirmation=new URLSearchParams(await readBody(req,4096,5000));}catch{return sendJson(res,{error:'삭제 대상 확인을 다시 진행해 주세요.'},400);}
+        if(confirmation.has('expectedUserId')&&confirmation.get('expectedUserId')!==actor.id)return sendJson(res,{code:'DELETION_TARGET_CHANGED',error:'로그인 계정이 바뀌었어요. 삭제 대상을 다시 확인해 주세요.'},409);
       }
       const state = randomBytes(24).toString('hex');
       const nonce = randomBytes(24).toString('hex');
@@ -228,6 +230,7 @@ export function createAuthRoutes(repository, { exchangeIdentity = exchange, revo
       let body;
       try { body = JSON.parse(await readBody(req, 4096, 5000) || '{}'); }
       catch (error) { return sendJson(res, { error: '탈퇴 요청을 확인해 주세요.' }, error.status === 413 ? 413 : 400); }
+      if(body && Object.hasOwn(body,'expectedUserId') && body.expectedUserId!==user.id)return sendJson(res,{code:'DELETION_TARGET_CHANGED',error:'로그인 계정이 바뀌었어요. 삭제 대상을 다시 확인해 주세요.'},409);
       if (await repository.appleSubject?.(user.id) && body?.manualAppleRevocation !== true) {
         return sendJson(res, { code: 'APPLE_REAUTH_REQUIRED', reauthorize: available('apple'),
           error: 'Apple 연결 해제를 위해 다시 본인을 확인해 주세요. Apple 확인이 어려우면 서비스 데이터를 먼저 삭제하고 Apple 연결을 직접 해제할 수 있습니다.' }, 409,

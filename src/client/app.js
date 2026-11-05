@@ -623,10 +623,10 @@ async function clearDeletedDeviceData(){
 }
 async function completeDeletion(manualApple=false){
  await saveQueue;
- const {response,body}=authUser?await deleteAccount(manualApple):await deleteJournal();
+ const {response,body}=authUser?await deleteAccount(manualApple,authUser.id):await deleteJournal(true);
  if(body?.code==='APPLE_REAUTH_REQUIRED'){
   openModal(`<h2>Apple 연결도 해제할까요?</h2><p>다시 확인한 Apple 계정이 현재 계정과 같을 때 연결을 해제한 뒤 서비스 계정과 기록을 삭제합니다. 취소하거나 확인에 실패하면 기록은 유지됩니다.</p>${body.reauthorize?'<button class="danger" id="apple-delete-reauth">Apple 확인 후 탈퇴</button>':''}<p>Apple 확인을 이용할 수 없으면 서비스 데이터부터 삭제하고 Apple 설정에서 연결을 직접 해제할 수 있습니다. <a href="https://support.apple.com/102571" target="_blank" rel="noopener">Apple 연결 해제 방법</a></p><button class="secondary" id="apple-delete-manual">Apple 연결은 직접 해제하고 탈퇴</button><button class="secondary" id="apple-delete-cancel">취소</button>`);
-  const reauth=$('#apple-delete-reauth');if(reauth)reauth.onclick=()=>{reauth.disabled=true;const form=document.createElement('form');form.method='POST';form.action='/api/auth/start?provider=apple&intent=delete';document.body.append(form);form.submit();};
+  const reauth=$('#apple-delete-reauth');if(reauth)reauth.onclick=()=>{reauth.disabled=true;const form=document.createElement('form');form.method='POST';const expected=document.createElement('input');expected.type='hidden';expected.name='expectedUserId';expected.value=authUser?.id||'';form.append(expected);form.action='/api/auth/start?provider=apple&intent=delete';document.body.append(form);form.submit();};
   $('#apple-delete-manual').onclick=async()=>{const button=$('#apple-delete-manual');button.disabled=true;try{await completeDeletion(true);}catch{button.disabled=false;notice('삭제하지 못했어요. 잠시 후 다시 시도해 주세요.');}};
   $('#apple-delete-cancel').onclick=()=>$('#modal').close();return;
  }

@@ -82,3 +82,10 @@ test('direct deletion returns to the public page on success and failure without 
  }
  const f=fixture(),state=await f.begin('/untrusted-target');assert.equal((await f.callback(state)).headers.Location,'/?account=deleted');
 });
+
+test('a changed account cannot start Apple deletion for the previously displayed owner',async()=>{
+ const f=fixture();
+ const rejected=await f.call('/api/auth/start?provider=apple&intent=delete',{method:'POST',body:'expectedUserId=previous-owner'});
+ assert.equal(rejected.status,409);assert.equal(rejected.body.code,'DELETION_TARGET_CHANGED');assert.equal(f.calls.length,0);
+ const allowed=await f.call('/api/auth/start?provider=apple&intent=delete',{method:'POST',body:'expectedUserId=owner'});assert.equal(allowed.status,302);
+});

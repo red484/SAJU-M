@@ -24,14 +24,14 @@ const {outputFiles:ui}=await build({entryPoints:['src/client/account-deletion.js
  build.onLoad({filter:/.*/,namespace:'api'},()=>({contents:'export const deletionResult=(...a)=>globalThis.deletion.deletionResult(...a),currentUser=(...a)=>globalThis.deletion.currentUser(...a),deleteAccount=(...a)=>globalThis.deletion.deleteAccount(...a),deleteJournal=(...a)=>globalThis.deletion.deleteJournal(...a),clearDeletedDeviceStorage=()=>globalThis.deletion.cleanup();'}));
 }}]});
 function element(){return {textContent:'',hidden:false,disabled:false,removed:false,remove(){this.removed=true;}};}
-function form(){const nodes=new Map(['[role=alert]','[data-apple-deletion]','[data-apple-reauth]','[data-apple-manual]'].map(key=>[key,element()]));nodes.get('[data-apple-deletion]').hidden=true;return {...element(),valid:false,reportValidity(){return this.valid;},querySelector:key=>nodes.get(key),querySelectorAll:()=>[...nodes.values()],submit(){globalThis.submitted=this.action;}};}
+function form(){const nodes=new Map(['[role=alert]','[data-apple-deletion]','[data-apple-reauth]','[data-apple-manual]'].map(key=>[key,element()]));nodes.get('[data-apple-deletion]').hidden=true;return {...element(),valid:false,reportValidity(){return this.valid;},querySelector:key=>nodes.get(key),querySelectorAll:()=>[...nodes.values()],append(input){this.expected=input;},submit(){globalThis.submitted=this.action;globalThis.expectedUser=this.expected?.value;}};}
 globalThis.document={querySelector:()=>null,createElement:()=>form(),body:{append(){}}};
 const {mountDeletion,startDeletion}=await import('data:text/javascript;base64,'+Buffer.from(ui[0].text).toString('base64'));
 const flush=()=>new Promise(resolve=>setTimeout(resolve,0));
 const ok=body=>({response:{ok:true},body});
 async function fixture(user=null){
  const state={calls:[],cleared:0};
- globalThis.deletion={currentUser:async()=>ok({user}),deleteAccount:async manual=>{state.calls.push(['account',manual]);return ok({ok:true});},deleteJournal:async()=>{state.calls.push(['journal']);return ok({ok:true});},cleanup:async()=>{state.cleared++;}};
+ globalThis.deletion={currentUser:async()=>ok({user}),deleteAccount:async (manual,expected)=>{state.expected=expected;state.calls.push(['account',manual]);return ok({ok:true});},deleteJournal:async anonymousOnly=>{state.anonymousOnly=anonymousOnly;state.calls.push(['journal']);return ok({ok:true});},cleanup:async()=>{state.cleared++;}};
  const root={...element(),status:element(),append(form){this.form=form;},querySelector(){return this.status;}};
  await mountDeletion(root);return {root,state};
 }
@@ -39,7 +39,7 @@ for(const user of [null,{id:'owner'}]){
  const {root,state}=await fixture(user);
  root.form.onsubmit({preventDefault(){}});await flush();assert.equal(state.calls.length,0,'explicit irreversible deletion checkbox is required');
  root.form.valid=true;root.form.onsubmit({preventDefault(){}});await flush();
- assert.deepEqual(state.calls,[user?['account',false]:['journal']]);assert.equal(state.cleared,1);assert.equal(root.form.removed,true);
+ assert.deepEqual(state.calls,[user?['account',false]:['journal']]);assert.equal(state.cleared,1);assert.equal(root.form.removed,true);if(user)assert.equal(state.expected,user.id);else assert.equal(state.anonymousOnly,true);
 }
 {
  const {root,state}=await fixture({id:'owner'});globalThis.deletion.currentUser=async()=>ok({user:{id:'different'}});
@@ -58,7 +58,7 @@ for(const user of [null,{id:'owner'}]){
 {
  const {root,state}=await fixture({id:'apple'});globalThis.submitted=null;
  root.form.querySelector('[data-apple-reauth]').onclick();assert.equal(globalThis.submitted,null);
- root.form.valid=true;root.form.querySelector('[data-apple-reauth]').onclick();assert.equal(globalThis.submitted,'/api/auth/start?provider=apple&intent=delete&returnTo='+encodeURIComponent('/account-deletion/?account=deleted'));assert.equal(state.cleared,0);
+ root.form.valid=true;root.form.querySelector('[data-apple-reauth]').onclick();assert.equal(globalThis.submitted,'/api/auth/start?provider=apple&intent=delete&returnTo='+encodeURIComponent('/account-deletion/?account=deleted'));assert.equal(state.cleared,0);assert.equal(globalThis.expectedUser,'apple');
 }
 {
  globalThis.deletion.currentUser=async()=>{throw Error('offline');};

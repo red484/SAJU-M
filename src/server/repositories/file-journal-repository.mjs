@@ -3,6 +3,7 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 export class JournalConflictError extends Error {}
+export class JournalTargetChangedError extends Error {}
 
 export class FileJournalRepository {
   constructor(root) {

@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { JournalConflictError } from './file-journal-repository.mjs';
+import { JournalConflictError, JournalTargetChangedError } from './file-journal-repository.mjs';
 
 // Moves an account journal off a session that the account no longer owns, keeping it reachable by user_id.
 export async function parkForeignJournal(client, sessionId, userId = null) {
@@ -40,10 +40,15 @@ export class PostgresJournalRepository {
     }
   }
 
-  async delete(id) {
+  async delete(id, {anonymousOnly=false} = {}) {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
+      if(anonymousOnly){
+        await this.ensureSession(client,id);
+        const target=await client.query('SELECT user_id FROM anonymous_sessions WHERE id = $1 FOR UPDATE',[id]);
+        if(target.rows[0]?.user_id)throw new JournalTargetChangedError('Deletion target changed');
+      }
       await client.query(`INSERT INTO audit_logs (anonymous_session_id, event_type, resource_type, resource_id)
         SELECT $1, 'journal.deleted', 'journal', $1 WHERE EXISTS (SELECT 1 FROM anonymous_sessions WHERE id = $1)`, [id]);
       const owner = await client.query('SELECT user_id FROM anonymous_sessions WHERE id = $1', [id]);

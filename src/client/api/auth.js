@@ -3,8 +3,8 @@ import { apiRequest, appsInToss, setTossAuthToken, setTossSessionToken } from '.
 export const authProviders = () => apiRequest('/api/auth/providers');
 export const currentUser = () => apiRequest('/api/auth/me');
 export const logout = async () => { const result=await apiRequest('/api/auth/logout', { method: 'POST' });if(result.response.ok){try{sessionStorage.removeItem('ongi-age-token');}catch{}}return result; };
-export const deleteAccount = (manualAppleRevocation = false) => apiRequest('/api/auth/account', { method: 'DELETE',
-  ...(manualAppleRevocation ? { body: JSON.stringify({ manualAppleRevocation: true }) } : {}) });
+export const deleteAccount = (manualAppleRevocation = false, expectedUserId) => apiRequest('/api/auth/account', { method: 'DELETE',
+  ...((manualAppleRevocation || expectedUserId !== undefined) ? { body: JSON.stringify({ ...(manualAppleRevocation ? {manualAppleRevocation:true} : {}), ...(expectedUserId !== undefined ? {expectedUserId} : {}) }) } : {}) });
 export const deletionResult = () => apiRequest('/api/auth/deletion-result');
 export const loginUrl = provider => `/api/auth/start?provider=${encodeURIComponent(provider)}&returnTo=${encodeURIComponent('/?auth=success')}`;
 

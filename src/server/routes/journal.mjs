@@ -3,7 +3,7 @@ import {AGE_NOTICE} from '../../shared/age-policy.mjs';
 import { errorDetails } from '../logging.mjs';
 import { readBody, sendJson, validateOrigin } from '../http.mjs';
 import { expiredSessionCookie, getSession, sessionCookie, sessionId } from '../session.mjs';
-import { JournalConflictError } from '../repositories/file-journal-repository.mjs';
+import { JournalConflictError, JournalTargetChangedError } from '../repositories/file-journal-repository.mjs';
 import { authToken } from '../auth.mjs';
 
 const validJournal = (data, revision) => data && typeof data === 'object'
@@ -37,7 +37,10 @@ export function createJournalRoute(repository, authRepository) {
         return sendJson(res, journal, 200, headers);
       }
       if (req.method === 'DELETE') {
-        await repository.delete(id);
+        let confirmation;
+        try{confirmation=JSON.parse(await readBody(req,4096,5000)||'{}');}catch(error){return sendJson(res,{error:'삭제 대상 확인을 다시 진행해 주세요.'},error.status===413?413:400);}
+        if(confirmation?.anonymousOnly===true && owner)return sendJson(res,{code:'DELETION_TARGET_CHANGED',error:'익명 보관함 대신 로그인 계정이 연결됐어요. 삭제 대상을 다시 확인해 주세요.'},409);
+        await repository.delete(id,{anonymousOnly:confirmation?.anonymousOnly===true});
         return sendJson(res, { ok: true }, 200, { 'Set-Cookie': expiredSessionCookie(req) });
       }
       if (Number(req.headers['content-length'] || 0) > 1_000_000) {
@@ -56,6 +59,7 @@ export function createJournalRoute(repository, authRepository) {
       const saved = await repository.put(id, body.data, body.revision);
       return sendJson(res, { ok: true, revision: saved.revision }, 200, headers);
     } catch (error) {
+      if(error instanceof JournalTargetChangedError)return sendJson(res,{code:'DELETION_TARGET_CHANGED',error:'로그인 계정이 연결됐어요. 삭제 대상을 다시 확인해 주세요.'},409);
       if (error instanceof JournalConflictError) {
         return sendJson(res, { error: '다른 탭에서 기록이 변경됐어요. 먼저 내보내기로 현재 내용을 보관한 뒤 새로고침해 주세요.' }, 409);
       }

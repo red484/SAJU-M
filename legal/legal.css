@@ -4,3 +4,5 @@
 .support-request{margin-top:28px;padding-top:8px;border-top:1px solid var(--line)}.support-request label{display:block;margin:18px 0 6px;font-weight:600}.support-request input,.support-request select,.support-request textarea{width:100%;min-width:0;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fffef9;color:var(--ink);font:inherit}.support-request textarea{resize:vertical}.support-request button{font:inherit;cursor:pointer}.support-request button.button{border:1px solid var(--green)}.support-request :focus-visible{outline:2px solid var(--green);outline-offset:3px}
 
 .direct-deletion{margin-top:28px;padding-top:8px;border-top:1px solid var(--line)}.direct-deletion label{display:block;margin:18px 0}.direct-deletion input[type=checkbox]{width:20px;height:20px;vertical-align:middle;margin-right:8px}.direct-deletion button{font:inherit;border:0;cursor:pointer}.direct-deletion button:disabled{opacity:.55;cursor:wait}.direct-deletion [role=alert]{color:#943d2d}.direct-deletion [hidden]{display:none}
+
+.direct-deletion [role=status]{overflow-wrap:anywhere}
