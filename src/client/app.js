@@ -1,3 +1,4 @@
+import { mountSupportRequest } from '../../legal/support-request.js';
 import { configureProductMetrics, metricsEnabled, setMetricsEnabled, trackProductEvent } from './product-metrics.js';
 import { Capacitor } from '@capacitor/core';
 import { findPurchaseFollowUp } from './purchase-follow-up.js';
@@ -691,7 +692,7 @@ document.addEventListener('click',async event=>{
   const parsed=new DOMParser().parseFromString(await response.text(),'text/html');
   const main=parsed.querySelector('main');
   if(!main)throw new Error('document');
-  if($('#modal').open&&$('#modal').dataset.document===path)openModal('<article class="legal-document">'+main.innerHTML+'</article>');
+  if($('#modal').open&&$('#modal').dataset.document===path){openModal('<article class="legal-document">'+main.innerHTML+'</article>');if(path==='/support/')mountSupportRequest($('#modal'));}
  }catch{
   if($('#modal').open&&$('#modal').dataset.document===path)openModal('<p>문서를 불러오지 못했어요. 잠시 후 다시 열어주세요.</p>');
  }
