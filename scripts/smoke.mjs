@@ -20,6 +20,8 @@ for (const [path, heading] of [
   ['/account-deletion/', '계정 및 데이터 삭제']
 ]) await check(path, body => body.includes(`<h1>${heading}</h1>`) && body.includes('792-88-03521') && body.includes('ashwoodfriends@ashwoodfriends.com'));
 await check('/account-deletion/', body => body.includes('href="/settings"') && body.includes('mailto:ashwoodfriends@ashwoodfriends.com'));
+await check('/account-deletion/', body => body.includes('data-direct-deletion') && body.includes('src="/account-deletion.js"'));
+await check('/account-deletion.js', body => body.includes('mountDeletion'));
 await check('/legal/support-request.js', body => body.includes('mountSupportRequest') && body.includes('supportDraft'));
 await check('/settings', body => body.includes('id="app"') && body.includes('/app.js'));
 await check('/legal/legal.css', body => body.includes('.shell{'));

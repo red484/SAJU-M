@@ -8,7 +8,7 @@ await rm('dist',{recursive:true,force:true});await mkdir('dist/client/assets',{r
 // import that fails is cached against its specifier forever, so the retry has
 // to request a fresh one (?r=N), which only works with a URL we control.
 // splitting still hoists luxon and the lookup tables into a shared chunk.
-await build({entryPoints:['src/client/app.js','src/client/engine.js'],bundle:true,minify:true,format:'esm',splitting:true,outdir:'dist/client',chunkNames:'chunk-[hash]',target:['es2022'],define:{
+await build({entryPoints:['src/client/app.js','src/client/engine.js','src/client/account-deletion.js'],bundle:true,minify:true,format:'esm',splitting:true,outdir:'dist/client',chunkNames:'chunk-[hash]',target:['es2022'],define:{
  '__APPS_IN_TOSS__':JSON.stringify(process.env.APPS_IN_TOSS==='true'),
  '__DALBIT_API_BASE__':JSON.stringify((process.env.DALBIT_API_BASE||'').replace(/\/$/,''))
 }});

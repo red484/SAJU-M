@@ -202,7 +202,7 @@ export function createAuthRoutes(repository, { exchangeIdentity = exchange, revo
           if (identity.provider !== 'apple' || await repository.appleSubject(actor.id) !== identity.subject) throw new Error('Apple account mismatch');
           await revokeApple(identity.appleTokens);
           await repository.deleteAccount(actor.id, anonymousId);
-          res.writeHead(302, { Location: '/?account=deleted', 'Set-Cookie': [...clearDeletion,
+          res.writeHead(302, { Location: readCookie(req,'dalbit_oauth_return')===encodeURIComponent('/account-deletion/?account=deleted')?'/account-deletion/?account=deleted':'/?account=deleted', 'Set-Cookie': [...clearDeletion,
             cookie('dalbit_oauth_state', '', req, 0), cookie('dalbit_oauth_nonce', '', req, 0), cookie('dalbit_oauth_return', '', req, 0),
             cookie('dalbit_auth', '', req, 0), expiredSessionCookie(req), cookie('dalbit_deleted', '1', req, 600)] });
           return res.end();
@@ -214,7 +214,7 @@ export function createAuthRoutes(repository, { exchangeIdentity = exchange, revo
         res.writeHead(302, { Location: safeReturn(location), 'Set-Cookie': [sessionCookie(req, rotatedSession),cookie('dalbit_auth', signed.token, req, 2_592_000), cookie('dalbit_oauth_state', '', req, 0), cookie('dalbit_oauth_nonce', '', req, 0), cookie('dalbit_oauth_return', '', req, 0)] });
         return res.end();
       } catch (error) { console.error(JSON.stringify({ event: 'auth.failed', provider, ...errorDetails(error) })); res.writeHead(302, {
-        Location: deleting ? '/settings?deletion=failed' : '/?auth=failed', 'Set-Cookie': clearDeletion }); return res.end(); }
+        Location: deleting ? (readCookie(req,'dalbit_oauth_return')===encodeURIComponent('/account-deletion/?account=deleted')?'/account-deletion/?deletion=failed':'/settings?deletion=failed') : '/?auth=failed', 'Set-Cookie': clearDeletion }); return res.end(); }
     }
     if (url.pathname === '/api/auth/logout' && req.method === 'POST') {
       if (!validateOrigin(req)) return sendJson(res, { error: '이 사이트에서 다시 시도해 주세요.' }, 403);

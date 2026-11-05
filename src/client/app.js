@@ -1,3 +1,4 @@
+import {clearDeletedDeviceStorage} from './deleted-device-storage.js';
 import {confirmAge} from './age-gate.js';
 import {ageEligibility,AGE_NOTICE} from '../shared/age-policy.mjs';
 import { mountSupportRequest } from '../../legal/support-request.js';
@@ -20,7 +21,7 @@ import {getJournal,putJournal,deleteJournal} from './api/journal.js';
 import {coachStatus,requestCoachWithRetry} from './api/readings.js';
 import {unrelatedQuestion,SCOPE_NOTICE} from './consultation-scope.js';
 import {authProviders,currentUser,logout,deleteAccount,deletionResult,loginUrl,loginWithToss,clearTossLogin,isAppsInToss} from './api/auth.js';
-import {nativeApp,noteMode,APP_NAME,setupNativeShell,shareNativeFile,syncReviewReminders,clearReviewReminders,reviewReminderEnabled,setReviewReminder,reviewReminderStatus} from './native-shell.js';
+import {nativeApp,noteMode,APP_NAME,setupNativeShell,shareNativeFile,syncReviewReminders,reviewReminderEnabled,setReviewReminder,reviewReminderStatus} from './native-shell.js';
 import {NOTE_PAGES} from './app-mode.js';
 // The 만세력 tables are ~323KB of the bundle and are not needed until a chart
 // is actually cast, so engine.js loads on demand. E is null until then.
@@ -618,7 +619,7 @@ async function sendMessage(text){if(quotaChecking)return;const c=currentConversa
 async function action(a){if(a==='retry'){if(!loaded)await load();else await persist();return;}if(a==='logout'){try{const {response}=await logout();if(!response.ok)throw new Error();clearTossLogin();clearDrafts();setMetricsEnabled(false);authUser=null;coachQuota=null;coachLoginRequired=true;aiCoach=null;page='welcome';await load();notice('로그아웃했어요.');}catch{notice('로그아웃하지 못했어요. 다시 시도해 주세요.');}return;}if(a==='export-json'){download('달빛-보관함.json',JSON.stringify(data,null,2),'application/json');return;}if(a==='export-text'){download('달빛-보관함.txt',exportText());return;}if(a==='chat-history'){chatHistoryModal();return;}
  if(a==='delete-all'){deleteAllModal();}}
 async function clearDeletedDeviceData(){
- clearTossLogin();clearDrafts();chatDraft='';setMetricsEnabled(false);try{localStorage.removeItem('dalbit-v2');}catch{}await clearReviewReminders();
+ clearDrafts();chatDraft='';await clearDeletedDeviceStorage();
 }
 async function completeDeletion(manualApple=false){
  await saveQueue;
@@ -668,13 +669,13 @@ ensureEngine().catch(()=>{enginePromise=null;engineTry++;});
 // 상담·판독 연결 여부를 한 번에 확인하고, 달라졌으면 화면을 다시 그립니다.
 // Availability is fetched after eligibility confirmation.
 async function startApp(){
- await confirmAge();render();coachAvailable().then(()=>{if(loaded)render();});
  const url=new URL(location.href);
  if(url.searchParams.get('account')==='deleted'){
   try{const {response,body}=await deletionResult();if(response.ok&&body.deleted){await clearDeletedDeviceData();notice('Apple 연결과 서비스 계정·기록을 삭제했어요.');}}catch{notice('삭제 결과 확인이 지연됐어요. 설정에서 다시 확인해 주세요.');}
   url.searchParams.delete('account');history.replaceState(null,'',url.pathname+url.search+url.hash);
  }
  if(url.searchParams.get('deletion')==='failed'){notice('Apple 확인 또는 탈퇴 결과를 확인하지 못했어요. 설정에서 계정 상태를 확인하고 다시 시도해 주세요. 서비스 데이터만 삭제할 수도 있어요.');url.searchParams.delete('deletion');history.replaceState(null,'',url.pathname+url.search+url.hash);}
+ await confirmAge();render();coachAvailable().then(()=>{if(loaded)render();});
  loadAuth();load();
 }
 startApp();

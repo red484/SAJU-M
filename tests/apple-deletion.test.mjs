@@ -34,10 +34,10 @@ function fixture({subject='apple-person',failRevoke=false}={}){
     for(const cookie of [headers['Set-Cookie']||[]].flat()){const [pair]=cookie.split(';');const at=pair.indexOf('=');if(cookie.includes('Max-Age=0'))jar.delete(pair.slice(0,at));else jar.set(pair.slice(0,at),pair.slice(at+1));}
     return {status,headers,text,body:text?JSON.parse(text):null};
   }
-  async function begin(){
+  async function begin(returnTo=''){
     const result=await call('/api/auth/account',{method:'DELETE'});assert.equal(result.status,409);assert.equal(result.body.code,'APPLE_REAUTH_REQUIRED');assert.ok(!result.text.includes('private-auth'));
     assert.ok(!jar.has('dalbit_delete_auth'));
-    const start=await call('/api/auth/start?provider=apple&intent=delete',{method:'POST'});assert.equal(start.status,302);
+    const start=await call('/api/auth/start?provider=apple&intent=delete'+(returnTo?'&returnTo='+encodeURIComponent(returnTo):''),{method:'POST'});assert.equal(start.status,302);
     const proof=start.headers['Set-Cookie'].find(v=>v.startsWith('dalbit_delete_auth='));assert.match(proof,/HttpOnly; SameSite=None/);assert.match(proof,/Max-Age=600; Secure/);return jar.get('dalbit_oauth_state');
   }
   const callback=(state,code='valid')=>call('/api/auth/callback/apple',{method:'POST',body:new URLSearchParams({state,code}).toString(),useAuth:false});
@@ -72,4 +72,13 @@ test('deletion requires the original confirmed login and matching OAuth state; e
   assert.equal((await f.call('/api/auth/account',{method:'DELETE',body:'{"manualAppleRevocation":"true"}'})).status,409);
   assert.equal((await f.call('/api/auth/account',{method:'DELETE',body:'{"manualAppleRevocation":true}'})).status,200);assert.deepEqual(f.calls,[['delete','owner']]);
   const normal=fixture();await normal.begin();await normal.call('/api/auth/start?provider=apple');assert.ok(!normal.jar.has('dalbit_delete_auth'));assert.ok(!normal.jar.has('dalbit_delete_state'));
+});
+
+test('direct deletion returns to the public page on success and failure without an arbitrary redirect',async()=>{
+ for(const failRevoke of [false,true]){
+  const f=fixture({failRevoke}),state=await f.begin('/account-deletion/?account=deleted');
+  const result=await f.callback(state);
+  assert.equal(result.headers.Location,failRevoke?'/account-deletion/?deletion=failed':'/account-deletion/?account=deleted');
+ }
+ const f=fixture(),state=await f.begin('/untrusted-target');assert.equal((await f.callback(state)).headers.Location,'/?account=deleted');
 });
