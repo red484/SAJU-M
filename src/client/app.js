@@ -113,15 +113,15 @@ function persist(){if(!loaded){notice('저장소 연결 후 다시 시도해 주
  }
  saveState='saving';refreshSave();refreshSaveError();saveQueue=saveQueue.then(async()=>{if(g!==generation)return false;try{
   let saved=snapshot;
-  let savedReply=await putJournal(snapshot,revision),res=savedReply.response;
+  let savedReply=await putJournal(snapshot,revision,noteMode),res=savedReply.response;
   if(res.status===409){
-    const latest=await getJournal();if(!latest.response.ok)throw new Error('최신 기록을 불러오지 못했습니다.');
+    const latest=await getJournal(noteMode);if(!latest.response.ok)throw new Error('최신 기록을 불러오지 못했습니다.');
     const remote=latest.body,merged=remote.revision===0&&!remote.data?snapshot:mergeJournal(savedBaseline,snapshot,remote.data);
     if(!merged)throw new Error('다른 탭에서 같은 기록을 수정했습니다. 현재 내용을 파일로 보관한 뒤 새로고침해 주세요.');
     const current=mergeJournal(snapshot,data,merged);
     if(!current)throw new Error('저장 중 기록이 다시 변경됐습니다. 현재 내용을 파일로 보관해 주세요.');
     saved=merged;
-    savedReply=await putJournal(merged,remote.revision);res=savedReply.response;
+    savedReply=await putJournal(merged,remote.revision,noteMode);res=savedReply.response;
     if(res.ok){Object.assign(data,current);notice('다른 탭의 변경 내용과 합쳐 저장했습니다.');}
   }
   const reply=savedReply.body;if(!res.ok)throw new Error(reply.error);
@@ -407,7 +407,7 @@ root.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{const id=b.datase
  const ta=cf.elements.message,grow=()=>{ta.style.height='auto';const h=ta.scrollHeight+ta.offsetHeight-ta.clientHeight;ta.style.height=h+'px';ta.style.overflowY=h>=parseFloat(getComputedStyle(ta).maxHeight)?'auto':'hidden';};
  ta.oninput=()=>{setChatDraft(ta.value);grow();};grow();}
  root.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{const f=root.querySelector('#record-form');if(!f)return;f.elements.title.value=b.dataset.preset;f.elements.topic.value=b.dataset.presetTopic;f.elements.title.focus();});
- const rf=root.querySelector('#record-form');if(rf){rf.onsubmit=async e=>{e.preventDefault();const f=new FormData(rf),title=String(f.get('title')).trim(),date=String(f.get('date'));if(!title)return fieldError(rf,'title','선택의 제목을 입력해 주세요.');if(!DateTime.fromISO(date).isValid)return fieldError(rf,'date','선택 날짜를 확인해 주세요.');if(!await engineReady())return;const r={id:uid(),title,date,topic:f.get('topic'),confidence:Number(f.get('confidence')),expectation:f.get('expectation'),criteriaLabel:String(f.get('criteriaLabel')||'').trim(),due:DateTime.fromISO(date).plus({days:Number(f.get('delay'))}).toISODate(),result:'pending',mood:'',actual:'',advice:noteMode?'':E.topicReading(result,f.get('topic')).action,created:new Date().toISOString()};data.records.push(r);if(nativeApp&&!noteMode)setReviewReminder(r.id,f.has('reviewReminder'));void persist().then(saved=>{if(saved)trackProductEvent('choice_saved');});month=date.slice(0,7);page='records';render();notice('선택을 기록했어요. 회고는 나중에 기록을 눌러 남겨주세요.');};}
+ const rf=root.querySelector('#record-form');if(rf){rf.onsubmit=async e=>{e.preventDefault();const f=new FormData(rf),title=String(f.get('title')).trim(),date=String(f.get('date'));if(!title)return fieldError(rf,'title','선택의 제목을 입력해 주세요.');if(!DateTime.fromISO(date).isValid)return fieldError(rf,'date','선택 날짜를 확인해 주세요.');if(!await engineReady())return;const r={id:uid(),title,date,topic:f.get('topic'),confidence:Number(f.get('confidence')),expectation:f.get('expectation'),criteriaLabel:String(f.get('criteriaLabel')||'').trim(),due:DateTime.fromISO(date).plus({days:Number(f.get('delay'))}).toISODate(),result:'pending',mood:'',actual:'',...(noteMode?{}:{advice:E.topicReading(result,f.get('topic')).action}),created:new Date().toISOString()};data.records.push(r);if(nativeApp&&!noteMode)setReviewReminder(r.id,f.has('reviewReminder'));void persist().then(saved=>{if(saved)trackProductEvent('choice_saved');});month=date.slice(0,7);page='records';render();notice('선택을 기록했어요. 회고는 나중에 기록을 눌러 남겨주세요.');};}
  const ef=root.querySelector('#edit-record');if(ef){ef.onsubmit=e=>{e.preventDefault();const r=data.records.find(r=>r.id===ef.dataset.id),f=new FormData(ef);if(!String(f.get('title')).trim())return fieldError(ef,'title','선택의 제목을 입력해 주세요.');if(!DateTime.fromISO(f.get('due')).isValid)return fieldError(ef,'due','회고 날짜를 확인해 주세요.');if(r.conversationId){r.expectation=String(f.get('criteria')).trim();r.nextAction=String(f.get('action')).trim();}if(!noteMode)r.criteriaLabel=String(f.get('criteriaLabel')||'').trim();if(nativeApp&&!noteMode)setReviewReminder(r.id,f.has('reviewReminder'));const reviewed=['actual','result','mood'].some(k=>String(r[k]||'')!==String(f.get(k)||''));Object.assign(r,{title:String(f.get('title')).trim(),result:f.get('result'),mood:f.get('mood'),actual:f.get('actual'),due:f.get('due')});void persist().then(saved=>{if(saved&&reviewed)trackProductEvent('review_saved');});$('#modal').close();render();};const b=root.querySelector('[data-delete-record]');b.onclick=()=>{const id=ef.dataset.id;openModal('<h2>이 기록을 삭제할까요?</h2><p>예상과 회고 내용도 함께 삭제됩니다. 캘린더 일정은 캘린더 앱에서 별도로 삭제해 주세요.</p><button class="danger" id="confirm-delete-record">삭제하기</button>');$('#confirm-delete-record').onclick=()=>{data.records=data.records.filter(r=>r.id!==id);if(nativeApp&&!noteMode)setReviewReminder(id,false);persist();$('#modal').close();render();};};}
 }
 // 실제 상담이 붙어 있는지 한 번만 확인합니다. 확인에 실패하면 없는 것으로
@@ -634,7 +634,7 @@ async function completeDeletion(manualApple=false){
  generation++;await clearDeletedDeviceData();authUser=null;data={profile:null,records:[],conversations:[],savedAnswers:[]};revision=0;result=null;activeConversation=null;saveState='ready';$('#modal').close();nav('welcome');notice(manualApple?'서비스 계정과 기록을 삭제했어요. Apple 설정에서 연결도 직접 해제해 주세요.':'계정과 개인 보관함의 정보를 삭제했어요.');
 }
 function deleteAllModal(){
- openModal(`<h2>${authUser?'계정과 개인정보를':'개인정보를'} 모두 삭제할까요?</h2><p>현재 보관함의 ${noteMode?'선택 기록과 회고가':'프로필·상담·선택 기록·저장한 답변이'} 삭제됩니다. 내려받은 파일과 캘린더 일정은 별도로 삭제해 주세요.</p><label class="check"><input id="delete-confirm" type="checkbox">복구할 수 없음을 이해했습니다.</label><p id="delete-error" role="alert"></p><button class="danger" id="delete-final">전체 삭제</button>`);
+ openModal(`<h2>${authUser?'계정과 개인정보를':'개인정보를'} 모두 삭제할까요?</h2><p>현재 보관함의 ${noteMode?'선택 기록·회고와 같은 계정의 다른 채널에서 저장한 프로필·상담·답변이':'프로필·상담·선택 기록·저장한 답변이'} 삭제됩니다. 내려받은 파일과 캘린더 일정은 별도로 삭제해 주세요.</p><label class="check"><input id="delete-confirm" type="checkbox">복구할 수 없음을 이해했습니다.</label><p id="delete-error" role="alert"></p><button class="danger" id="delete-final">전체 삭제</button>`);
  $('#delete-final').onclick=async()=>{
   if(!$('#delete-confirm').checked){$('#delete-error').textContent='위 확인란을 선택해 주세요.';return;}
   const button=$('#delete-final');button.disabled=true;
@@ -642,17 +642,17 @@ function deleteAllModal(){
  };
 }
 
-async function load(){saveState='loading';refreshSave();try{const {response:res,body:r}=await getJournal();if(!res.ok)throw new Error(r.error);loaded=true;revision=r.revision;data=r.data||{profile:null,records:[],conversations:[],savedAnswers:[]};data.savedAnswers||=[];
+async function load(){saveState='loading';refreshSave();try{const {response:res,body:r}=await getJournal(noteMode);if(!res.ok)throw new Error(r.error);loaded=true;revision=r.revision;data=r.data||{profile:null,records:[],conversations:[],savedAnswers:[]};data.savedAnswers||=[];
  for(const conversation of data.conversations){
   delete conversation.pending;
   conversation.messages=conversation.messages.filter(message=>!message.streaming);
  }
- savedBaseline=JSON.parse(JSON.stringify(data));result=null;if(!noteMode&&data.profile&&await engineReady()){try{result=E.calculate(data.profile);}catch{notice('이전 프로필의 계산 정보를 다시 확인해 주세요. 정보 수정에서 다시 저장하면 이어서 볼 수 있어요.');}}if(!ct()||ct().profileKey!==profileKey()){
+ savedBaseline=JSON.parse(JSON.stringify(data));result=null;if(!noteMode&&data.profile&&await engineReady()){try{result=E.calculate(data.profile);}catch{notice('이전 프로필의 계산 정보를 다시 확인해 주세요. 정보 수정에서 다시 저장하면 이어서 볼 수 있어요.');}}if(!noteMode&&(!ct()||ct().profileKey!==profileKey())){
   const previous=data.conversations.filter(c=>c.profileKey===profileKey()&&(c.messages.some(m=>m.role==='user')||readConcernDraft(c.id).trim()))
    .sort((a,b)=>(b.messages.at(-1)?.at||b.created).localeCompare(a.messages.at(-1)?.at||a.created))[0];
   selectConversation(previous?.id||null,true);
  }
- if(afterLogin){page=noteMode?'records':result?'chat':'birth';afterLogin=false;const url=new URL(location.href);url.searchParams.delete('auth');history.replaceState(null,'',url.pathname+url.search+url.hash);}saveError='';saveState=revision?'saved':'ready';render();syncReviewReminders(data.records);if(openOnLoad){const id=openOnLoad;openOnLoad=null;page='records';render();recordDetail(id);}const legacy=localStorage.getItem('dalbit-v2');if(legacy&&!r.data)offerMigration(legacy);}catch(e){markSaveError(e.message||'저장소에 연결하지 못했어요. 설정에서 다시 시도해 주세요.');render();}}
+ if(afterLogin){page=noteMode?'records':result?'chat':'birth';afterLogin=false;const url=new URL(location.href);url.searchParams.delete('auth');history.replaceState(null,'',url.pathname+url.search+url.hash);}saveError='';saveState=revision?'saved':'ready';render();syncReviewReminders(data.records);if(openOnLoad){const id=openOnLoad;openOnLoad=null;page='records';render();recordDetail(id);}const legacy=!noteMode&&localStorage.getItem('dalbit-v2');if(legacy&&!r.data)offerMigration(legacy);}catch(e){markSaveError(e.message||'저장소에 연결하지 못했어요. 설정에서 다시 시도해 주세요.');render();}}
 function offerMigration(raw){let old;try{old=JSON.parse(raw);}catch{return;}if(!old.birth)return;openModal('<h2>이전 기록을 발견했어요</h2><p>이 브라우저에 있던 프로필과 선택 기록을 서버 보관함으로 옮길 수 있어요. 현재 버전은 생년월일·상담·기록을 서버에 저장합니다.</p><button class="primary" id="migrate">이전 기록 가져와 서버에 저장</button><button class="secondary" id="skip-migrate">지금은 건너뛰기</button>');$('#skip-migrate').onclick=()=>$('#modal').close();$('#migrate').onclick=async()=>{if(!ageEligibility(old.birth))return notice(AGE_NOTICE);data.profile={name:old.name,birth:old.birth,time:old.time||'12:00',unknown:!!old.unknownTime,calendar:'solar',city:'서울',zone:'Asia/Seoul',longitude:126.978,clock:'civil',topics:old.topics?.length?old.topics:['진로'],question:old.topicNote||''};data.records=(old.records||[]).map(r=>({id:uid(),date:String(r.d).slice(0,10),title:r.title,topic:'진로',confidence:50,expectation:r.sub||'',actual:r.kind==='결과'?r.sub:'',due:String(r.d).slice(0,10),result:r.kind==='결과'?'neutral':'pending',mood:r.mood||'',legacy:true}));if(!await engineReady())return;try{result=E.calculate(p());const ok=await persist();if(ok)localStorage.removeItem('dalbit-v2');$('#modal').close();nav('result');}catch(e){notice(e.message);}};}
 async function loadAuth(){
  await Promise.allSettled([

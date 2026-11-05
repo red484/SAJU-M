@@ -1,3 +1,4 @@
+import {noteJournal,validNoteRecords,applyNoteRecords} from '../../shared/note-journal.mjs';
 import {eligibleProfile} from '../profile-age.mjs';
 import {AGE_NOTICE} from '../../shared/age-policy.mjs';
 import { errorDetails } from '../logging.mjs';
@@ -19,6 +20,10 @@ export function createJournalRoute(repository, authRepository) {
       return sendJson(res, { error: '이 사이트에서 다시 시도해 주세요.' }, 403);
     }
 
+    const view=new URL(req.url||'/api/journal','http://localhost').searchParams.get('view');
+    if(view!==null&&view!=='note')return sendJson(res,{error:'보관함 보기 형식을 확인해 주세요.'},400);
+    const noteMode=view==='note';
+    if(noteMode&&req.method==='DELETE')return sendJson(res,{error:'전체 삭제는 명시적인 계정·보관함 삭제 경로를 사용해 주세요.'},400);
     const session = getSession(req);
     const id = sessionId(session.token);
     const headers = session.fresh ? { 'Set-Cookie': sessionCookie(req, session) } : {};
@@ -34,7 +39,7 @@ export function createJournalRoute(repository, authRepository) {
       if (req.method === 'GET') {
         const journal = await repository.get(id);
         if(!eligibleProfile(journal.data?.profile))return sendJson(res,{code:'AGE_RESTRICTED',error:AGE_NOTICE+' 기존 기록 삭제는 설정 또는 고객지원에서 요청해 주세요.'},403);
-        return sendJson(res, journal, 200, headers);
+        return sendJson(res, noteMode?{revision:journal.revision,data:noteJournal(journal.data)}:journal, 200, headers);
       }
       if (req.method === 'DELETE') {
         let confirmation;
@@ -55,8 +60,15 @@ export function createJournalRoute(repository, authRepository) {
       if (!validJournal(body.data, body.revision)) {
         return sendJson(res, { error: '데이터 형식이 올바르지 않아요.' }, 400);
       }
-      if(!eligibleProfile(body.data.profile))return sendJson(res,{code:'AGE_RESTRICTED',error:AGE_NOTICE},403);
-      const saved = await repository.put(id, body.data, body.revision);
+      let savedData=body.data;
+      if(noteMode){
+        if(!validNoteRecords(body.data.records)||body.data.profile!=null||body.data.conversations.length||body.data.savedAnswers?.length)return sendJson(res,{error:'노트에서는 선택·회고 기록만 저장할 수 있어요.'},400);
+        const current=await repository.get(id);
+        if(current.revision!==body.revision)throw new JournalConflictError('Journal revision conflict');
+        savedData=applyNoteRecords(current.data,body.data.records);
+      }
+      if(!eligibleProfile(savedData.profile))return sendJson(res,{code:'AGE_RESTRICTED',error:AGE_NOTICE},403);
+      const saved = await repository.put(id, savedData, body.revision);
       return sendJson(res, { ok: true, revision: saved.revision }, 200, headers);
     } catch (error) {
       if(error instanceof JournalTargetChangedError)return sendJson(res,{code:'DELETION_TARGET_CHANGED',error:'로그인 계정이 연결됐어요. 삭제 대상을 다시 확인해 주세요.'},409);

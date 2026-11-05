@@ -94,7 +94,7 @@ export async function setupNativeShell({ back, notify, openRecord, remindersChan
     if (version !== reminderVersion) return;
     remindersChanged?.();
     try {
-      const { response, body } = await getJournal();
+      const { response, body } = await getJournal(noteMode);
       const records = body.data === null ? [] : body.data?.records;
       // Saving, clearing or switching journals while this read was in flight wins.
       if (version === reminderVersion) {

@@ -172,6 +172,7 @@ const remoteNote = await device('ios');
 await remoteNote.shell.syncReviewReminders(records);
 remoteNote.state.remote=async()=>({status:200,body:{revision:2,data:{records:[{...records[0],due:changedDue}]}}});
 await remoteNote.events.get('appStateChange')({isActive:true});
+assert.equal(remoteNote.state.requests[0].url,'/api/journal?view=note','background note refresh must not read the full web journal');
 assert.equal(remoteNote.state.pending.length,1,'note app also follows remote deletion without requiring Android opt-in');
 assert.match(remoteNote.state.pending[0].schedule.at.toISOString(),new RegExp(changedDue));
 
