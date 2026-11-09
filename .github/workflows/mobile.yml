@@ -1,12 +1,13 @@
 # Store releases of the app, through the same command a person runs by hand (`make release`):
-# scripts/store-release.py builds it and uploads it — Android to Google Play (track PLAY_TRACK, repository variable,
+# scripts/store-release.py builds it and optionally uploads it — Android to Google Play (track PLAY_TRACK, repository variable,
 # default internal), iOS to App Store Connect / TestFlight.
 #
 # The store app shows https://saju.ashwoodfriends.com (capacitor.config.json server.url), so web changes reach it
 # through deploy.yml. Only changes to the native shell need a new store build, and only those trigger this workflow.
 #
 # A push to main that touches the native app runs on the self-hosted macOS runner (the team Mac: Xcode, Android Studio
-# and the keys in ~/.saju are already there). If that Mac is off, run the workflow by hand with runner = github:
+# and the keys in ~/.saju are already there). Pushes build only unless MOBILE_AUTO_UPLOAD=true.
+# If that Mac is off, run the workflow by hand with runner = github:
 # a GitHub-hosted Mac then gets the keys from the repository secrets instead (docs/store.md).
 name: mobile
 
@@ -25,6 +26,7 @@ on:
       - scripts/build-app-icons.mjs
       - scripts/store-release.py
       - scripts/android-release-signing.gradle
+      - tests/test_store_release.py
       - .github/workflows/mobile.yml
   workflow_dispatch:
     inputs:
@@ -47,6 +49,10 @@ on:
         type: choice
         options: [self-hosted, github]
         default: self-hosted
+      upload:
+        description: Upload to Google Play / App Store Connect after building
+        type: boolean
+        default: false
 
 concurrency:
   group: mobile-release
@@ -54,18 +60,21 @@ concurrency:
 
 jobs:
   release:
-    runs-on: ${{ inputs.runner == 'github' && 'macos-15' || fromJSON('["self-hosted", "macOS"]') }}
+    runs-on: ${{ inputs.runner == 'github' && 'macos-15' || 'saju-mac' }}
     timeout-minutes: 120
     env:
       PLAY_TRACK: ${{ inputs.track || vars.PLAY_TRACK || 'internal' }}
+      RELEASE_ONLY: ${{ inputs.only || 'both' }}
+      RELEASE_APPS: ${{ inputs.apps || 'all' }}
+      RELEASE_UPLOAD: ${{ (github.event_name == 'push' && vars.MOBILE_AUTO_UPLOAD == 'true') || (github.event_name == 'workflow_dispatch' && inputs.upload) }}
     steps:
       - uses: actions/checkout@v4
 
-      # ── GitHub-hosted fallback only: tools and the keys from secrets ──
-      - if: inputs.runner == 'github'
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
+          cache: npm
+      # ── GitHub-hosted fallback only: tools and the keys from secrets ──
       - if: inputs.runner == 'github'
         uses: actions/setup-java@v4
         with:
@@ -87,19 +96,61 @@ jobs:
         # the same files `make release-setup-saju` writes on the Mac; a GitHub-hosted Mac has no Apple account
         # signed in to Xcode, so the App Store Connect key is required here
         run: |
-          d="$RUNNER_TEMP/sjsecrets"; install -m 700 -d "$d"
-          printf '%s' "$KEYSTORE" | base64 -d > "$d/saju-keystore.jks"
-          printf '%s' "$SIGNING" > "$d/saju-signing.json"
-          printf '%s' "$PLAY" > "$d/play-service-account.json"
-          printf '{"key_id": "%s", "issuer_id": "%s"}' "$ASC_KEY_ID" "$ASC_ISSUER_ID" > "$d/app-store-connect.json"
-          printf '%s\n' "$ASC_KEY" > "$d/AuthKey_$ASC_KEY_ID.p8"
-          chmod 600 "$d"/*
-          echo "SAJU_SECRETS=$d" >> "$GITHUB_ENV"
+          python3 - <<'PY'
+          import base64, json, os, re
+          from pathlib import Path
+          os.umask(0o077)
+          android = os.environ['RELEASE_ONLY'] != 'ios'
+          ios = os.environ['RELEASE_ONLY'] != 'android'
+          upload = os.environ['RELEASE_UPLOAD'] == 'true'
+          required = (['KEYSTORE', 'SIGNING'] if android else []) + (['PLAY'] if android and upload else []) + (['ASC_KEY_ID', 'ASC_ISSUER_ID', 'ASC_KEY'] if ios else [])
+          missing = [name for name in required if not os.environ.get(name, '').strip()]
+          if missing:
+              raise SystemExit('Missing release secrets: ' + ', '.join(missing))
+          target = Path(os.environ['RUNNER_TEMP']) / 'sjsecrets'
+          target.mkdir(mode=0o700, exist_ok=True)
+          if android:
+              (target / 'saju-keystore.jks').write_bytes(base64.b64decode(''.join(os.environ['KEYSTORE'].split()), validate=True))
+              (target / 'saju-signing.json').write_text(os.environ['SIGNING'])
+              if upload:
+                  (target / 'play-service-account.json').write_text(os.environ['PLAY'])
+          if ios:
+              key_id = os.environ['ASC_KEY_ID']
+              if not re.fullmatch(r'[A-Za-z0-9]+', key_id):
+                  raise SystemExit('Invalid App Store Connect key ID')
+              (target / 'app-store-connect.json').write_text(json.dumps({'key_id': key_id, 'issuer_id': os.environ['ASC_ISSUER_ID']}))
+              (target / f'AuthKey_{key_id}.p8').write_text(os.environ['ASC_KEY'])
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'SAJU_SECRETS={target}\n')
+          PY
 
-      - name: Build and upload
+      - if: inputs.runner != 'github' && env.RELEASE_ONLY != 'android'
+        name: Unlock signing keychain when configured
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.MAC_KEYCHAIN_PASSWORD }}
         run: |
-          only=${{ inputs.only || 'both' }}
-          python3 scripts/store-release.py release ${{ inputs.apps || 'all' }} $([ "$only" = both ] || echo "--only $only")
+          if [ -n "$KEYCHAIN_PASSWORD" ]; then
+            security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$HOME/Library/Keychains/login.keychain-db"
+          fi
+
+      - name: Verify release controls
+        run: python3 -B -m unittest discover -s tests -p test_store_release.py
+      - name: Build and optionally upload
+        run: |
+          args=(release "$RELEASE_APPS")
+          if [ "$RELEASE_ONLY" != both ]; then args+=(--only "$RELEASE_ONLY"); fi
+          if [ "$RELEASE_UPLOAD" != true ]; then args+=(--no-upload); fi
+          python3 scripts/store-release.py "${args[@]}"
+      - if: always()
+        name: Keep build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            android/app/build/outputs/bundle/release/*.aab
+            ios/build-export/**/*.ipa
+          if-no-files-found: ignore
+          retention-days: 14
       - if: always() && inputs.runner == 'github'
         name: Remove keys
         run: rm -rf "$RUNNER_TEMP/sjsecrets"

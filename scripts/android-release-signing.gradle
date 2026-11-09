@@ -1,8 +1,8 @@
 // A release build must never silently produce an unsigned artifact, or one signed with a key Play rejects.
 // Signing comes from the Android Gradle Plugin's injected signing properties
 // (scripts/store-release.py passes them as ORG_GRADLE_PROJECT_android.injected.signing.*).
-// Upload key registered in Play Console → App signing (SHA-1 of its certificate).
-def expectedUploadSha1 = '5154463C8F5A3B56B8A8781D2902EC9F2C383B98'
+// Upload key generated for the first Play upload (SHA-1 of its certificate).
+def expectedUploadSha1 = '21E55271C2E78A8C0746CC817971468EC6F3ED53'
 
 def validateSigning = tasks.register('validateReleaseSigning') {
     doLast {

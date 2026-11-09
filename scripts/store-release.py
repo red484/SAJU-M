@@ -4,8 +4,8 @@
     python3 scripts/store-release.py setup saju <keystore.jks> [--alias upload]   keep the upload key in ~/.saju
     python3 scripts/store-release.py release <saju|all> [--only android|ios] [--track internal] [--no-upload]
 
-`make release` and the self-hosted GitHub runner (.github/workflows/mobile.yml) both run `release`, so a push to
-main and a hand-run release do exactly the same thing. Everything secret lives outside the repository in
+`make release` and the self-hosted GitHub runner (.github/workflows/mobile.yml) both run `release`.
+The workflow adds --no-upload unless uploads are explicitly enabled. Everything secret lives outside the repository in
 ~/.saju (SAJU_SECRETS overrides), because the runner checks the repository out somewhere else:
 
     <app>-keystore.jks, <app>-signing.json   upload key and its passwords (written by `setup`)
@@ -206,8 +206,11 @@ def _apple_auth() -> list[str]:
 def ios_release(app: str, number: int, upload: bool):
     project = ROOT / 'ios/App/App.xcodeproj'
     auth = ['-allowProvisioningUpdates', *_apple_auth()]
+    # Preserve the signed archive when export fails; rebuilding it should not be necessary.
+    output = ROOT / 'ios/build-export'
+    archive = output / 'archives' / f'{app}-{number}.xcarchive'
+    archive.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=f'{app}-ios-') as tmp:
-        archive = Path(tmp) / 'App.xcarchive'
         run(['xcodebuild', '-project', project, '-scheme', 'App', '-configuration', 'Release',
              '-destination', 'generic/platform=iOS', '-archivePath', archive, *auth,
              f'CURRENT_PROJECT_VERSION={number}', f'DEVELOPMENT_TEAM={TEAM_ID}', 'archive'], ROOT)
@@ -222,7 +225,7 @@ def ios_release(app: str, number: int, upload: bool):
   <key>manageAppVersionAndBuildNumber</key><false/>
 </dict></plist>
 ''')
-        out = ROOT / 'ios/build-export'
+        out = output / str(number)
         run(['xcodebuild', '-exportArchive', '-archivePath', archive, '-exportOptionsPlist', options,
              '-exportPath', out, *auth], ROOT)
     print(f'{app}: ' + (f'App Store Connect에 {number}번 빌드를 올렸어요 (TestFlight에서 처리 후 심사 제출).' if upload
@@ -239,19 +242,26 @@ def release(apps: list[str], only: str | None, track: str, upload: bool):
     for app in apps:
         try:
             build_web(platforms)
-            if 'android' in platforms:
-                aab = android_bundle(app, number)
-                if upload:
-                    play_upload(app, aab, number, track)
-                else:
-                    print(f'{app}: AAB를 만들었어요: {aab}')
-            if 'ios' in platforms:
-                ios_release(app, number, upload)
         except (ReleaseError, subprocess.CalledProcessError, OSError) as e:
-            print(f'오류 ({app}): {e}', file=sys.stderr)
-            failed.append(app)  # the other apps still go out
+            print(f'오류 ({app}/web): {e}', file=sys.stderr)
+            failed.append(f'{app}/web')
+            continue
+        # A signing or upload failure on Android must not prevent the iOS build (and vice versa).
+        for platform in platforms:
+            try:
+                if platform == 'android':
+                    aab = android_bundle(app, number)
+                    if upload:
+                        play_upload(app, aab, number, track)
+                    else:
+                        print(f'{app}: AAB를 만들었어요: {aab}')
+                else:
+                    ios_release(app, number, upload)
+            except (ReleaseError, subprocess.CalledProcessError, OSError) as e:
+                print(f'오류 ({app}/{platform}): {e}', file=sys.stderr)
+                failed.append(f'{app}/{platform}')
     if failed:
-        raise ReleaseError('실패한 앱: ' + ', '.join(failed))
+        raise ReleaseError('실패한 빌드: ' + ', '.join(failed))
 
 
 def main():
