@@ -21,6 +21,8 @@ on:
       - ios/**
       - native/**
       - resources/**
+      - assets/ongi.svg
+      - scripts/build-app-icons.mjs
       - scripts/store-release.py
       - scripts/android-release-signing.gradle
       - .github/workflows/mobile.yml

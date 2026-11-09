@@ -105,6 +105,7 @@ def build_web(platforms: list[str]):
     # dist/client is only the offline fallback, so the build needs no production settings.
     if not (ROOT / 'node_modules').is_dir() or os.environ.get('CI'):
         run(['npm', 'ci', '--no-audit', '--no-fund'], ROOT)
+    run(['npm', 'run', 'native:assets'], ROOT)
     run(['npm', 'run', 'build'], ROOT)
     for platform in platforms:
         run([ROOT / 'node_modules/.bin/cap', 'sync', platform], ROOT)

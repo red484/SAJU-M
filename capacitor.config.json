@@ -2,7 +2,7 @@
   "appId": "com.ashwoodfriends.dalbitsaju",
   "appName": "삶의 온기",
   "webDir": "dist/client",
-  "backgroundColor": "#081720",
+  "backgroundColor": "#fafaf7",
   "server": {
     "url": "https://saju.ashwoodfriends.com",
     "cleartext": false,
@@ -17,9 +17,13 @@
     "SplashScreen": {
       "launchShowDuration": 1200,
       "launchAutoHide": true,
-      "backgroundColor": "#081720",
+      "backgroundColor": "#fafaf7",
       "showSpinner": false,
       "androidScaleType": "CENTER_CROP"
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_ongi",
+      "iconColor": "#435e4e"
     }
   }
 }

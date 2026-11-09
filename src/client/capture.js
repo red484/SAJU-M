@@ -11,20 +11,20 @@ const PAPER = '#f6f2e6', MINE = '#1b5148', THEIRS = '#ffffff';
 
 const font = (size, weight = 400) => `${weight} ${size}px 'Maru Buri', serif`;
 
-// 도령 얼굴. 같은 출처라 캔버스가 오염되지 않고, 못 불러오면 글자로 대신합니다.
+// 화면과 같은 브랜드 심볼. 같은 출처의 래스터를 사용해 캔버스에 그립니다.
 let avatarPromise = null;
 const loadAvatar = () => (avatarPromise ??= new Promise(res => {
   const img = new Image();
   img.onload = () => res(img);
   img.onerror = () => res(null);
-  img.src = '/assets/mentorAvatar.webp';
+  img.src = '/assets/mark.webp?v=3ba374b200';
 }));
 
 // 원으로 오려 붙입니다. 원본이 정사각형이 아니어도 가운데가 남게 잘라요.
 function circleImage(ctx, img, cx, cy, r) {
   const side = Math.min(img.naturalWidth, img.naturalHeight);
   const sx = (img.naturalWidth - side) / 2;
-  const sy = (img.naturalHeight - side) * 0.18;   // 얼굴이 위쪽에 있어 조금 올려 자릅니다
+  const sy = (img.naturalHeight - side) / 2;
   ctx.save();
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
   ctx.drawImage(img, sx, Math.max(0, sy), side, side, cx - r, cy - r, r * 2, r * 2);

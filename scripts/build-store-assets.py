@@ -1,6 +1,7 @@
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import textwrap
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "store-assets"
@@ -169,16 +170,8 @@ def build():
     (OUT/"google-play/tablet-7").mkdir(parents=True,exist_ok=True)
     (OUT/"google-play/tablet-10").mkdir(parents=True,exist_ok=True)
     (OUT/"app-store/iphone-6.5").mkdir(parents=True,exist_ok=True)
-    logo=Image.open(ROOT/"resources/logo.png").convert("RGB")
-    logo.resize((512,512),Image.Resampling.LANCZOS).save(OUT/"google-play/icon-512.png",optimize=True)
-    # 1024x500 feature graphic
-    feat=cover(Image.open(ROOT/"assets/splash.webp").convert("RGB"),(1024,500)).convert("RGBA")
-    overlay=Image.new("RGBA",feat.size,(9,38,36,110)); feat.alpha_composite(overlay)
-    fd=ImageDraw.Draw(feat); mark=contain(logo,(132,132)); feat.paste(mark,(94,78),rounded_mask(mark.size,26))
-    fd.text((260,104),"달빛 사주",font=font(68,True),fill="#fffdf5")
-    fd.text((263,200),"나를 읽고, 내일을 묻다",font=font(39,True),fill="#f1e8c8")
-    fd.text((263,270),"오늘의 흐름부터 마음속 고민까지",font=font(27),fill="#e1e9e4")
-    feat.convert("RGB").save(OUT/"google-play/feature-graphic-1024x500.jpg",quality=94,optimize=True)
+    # Keep current icons and feature artwork even when rebuilding the legacy mockups below.
+    subprocess.run(["node", str(ROOT/"scripts/build-app-icons.mjs")], cwd=ROOT, check=True)
     for scene in SCENES:
         marketing_screen((1080,1920),scene).save(OUT/"google-play/phone"/(scene[0]+"-1080x1920.jpg"),quality=94,optimize=True)
         marketing_screen((1600,2560),scene,True).save(OUT/"google-play/tablet-7"/(scene[0]+"-1600x2560.jpg"),quality=93,optimize=True)

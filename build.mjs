@@ -24,6 +24,12 @@ await copyFile('assets/chat-crane.webp','dist/client/assets/chat-crane.webp');
 await copyFile('assets/element-plate.webp','dist/client/assets/element-plate.webp');
 await copyFile('assets/google-g.png','dist/client/assets/google-g.png');
 await copyFile('assets/apple-signin.png','dist/client/assets/apple-signin.png');
+await copyFile('assets/apple-touch-icon.png','dist/client/assets/apple-touch-icon.png');
+for (const name of ['favicon-32.png','icon-192.png','icon-512.png','icon-maskable-512.png']) {
+ await copyFile(`assets/${name}`,`dist/client/assets/${name}`);
+}
+await copyFile('assets/favicon.ico','dist/client/favicon.ico');
+await copyFile('site.webmanifest','dist/client/site.webmanifest');
 await cp('legal','dist/client/legal',{recursive:true});
 for(const page of ['privacy','terms','support','account-deletion','pricing','refund']){
  await mkdir(`dist/client/${page}`,{recursive:true});
