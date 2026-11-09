@@ -32,7 +32,7 @@ function sign({ x5c, leafKey }, claims) {
   return `${body}.${createSign('SHA256').update(body).sign({ key: leafKey, dsaEncoding: 'ieee-p1363' }, 'base64url')}`;
 }
 const NOW = Date.now();
-const claims = { bundleId: 'com.ashwoodfriends.dalbitsaju', productId: 'ongi_plus_monthly', originalTransactionId: '100', purchaseDate: NOW, expiresDate: NOW + 1000, appAccountToken: 'u1' };
+const claims = { bundleId: 'com.ashwoodfriends.ongi', productId: 'ongi_plus_monthly', originalTransactionId: '100', purchaseDate: NOW, expiresDate: NOW + 1000, appAccountToken: 'u1' };
 
 test('Apple JWS is accepted only with the pinned root, marker OIDs and a valid signature', () => {
   const good = chain();

@@ -19,7 +19,7 @@ git push (main)
   - App Store Connect: **TestFlight**까지만 올라갑니다.
 - **사람이 할 일:** 실제 출시는 직접 합니다. Play에서는 트랙을 승격하고, App Store에서는 심사를 제출합니다.
 - Android와 iOS는 각각 실패를 처리합니다. 한 플랫폼의 서명·빌드·업로드가 실패해도 다른 플랫폼은 진행하고, 마지막에 실패한 앱/플랫폼을 알려 주며 종료 코드 1로 끝납니다. 공통 웹 빌드가 실패하면 해당 앱의 두 플랫폼 모두 중단합니다. 지금 앱은 `saju` 하나입니다.
-  - Android는 달빛 사주, iOS는 같은 앱이 달빛 노트로 동작합니다([IOS-NOTE-APP.md](IOS-NOTE-APP.md)).
+  - 양쪽 표시 이름은 삶의 온기이며, iOS는 선택 기록·회고 모드로 동작합니다([IOS-NOTE-APP.md](IOS-NOTE-APP.md)).
 - 웹 서비스 배포(`.github/workflows/deploy.yml`, Lightsail)와는 별개입니다. 같은 푸시로 둘 다 돌 수 있습니다.
 
 ## 언제 실행되나
@@ -97,12 +97,12 @@ make release UPLOAD=no            # 빌드만 하고 올리지 않음 (AAB/IPA �
 ### Google Play 서비스 계정
 
 - 계정: `focusbloom-play-release@saju-508804.iam.gserviceaccount.com` (Focus Bloom·아이돌코인과 같은 계정)
-- Play Console 권한: 사용자 및 권한 → 이 계정 → 앱 권한에 「달빛 사주」를 추가하고 「프로덕션으로 출시」와 「테스트 트랙으로 출시」를 줍니다.
+- Play Console 권한: 사용자 및 권한 → 이 계정 → 앱 권한에 「삶의 온기」를 추가하고 「프로덕션으로 출시」와 「테스트 트랙으로 출시」를 줍니다.
 - 키 파일: 같은 키를 `~/.saju/play-service-account.json`에도 둡니다(`chmod 600`). 키를 새로 받으면 `~/.focusbloom`, `~/.idolcoin`과 함께 모두 바꿉니다.
 
 ### Apple
 
-- 팀 ID는 `LRLSLC2RMQ`, 번들 ID는 `com.ashwoodfriends.dalbitsaju`입니다.
+- 팀 ID는 `LRLSLC2RMQ`, 번들 ID는 `com.ashwoodfriends.ongi`입니다.
 - 서명은 자동 방식(`signingStyle automatic`, `-allowProvisioningUpdates`)입니다.
   - 팀 Mac의 Xcode → Settings → Accounts에 이 팀의 Apple 계정이 로그인돼 있어야 합니다.
 - 계정 소유자가 Apple Developer 계정의 최신 Program License Agreement와 App Store Connect Business 메뉴의 계약에 동의해 두지 않으면 서명이나 업로드가 막힙니다. Apple이 계약을 갱신하면 다시 동의해야 합니다.

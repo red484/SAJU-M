@@ -34,7 +34,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SECRETS = Path(os.environ.get('SAJU_SECRETS', Path.home() / '.saju'))
-APPS = {'saju': 'com.ashwoodfriends.dalbitsaju'}
+APPS = {'saju': 'com.ashwoodfriends.ongi'}
 TEAM_ID = 'LRLSLC2RMQ'
 PLAY_API = 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications'
 PLAY_UPLOAD = 'https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications'

@@ -1,4 +1,4 @@
-package com.ashwoodfriends.dalbitsaju;
+package com.ashwoodfriends.ongi;
 
 import android.content.SharedPreferences;
 import android.webkit.WebView;

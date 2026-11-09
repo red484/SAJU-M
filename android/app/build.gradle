@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.ashwoodfriends.dalbitsaju"
+    namespace = "com.ashwoodfriends.ongi"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.ashwoodfriends.dalbitsaju"
+        applicationId "com.ashwoodfriends.ongi"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // scripts/store-release.py passes -PversionCode=<build number> (and optionally -PversionName).

@@ -10,7 +10,7 @@ import { getJournal } from './api/journal.js';
 
 export const nativeApp = Capacitor.isNativePlatform();
 export const noteMode = resolveNoteMode({ platform: Capacitor.getPlatform(), search: location.search, storage: globalThis.sessionStorage });
-export const APP_NAME = noteMode ? '달빛 노트' : '삶의 온기';
+export const APP_NAME = '삶의 온기';
 let started = false;
 
 const DAILY_KEY = 'ongi-daily-reminder';

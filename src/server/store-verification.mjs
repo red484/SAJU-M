@@ -36,8 +36,8 @@ export function verifyAppleJws(jws, { rootFingerprint = APPLE_ROOT_G3_SHA256, no
   }
 }
 
-export const appleBundleId = () => process.env.APPLE_IAP_BUNDLE_ID || 'com.ashwoodfriends.dalbitsaju';
-export const googlePackage = () => process.env.GOOGLE_PLAY_PACKAGE || 'com.ashwoodfriends.dalbitsaju';
+export const appleBundleId = () => process.env.APPLE_IAP_BUNDLE_ID || 'com.ashwoodfriends.ongi';
+export const googlePackage = () => process.env.GOOGLE_PLAY_PACKAGE || 'com.ashwoodfriends.ongi';
 
 export function appleSubscription(claims, bundleId = appleBundleId()) {
   if (claims?.bundleId !== bundleId || !STORE_PLANS[claims.productId] || !claims.originalTransactionId) throw fail(403, '구매한 상품을 확인하지 못했어요.');

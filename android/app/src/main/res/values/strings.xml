@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">삶의 온기</string>
     <string name="title_activity_main">삶의 온기</string>
-    <string name="package_name">com.ashwoodfriends.dalbitsaju</string>
-    <string name="custom_url_scheme">com.ashwoodfriends.dalbitsaju</string>
+    <string name="package_name">com.ashwoodfriends.ongi</string>
+    <string name="custom_url_scheme">com.ashwoodfriends.ongi</string>
 </resources>
