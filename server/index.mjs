@@ -6,6 +6,7 @@ import { PostgresJournalRepository } from '../src/server/repositories/postgres-j
 import { TelemetryRepository } from '../src/server/repositories/telemetry-repository.mjs';
 import { AuthRepository } from '../src/server/repositories/auth-repository.mjs';
 import { CoachQuotaRepository } from '../src/server/repositories/coach-quota-repository.mjs';
+import { ReviewAccessRepository } from '../src/server/repositories/review-access-repository.mjs';
 import { TossBillingRepository } from '../src/server/toss-billing.mjs';
 import { CoachPaidAllowance, StoreBillingRepository } from '../src/server/store-billing.mjs';
 import { RelationshipInviteRepository } from '../src/server/routes/relationship-invites.mjs';
@@ -24,7 +25,7 @@ const api = createApiHandler({
   journalRepository: new PostgresJournalRepository(pool),
   telemetryRepository,
   authRepository,
-  coachQuotaRepository: new CoachQuotaRepository(pool, new CoachPaidAllowance(tossBilling, storeBilling)),
+  coachQuotaRepository: new CoachQuotaRepository(pool, new CoachPaidAllowance(tossBilling, storeBilling), new ReviewAccessRepository()),
   tossBillingRepository: tossBilling,
   storeBillingRepository: storeBilling,
   relationshipInviteRepository: relationshipInvites,

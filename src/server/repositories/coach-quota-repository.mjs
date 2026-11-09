@@ -6,8 +6,10 @@ const quota = used => ({ limit: COACH_LIMIT, used, remaining: Math.max(0, COACH_
 const failure = (status, code, error, extra = {}) => ({ status, code, error, ...extra });
 
 export class CoachQuotaRepository {
-  constructor(pool, paid = null) { this.pool = pool; this.paid = paid; this.inFlight = new Set(); }
+  constructor(pool, paid = null, reviewAccess = null) { this.pool = pool; this.paid = paid; this.reviewAccess = reviewAccess; this.inFlight = new Set(); }
   async status(userId, client = this.pool) {
+    const review = this.reviewAccess && await this.reviewAccess.status(userId, client);
+    if (review) return review;
     const result = await client.query('SELECT count(*)::int AS used FROM coach_answers WHERE user_id = $1', [userId]);
     if (!this.paid) return quota(result.rows[0].used);
     const paid = await this.paid.allowance(userId, client);
@@ -65,7 +67,7 @@ export class CoachQuotaRepository {
       });
       if (!before) return busy;
       if (before.done) return before.done;
-      if (this.paid && before.allowance.freeRemaining === 0) {
+      if (this.paid && !before.allowance.reviewAccess && before.allowance.freeRemaining === 0) {
         const paidOrder = await this.paid.availableOrder(userId);
         if (!paidOrder) return failure(403, 'COACH_LIMIT_REACHED', '사용 가능한 상담 이용권이 없어요.', { quota: await this.status(userId) });
       }
@@ -73,15 +75,16 @@ export class CoachQuotaRepository {
       const charge = !out.error && out.source === 'cafe24' && typeof out.text === 'string' && !!out.text.trim();
       if (!charge) return { ...out, quota: this.paid ? await this.status(userId) : before.allowance };
       // An order may be refunded while the model is generating the answer.
-      const paidOrder = this.paid && (await this.status(userId)).freeRemaining === 0
+      const current = await this.status(userId);
+      const paidOrder = this.paid && !current.reviewAccess && current.freeRemaining === 0
         ? await this.paid.availableOrder(userId) : null;
       const after = await this.locked(userId, async client => {
         const replayed = await this.replay(client, userId, payload.requestId, hash);
         if (replayed) return replayed;
         const allowance = await this.status(userId, client);
         if (!allowance.remaining) return failure(403, 'COACH_LIMIT_REACHED', QUOTA_NOTICE, { quota: allowance });
-        const order = this.paid && allowance.freeRemaining === 0 ? paidOrder : null;
-        if (this.paid && allowance.freeRemaining === 0 && !order) return failure(403, 'COACH_LIMIT_REACHED', QUOTA_NOTICE, { quota: allowance });
+        const order = this.paid && !allowance.reviewAccess && allowance.freeRemaining === 0 ? paidOrder : null;
+        if (this.paid && !allowance.reviewAccess && allowance.freeRemaining === 0 && !order) return failure(403, 'COACH_LIMIT_REACHED', QUOTA_NOTICE, { quota: allowance });
         await client.query('INSERT INTO coach_answers (user_id, request_id, question_hash, response) VALUES ($1, $2, $3, $4::jsonb)', [userId, payload.requestId, hash, JSON.stringify(out)]);
         if (order) await this.paid.consume(order, client);
         return { ...out, quota: this.paid ? await this.status(userId, client) : quota(allowance.used + 1) };

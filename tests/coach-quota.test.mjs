@@ -27,7 +27,7 @@ function database() {
             while (locks.has(args[0])) await new Promise(r => setImmediate(r));
             held = args[0]; locks.add(held); return { rows: [{ locked: true }] };
           }
-          if (sql.includes('count(*)')) return { rows: [{ used: count(args[0]) }] };
+          if (sql.includes('count(*)')) return { rows: [{ used: count(args[0]) + (pending?.user === args[0] ? 1 : 0) }] };
           if (sql.startsWith('SELECT question_hash')) {
             const row = rows.get(args[0] + args[1]); return { rowCount: row ? 1 : 0, rows: row ? [row] : [] };
           }
@@ -80,4 +80,17 @@ test('anonymous POST is rejected before AI or telemetry', async () => {
   let status, body;
   await routes.coach({ method: 'POST', headers: {}, socket: {} }, { writeHead(s) { status = s; }, end(b) { body = JSON.parse(b); } });
   assert.equal(status, 401); assert.equal(body.code, 'LOGIN_REQUIRED');
+});
+test('a review grant permits only its daily allowance without creating a paid order', async () => {
+  const db = database();
+  const review = { async status(userId, client) {
+    if (userId !== 'reviewer') return null;
+    const used = (await client.query('SELECT count(*)::int AS used FROM coach_answers WHERE user_id = $1', [userId])).rows[0].used;
+    return { reviewAccess: true, freeRemaining: 0, paidRemaining: Math.max(0, 2-used), remaining: Math.max(0, 2-used), used };
+  } };
+  const paid = { async availableOrder() { throw Error('review does not use paid orders'); }, async allowance() { return { consumed: 0, remaining: 0 }; } };
+  const repo = new CoachQuotaRepository(db, paid, review);
+  assert.equal((await repo.run('reviewer', payload(1), answer)).quota.remaining, 1);
+  assert.equal((await repo.run('reviewer', payload(2), answer)).quota.remaining, 0);
+  assert.equal((await repo.run('reviewer', payload(3), answer)).code, 'COACH_LIMIT_REACHED');
 });
