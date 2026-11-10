@@ -3,8 +3,10 @@ import { NOTE_PAGES, reminderId, resolveNoteMode, reviewReminders } from '../src
 
 const memory = () => { const m = new Map(); return { getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, v), removeItem: k => m.delete(k) }; };
 
-// iOS is always the note app; Android and the web stay 달빛 사주 unless asked.
+// Existing iOS builds stay in note mode; the new full-service shell matches Android.
 assert.equal(resolveNoteMode({ platform: 'ios' }), true);
+assert.equal(resolveNoteMode({ platform: 'ios', userAgent: 'Mozilla/5.0 OngiFullService/1' }), false);
+assert.equal(resolveNoteMode({ platform: 'ios', userAgent: 'Mozilla/5.0 OngiFullService/10' }), true);
 assert.equal(resolveNoteMode({ platform: 'android', search: '', storage: memory() }), false);
 assert.equal(resolveNoteMode({ platform: 'web', search: '', storage: memory() }), false);
 

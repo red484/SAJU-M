@@ -3,6 +3,9 @@
   "appName": "삶의 온기",
   "webDir": "dist/client",
   "backgroundColor": "#fafaf7",
+  "ios": {
+    "appendUserAgent": "OngiFullService/1"
+  },
   "server": {
     "url": "https://saju.ashwoodfriends.com",
     "cleartext": false,

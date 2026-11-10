@@ -1,11 +1,10 @@
-// The iOS app ships as "삶의 온기": choice records, reviews and an AI chat with no
-// saju, reading or daily flow (App Store guideline 4.3).
-// Android, the web and Apps in Toss keep the full 삶의 온기 service.
-// On the web, ?app=note previews the same screens for this browser tab.
+// Older iOS builds use the note-only experience. The new 삶의 온기 iOS app
+// identifies its full-service shell so that existing builds remain unchanged.
+// On the web, ?app=note previews the note screens for this browser tab.
 export const NOTE_PAGES = ['welcome', 'choice', 'records', 'settings'];
 
-export function resolveNoteMode({ platform, search = '', storage = null }) {
-  if (platform === 'ios') return true;
+export function resolveNoteMode({ platform, userAgent = '', search = '', storage = null }) {
+  if (platform === 'ios') return !/(?:^|\s)OngiFullService\/1(?:\s|$)/.test(userAgent);
   const asked = new URLSearchParams(search).get('app');
   try {
     if (asked === 'note') storage?.setItem('dalbit-app', 'note');

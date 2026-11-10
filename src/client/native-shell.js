@@ -9,7 +9,7 @@ import { resolveNoteMode, reviewReminders, reminderId } from './app-mode.js';
 import { getJournal } from './api/journal.js';
 
 export const nativeApp = Capacitor.isNativePlatform();
-export const noteMode = resolveNoteMode({ platform: Capacitor.getPlatform(), search: location.search, storage: globalThis.sessionStorage });
+export const noteMode = resolveNoteMode({ platform: Capacitor.getPlatform(), userAgent: globalThis.navigator?.userAgent, search: location.search, storage: globalThis.sessionStorage });
 export const APP_NAME = '삶의 온기';
 let started = false;
 
