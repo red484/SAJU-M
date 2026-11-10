@@ -1,5 +1,5 @@
 import { errorDetails } from './logging.mjs';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from 'jose';
 import { clientAddress, readBody, sendJson, validateOrigin } from './http.mjs';
 import { expiredSessionCookie, getSession, secureCookie, sessionCookie, sessionId } from './session.mjs';
@@ -7,6 +7,7 @@ import { exchangeTossLogin } from './toss-auth.mjs';
 import { appleDisplayName } from './apple-profile.mjs';
 import { validPassword } from './password.mjs';
 import { createMemoryRateLimiter } from './rate-limit.mjs';
+import { ageToken } from './age-gate.mjs';
 
 const GOOGLE_ISSUERS = ['https://accounts.google.com', 'accounts.google.com'];
 const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
@@ -83,7 +84,48 @@ export function createAuthRoutes(repository, { exchangeIdentity = exchange, revo
   const byAddress = createMemoryRateLimiter({ windowMs: 900_000, max: 20 });
   const byId = createMemoryRateLimiter({ windowMs: 900_000, max: 10 });
   let passwordWork = 0;
+  // Short-lived, one-use handoff. The browser sees only the ticket; the verifier stays in the app.
+  const nativeLogins = new Map();
+  const cleanNative = () => { const now = Date.now(); for (const [id, value] of nativeLogins) if (value.expires <= now) nativeLogins.delete(id); };
+  const nativeByAddress = createMemoryRateLimiter({ windowMs: 60_000, max: 10 });
   return async function auth(req, res, url) {
+    if (url.pathname === '/api/auth/native/create' && req.method === 'POST') {
+      if (!available('google')) return sendJson(res, { error: 'Google 로그인을 준비하고 있어요.' }, 503);
+      if (!validateOrigin(req)) return sendJson(res, { error: '이 앱에서 다시 시도해 주세요.' }, 403);
+      if (!nativeByAddress(clientAddress(req))) return sendJson(res, { error: '잠시 후 다시 시도해 주세요.' }, 429);
+      let body; try { body = JSON.parse(await readBody(req, 1024)); } catch { return sendJson(res, { error: '로그인 요청을 확인해 주세요.' }, 400); }
+      if (!/^[a-f0-9]{64}$/.test(body?.challenge || '')) return sendJson(res, { error: '로그인 요청을 확인해 주세요.' }, 400);
+      cleanNative(); if (nativeLogins.size >= 5000) return sendJson(res, { error: '잠시 후 다시 시도해 주세요.' }, 503);
+      const session = getSession(req), ticket = randomBytes(32).toString('hex');
+      nativeLogins.set(ticket, { challenge: body.challenge, session: sessionId(session.token), expires: Date.now() + 10 * 60_000, phase: 'created' });
+      return sendJson(res, { url: `${baseUrl(req)}/api/auth/native/start?ticket=${ticket}` }, 200,
+        session.fresh ? { 'Set-Cookie': sessionCookie(req, session) } : {});
+    }
+    if (url.pathname === '/api/auth/native/start' && req.method === 'GET') {
+      cleanNative(); const ticket = url.searchParams.get('ticket'), pending = nativeLogins.get(ticket);
+      if (!pending || pending.phase !== 'created') return sendJson(res, { error: '로그인이 만료됐어요. 앱에서 다시 시도해 주세요.' }, 400);
+      const state = randomBytes(24).toString('hex'), nonce = randomBytes(24).toString('hex');
+      pending.phase = 'started'; pending.state = state;
+      const params = new URLSearchParams({ client_id: process.env.GOOGLE_CLIENT_ID, redirect_uri: `${baseUrl(req)}/api/auth/callback/google`, response_type: 'code', scope: 'openid email profile', state, nonce, prompt: 'select_account' });
+      res.writeHead(302, { Location: `https://accounts.google.com/o/oauth2/v2/auth?${params}`, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer',
+        'Set-Cookie': [cookie('ongi_age', ageToken(), req, 600, 'Lax'), cookie('dalbit_oauth_state', state, req, 600), cookie('dalbit_oauth_nonce', nonce, req, 600), cookie('ongi_native_ticket', ticket, req, 600)] });
+      return res.end();
+    }
+    if (url.pathname === '/api/auth/native/complete' && req.method === 'POST') {
+      if (!validateOrigin(req)) return sendJson(res, { error: '이 앱에서 다시 시도해 주세요.' }, 403);
+      let body; try { body = JSON.parse(await readBody(req, 1024)); } catch { return sendJson(res, { error: '로그인 요청을 확인해 주세요.' }, 400); }
+      cleanNative(); const pending = nativeLogins.get(body?.ticket);
+      if (!pending || !/^[a-f0-9]{64}$/.test(body?.verifier || '') || pending.session !== sessionId(getSession(req).token)) return sendJson(res, { error: '로그인이 만료됐어요. 다시 시도해 주세요.' }, 403);
+      const actual = createHash('sha256').update(body.verifier).digest('hex');
+      if (!timingSafeEqual(Buffer.from(actual), Buffer.from(pending.challenge))) return sendJson(res, { error: '로그인 요청을 확인할 수 없어요.' }, 403);
+      if (pending.phase !== 'complete') return sendJson(res, { pending: true });
+      nativeLogins.delete(body.ticket);
+      const rotated = { token: randomBytes(32).toString('hex'), fresh: true };
+      try {
+        const signed = await repository.signIn(pending.identity, pending.session, sessionId(rotated.token));
+        return sendJson(res, { ok: true }, 200, { 'Set-Cookie': [sessionCookie(req, rotated), cookie('dalbit_auth', signed.token, req, 2_592_000)] });
+      } catch { return sendJson(res, { error: '로그인을 완료하지 못했어요. 다시 시도해 주세요.' }, 503); }
+    }
     if (['/api/auth/password/register', '/api/auth/password/login'].includes(url.pathname)) {
       if (req.method !== 'POST') return sendJson(res, { error: 'POST 요청이 필요합니다.' }, 405);
       if (!validateOrigin(req)) return sendJson(res, { error: '이 앱에서 다시 시도해 주세요.' }, 403);
@@ -191,6 +233,18 @@ export function createAuthRoutes(repository, { exchangeIdentity = exchange, revo
       let params = url.searchParams;
       if (req.method === 'POST') params = new URLSearchParams(await readBody(req, 20_000));
       if (params.get('state') !== readCookie(req, 'dalbit_oauth_state')) return sendJson(res, { error: '로그인 요청을 확인할 수 없습니다.' }, 400);
+      const nativeTicket = provider === 'google' ? readCookie(req, 'ongi_native_ticket') : '';
+      if (nativeTicket) {
+        cleanNative(); const pending = nativeLogins.get(nativeTicket);
+        if (!pending || pending.phase !== 'started' || pending.state !== params.get('state')) return sendJson(res, { error: '로그인이 만료됐어요. 앱에서 다시 시도해 주세요.' }, 400);
+        try {
+          pending.identity = await exchangeIdentity('google', params.get('code'), `${baseUrl(req)}/api/auth/callback/google`, readCookie(req, 'dalbit_oauth_nonce'), false);
+          pending.phase = 'complete';
+          const html = '<!doctype html><html lang="ko"><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"><title>로그인 완료</title><body style="font:18px system-ui;padding:2rem;line-height:1.6"><h1>로그인 완료</h1><p>이 창을 닫고 삶의 온기 앱으로 돌아가 주세요.</p></body></html>';
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'Set-Cookie': [cookie('ongi_native_ticket', '', req, 0), cookie('dalbit_oauth_state', '', req, 0), cookie('dalbit_oauth_nonce', '', req, 0)] });
+          return res.end(html);
+        } catch { nativeLogins.delete(nativeTicket); return sendJson(res, { error: 'Google 로그인을 완료하지 못했어요. 앱에서 다시 시도해 주세요.' }, 403); }
+      }
       const deleting = provider === 'apple' && !!readCookie(req, 'dalbit_delete_state') && params.get('state') === readCookie(req, 'dalbit_delete_state');
       const clearDeletion = [cookie('dalbit_delete_auth', '', req, 0, 'None'), cookie('dalbit_delete_state', '', req, 0, 'None')];
       const anonymousId = sessionId(getSession(req).token);

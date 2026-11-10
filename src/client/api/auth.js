@@ -8,6 +8,29 @@ export const deleteAccount = (manualAppleRevocation = false, expectedUserId) => 
 export const deletionResult = () => apiRequest('/api/auth/deletion-result');
 export const loginUrl = provider => `/api/auth/start?provider=${encodeURIComponent(provider)}&returnTo=${encodeURIComponent('/?auth=success')}`;
 
+export async function loginGoogleInBrowser() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const verifier = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  const challenge = [...new Uint8Array(hash)].map(value => value.toString(16).padStart(2, '0')).join('');
+  const created = await apiRequest('/api/auth/native/create', { method: 'POST', body: JSON.stringify({ challenge }) });
+  if (!created.response.ok) throw new Error(created.body.error || '로그인을 시작하지 못했어요.');
+  const url = new URL(created.body.url);
+  if (url.origin !== location.origin || url.pathname !== '/api/auth/native/start') throw new Error('로그인 주소를 확인하지 못했어요.');
+  const ticket = url.searchParams.get('ticket');
+  if (!/^[a-f0-9]{64}$/.test(ticket || '')) throw new Error('로그인 요청을 확인하지 못했어요.');
+  const { Browser } = await import('@capacitor/browser');
+  await Browser.open({ url: url.href });
+  const deadline = Date.now() + 10 * 60_000;
+  while (Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    const result = await apiRequest('/api/auth/native/complete', { method: 'POST', body: JSON.stringify({ ticket, verifier }) });
+    if (!result.response.ok) throw new Error(result.body.error || '로그인을 완료하지 못했어요.');
+    if (result.body.ok) { await Browser.close().catch(() => {}); return; }
+  }
+  throw new Error('로그인 시간이 지났어요. 다시 시도해 주세요.');
+}
+
 export async function loginWithToss() {
   if (!appsInToss) throw new Error('토스 앱 안에서만 사용할 수 있어요.');
   const { appLogin } = await import('@apps-in-toss/web-framework');

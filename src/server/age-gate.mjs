@@ -37,6 +37,7 @@ export function requiresAge(req,url) {
  if(path==='/api/store-billing/sync')return req.method==='POST';
  if(path.startsWith('/api/relationship-invites'))return req.method==='POST';
  if(path==='/api/auth/start')return !(req.method==='POST' && url.searchParams.get('provider')==='apple' && url.searchParams.get('intent')==='delete');
+ if(['/api/auth/native/create','/api/auth/native/complete'].includes(path))return true;
  if(path.startsWith('/api/auth/callback/')){
   if(path!=='/api/auth/callback/apple')return true;
   const cookie=name=>req.headers.cookie?.match(new RegExp('(?:^|;\\s*)'+name+'=([^;]+)'))?.[1];

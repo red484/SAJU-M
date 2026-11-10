@@ -22,6 +22,8 @@ assert.equal(ageVerified({headers:{'x-ongi-age':ageToken(Date.now()-31*86400000)
 const req={headers:{cookie:'dalbit_delete_state=fake'}};
 assert.equal(requiresAge(req,new URL('https://example.com/api/auth/callback/apple')),true);
 assert.equal(requiresAge({method:'GET',headers:{}},new URL('https://example.com/api/auth/start?provider=google&intent=delete')),true);
+assert.equal(requiresAge({method:'POST',headers:{}},new URL('https://example.com/api/auth/native/create')),true);
+assert.equal(requiresAge({method:'POST',headers:{}},new URL('https://example.com/api/auth/native/complete')),true);
 assert.equal(requiresAge({headers:{cookie:'dalbit_delete_auth=fake; dalbit_delete_state=x; dalbit_oauth_state=x'}},new URL('https://example.com/api/auth/callback/google')),true);
 let writes=0,storedProfile=null;
 const api=createApiHandler({journalRepository:{async get(){return {revision:0,data:storedProfile?{profile:storedProfile,records:[],conversations:[]}:null};},async put(){writes++;return {revision:1};},async delete(){}},authRepository:{async userFromToken(){return null;}}});

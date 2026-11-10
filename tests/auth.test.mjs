@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { generateKeyPairSync } from 'node:crypto';
+import { createHash, generateKeyPairSync } from 'node:crypto';
 import { importPKCS8 } from 'jose';
 import { applePrivateKey, createAuthRoutes } from '../src/server/auth.mjs';
 import { loginUrl } from '../src/client/api/auth.js';
@@ -124,6 +124,34 @@ for (const returnTo of ['//evil.example', '/\\evil.example', 'https://evil.examp
   res = await call(`/api/auth/start?provider=google&returnTo=${encodeURIComponent(returnTo)}`);
   assert.ok(res.headers['Set-Cookie'].some(value => value.startsWith('dalbit_oauth_return=%2Fsettings;')), returnTo);
 }
+// The external browser may finish OAuth, but only the initiating app session with
+// the verifier can redeem it, and a successful handoff cannot be replayed.
+const mobileRoute = createAuthRoutes(repository, { exchangeIdentity: async () => ({ provider: 'google', subject: 'google-1', email: null, name: null }) });
+async function mobileCall(path, { method = 'GET', cookie = '', body = '' } = {}) {
+  const req = { method, headers: { host: 'saju.example.com', cookie, origin: 'https://saju.example.com' }, socket: { encrypted: true }, async *[Symbol.asyncIterator]() { if (body) yield Buffer.from(body); } };
+  const out = response(); await mobileRoute(req, out, new URL(path, 'https://saju.example.com')); return out;
+}
+const verifier = '1'.repeat(64), challenge = createHash('sha256').update(verifier).digest('hex');
+let mobile = await mobileCall('/api/auth/native/create', { method: 'POST', body: JSON.stringify({ challenge }) });
+assert.equal(mobile.status, 200);
+const mobileSession = mobile.headers['Set-Cookie'].split(';')[0];
+const startUrl = new URL(JSON.parse(mobile.body).url), ticket = startUrl.searchParams.get('ticket');
+mobile = await mobileCall('/api/auth/native/start?ticket=' + ticket);
+assert.equal(mobile.status, 302);
+const state = new URL(mobile.headers.Location).searchParams.get('state');
+const browserCookies = mobile.headers['Set-Cookie'].map(value => value.split(';')[0]).join('; ');
+assert.equal((await mobileCall('/api/auth/native/start?ticket=' + ticket)).status, 400);
+mobile = await mobileCall('/api/auth/callback/google?state=' + state + '&code=test', { cookie: browserCookies });
+assert.equal(mobile.status, 200);
+assert.match(mobile.body, /앱으로 돌아가/);
+const requestBody = JSON.stringify({ ticket, verifier });
+assert.equal((await mobileCall('/api/auth/native/complete', { method: 'POST', cookie: mobileSession, body: JSON.stringify({ ticket, verifier: '2'.repeat(64) }) })).status, 403);
+assert.equal((await mobileCall('/api/auth/native/complete', { method: 'POST', body: requestBody })).status, 403);
+mobile = await mobileCall('/api/auth/native/complete', { method: 'POST', cookie: mobileSession, body: requestBody });
+assert.equal(mobile.status, 200);
+assert.equal(JSON.parse(mobile.body).ok, true);
+assert.ok(mobile.headers['Set-Cookie'].some(value => value.startsWith('dalbit_auth=')));
+assert.equal((await mobileCall('/api/auth/native/complete', { method: 'POST', cookie: mobileSession, body: requestBody })).status, 403);
 delete process.env.GOOGLE_CLIENT_ID;
 delete process.env.GOOGLE_CLIENT_SECRET;
 delete process.env.AUTH_BASE_URL;

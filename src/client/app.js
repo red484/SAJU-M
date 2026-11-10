@@ -20,7 +20,7 @@ import {mergeJournal} from './journal-merge.js';
 import {getJournal,putJournal,deleteJournal} from './api/journal.js';
 import {coachStatus,requestCoachWithRetry} from './api/readings.js';
 import {smallTalkReply,unrelatedQuestion,SCOPE_NOTICE,NOTE_SCOPE_NOTICE} from './consultation-scope.js';
-import {authProviders,currentUser,logout,deleteAccount,deletionResult,loginUrl,loginWithToss,clearTossLogin,isAppsInToss} from './api/auth.js';
+import {authProviders,currentUser,logout,deleteAccount,deletionResult,loginUrl,loginGoogleInBrowser,loginWithToss,clearTossLogin,isAppsInToss} from './api/auth.js';
 import {nativeApp,noteMode,APP_NAME,setupNativeShell,shareNativeFile,shareLink,syncReviewReminders,reviewReminderEnabled,setReviewReminder,reviewReminderStatus,dailyReminderEnabled,setDailyReminder} from './native-shell.js';
 import {NOTE_PAGES} from './app-mode.js';
 import {installStoreBilling,storeBillingAvailable} from './store-billing.js';
@@ -463,7 +463,7 @@ function recordDetail(id){const r=data.records.find(r=>r.id===id);if(!r)return;c
  };
 }
 async function download(name,content,type='text/plain;charset=utf-8'){const blob=new Blob([content],{type});try{if(await shareNativeFile(blob,name,`${APP_NAME} 파일`)){notice('공유·저장할 앱을 선택해 주세요.');return;}}catch(e){if(e?.name==='AbortError'||/cancel/i.test(e?.message||''))return;notice('파일 공유창을 열지 못했어요.');return;}const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
-document.addEventListener('click',async e=>{const button=e.target.closest('[data-login]');if(!button)return;const provider=button.dataset.login;if(provider!=='toss'){location.href=loginUrl(provider);return;}tossLoginBusy=true;render();try{const {body}=await loginWithToss();authUser=body.user||null;await load();page=result?'today':'birth';notice('토스 계정으로 로그인했어요.');}catch(error){notice(error.message||'토스 로그인을 완료하지 못했어요.');}finally{tossLoginBusy=false;render();}});
+document.addEventListener('click',async e=>{const button=e.target.closest('[data-login]');if(!button||tossLoginBusy)return;const provider=button.dataset.login;if(provider==='google'&&nativeApp){tossLoginBusy=true;render();try{notice('브라우저에서 로그인한 뒤 앱으로 돌아와 주세요.');await loginGoogleInBrowser();afterLogin=true;await loadAuth();await load();notice('Google 계정으로 로그인했어요.');}catch(error){notice(error.message||'Google 로그인을 완료하지 못했어요.');}finally{tossLoginBusy=false;render();}return;}if(provider!=='toss'){location.href=loginUrl(provider);return;}tossLoginBusy=true;render();try{const {body}=await loginWithToss();authUser=body.user||null;await load();page=result?'today':'birth';notice('토스 계정으로 로그인했어요.');}catch(error){notice(error.message||'토스 로그인을 완료하지 못했어요.');}finally{tossLoginBusy=false;render();}});
 document.addEventListener('click',e=>{
  if(e.target.closest('[data-auth-refresh]')){authStatus='loading';render();loadAuth();}
 });
