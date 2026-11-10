@@ -2,9 +2,10 @@ import { Capacitor } from '@capacitor/core';
 import { trackProductEvent } from './product-metrics.js';
 import { businessInfo } from './business-info.js';
 import { apiRequest } from './api/client.js';
-import { STORE_BASE_PLAN, STORE_PLAN_LIST } from '../shared/store-products.mjs';
+import { STORE_BASE_PLAN, STORE_PLANS, STORE_PLAN_LIST } from '../shared/store-products.mjs';
 
 const IDS = STORE_PLAN_LIST.map(plan => plan.id);
+const RESTORABLE_IDS = Object.keys(STORE_PLANS);
 // The app shell loads this page from the server, so an older binary can run it without the plugin.
 export const storeBillingAvailable = () => Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('NativePurchases');
 
@@ -41,7 +42,7 @@ export function createStorePurchaseClient({ purchases, productType, platform, re
       const { purchases: owned } = await purchases.getPurchases({ productType });
       let count = 0;
       for (const transaction of owned) {
-        if (!IDS.includes(transaction.productIdentifier)) continue;
+        if (!RESTORABLE_IDS.includes(transaction.productIdentifier)) continue;
         await settle(transaction);
         count++;
       }
@@ -86,7 +87,7 @@ export function installStoreBilling({ page, user, openModal, notice, onChanged, 
       ${STORE_PLAN_LIST.map(plan => `<article class="purchase-plan" data-plan="${plan.id}"><div class="purchase-plan-heading"><h3>${plan.name}</h3><span>월 구독</span></div>
         <div class="purchase-allowance"><b>${planLine(plan)}</b><span>정상 AI 답변에만 차감</span></div>
         <p class="purchase-amount" data-price>가격 확인 중</p><button class="primary" data-buy disabled>구독하기</button></article>`).join('')}
-      <p class="hint">결제는 ${storeName()} 계정으로 청구되며, 현재 기간이 끝나기 24시간 전까지 해지하지 않으면 같은 금액으로 매월 자동 갱신됩니다. 해지는 ${storeName()} 구독 설정에서 할 수 있고, 해지해도 결제한 기간이 끝날 때까지 이용할 수 있어요. 월 50회 상품의 남은 횟수는 다음 달로 넘어가지 않아요. 무제한 상품은 자동화된 남용을 막기 위해 하루 200회까지 이용할 수 있어요.</p>
+      <p class="hint">결제는 ${storeName()} 계정으로 청구되며, 현재 기간이 끝나기 24시간 전까지 해지하지 않으면 같은 금액으로 매월 자동 갱신됩니다. 해지는 ${storeName()} 구독 설정에서 할 수 있고, 해지해도 결제한 기간이 끝날 때까지 이용할 수 있어요. 남은 횟수는 다음 달로 넘어가지 않아요.</p>
       <p class="hint"><a href="/terms/">이용약관</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="/refund/">환불정책</a> · <a href="/support/">고객지원</a></p>
       <button class="secondary" id="purchase-example" hidden>상담 예시 보기</button><p class="hint" id="purchase-record-hint" hidden>기록 열기와 회고는 무료예요.</p><button class="secondary" id="purchase-follow-up" hidden></button>
       <p id="store-purchase-status" role="status">상품을 확인하고 있어요.</p>
@@ -139,8 +140,8 @@ export function installStoreBilling({ page, user, openModal, notice, onChanged, 
   if (page === 'settings') {
     document.querySelector('.subscription-card')?.remove();
     const card = document.createElement('section'); card.className = 'card subscription-card';
-    const current = STORE_PLAN_LIST.find(plan => plan.plan === allowance?.plan);
-    card.innerHTML = `<h2>구독</h2><p>${current ? `${current.name} 이용 중` : '월 4,900원 50회 · 월 49,000원 무제한'}</p><button type="button" class="secondary">구독 안내 및 복원</button>`;
+    const current = Object.values(STORE_PLANS).find(plan => plan.plan === allowance?.plan);
+    card.innerHTML = `<h2>구독</h2><p>${current ? `${current.name} 이용 중` : '월 4,900원 · AI 상담 50회'}</p><button type="button" class="secondary">구독 안내 및 복원</button>`;
     card.querySelector('button').onclick = overview; document.querySelector('main')?.append(card);
   }
 }
