@@ -239,7 +239,7 @@ export function createAuthRoutes(repository, { exchangeIdentity = exchange, revo
       let params = url.searchParams;
       if (req.method === 'POST') params = new URLSearchParams(await readBody(req, 20_000));
       if (params.get('state') !== readCookie(req, 'dalbit_oauth_state')) {
-        if (provider === 'google' && /^[a-f0-9]{64}$/.test(readCookie(req, 'ongi_native_done'))) return nativeLoginPage(res, '로그인 완료');
+        if (provider === 'google' && /^[a-f0-9]{64}$/.test(readCookie(req, 'ongi_native_done')) && params.get('state') && params.get('state') === readCookie(req, 'ongi_native_done_state')) return nativeLoginPage(res, '로그인 완료');
         return sendJson(res, { error: '로그인 요청을 확인할 수 없습니다.' }, 400);
       }
       const nativeTicket = provider === 'google' ? readCookie(req, 'ongi_native_ticket') : '';
@@ -249,7 +249,7 @@ export function createAuthRoutes(repository, { exchangeIdentity = exchange, revo
         try {
           pending.identity = await exchangeIdentity('google', params.get('code'), `${baseUrl(req)}/api/auth/callback/google`, readCookie(req, 'dalbit_oauth_nonce'), false);
           pending.phase = 'complete';
-          const headers = { 'Set-Cookie': [cookie('ongi_native_done', nativeTicket, req, 600), cookie('ongi_native_ticket', '', req, 0), cookie('dalbit_oauth_state', '', req, 0), cookie('dalbit_oauth_nonce', '', req, 0)] };
+          const headers = { 'Set-Cookie': [cookie('ongi_native_done', nativeTicket, req, 600), cookie('ongi_native_done_state', pending.state, req, 600), cookie('ongi_native_ticket', '', req, 0), cookie('dalbit_oauth_state', '', req, 0), cookie('dalbit_oauth_nonce', '', req, 0)] };
           if (pending.returnToApp) { res.writeHead(302, { ...headers, Location: 'ongiauth://oauth/complete', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' }); return res.end(); }
           return nativeLoginPage(res, '로그인 완료', 200, headers);
         } catch { nativeLogins.delete(nativeTicket); return nativeLoginPage(res, 'Google 로그인을 완료하지 못했어요', 403); }

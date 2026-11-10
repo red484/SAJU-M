@@ -145,6 +145,9 @@ mobile = await mobileCall('/api/auth/callback/google?state=' + state + '&code=te
 assert.equal(mobile.status, 200);
 assert.match(mobile.body, /앱으로 돌아가/);
 const doneCookie = mobile.headers['Set-Cookie'].find(value => value.startsWith('ongi_native_done=')).split(';')[0];
+const doneStateCookie = mobile.headers['Set-Cookie'].find(value => value.startsWith('ongi_native_done_state=')).split(';')[0];
+assert.equal((await mobileCall('/api/auth/callback/google?state=' + state, { cookie: doneCookie + '; ' + doneStateCookie })).status, 200);
+assert.equal((await mobileCall('/api/auth/callback/google?state=wrong', { cookie: doneCookie + '; ' + doneStateCookie })).status, 400);
 mobile = await mobileCall('/api/auth/native/start?ticket=' + ticket, { cookie: doneCookie });
 assert.equal(mobile.status, 200);
 assert.match(mobile.body, /로그인 완료/);
