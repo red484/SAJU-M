@@ -14,6 +14,11 @@ const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2
 const appleKeys = createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys'));
 const cookie = (name, value, req, maxAge, sameSite = 'Lax') => `${name}=${value}; HttpOnly; SameSite=${sameSite}; Path=/; Max-Age=${maxAge}${secureCookie(req)}`;
 const readCookie = (req, name) => req.headers.cookie?.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`))?.[1] || '';
+function nativeLoginPage(res, message, status = 200, headers = {}) {
+  const html = `<!doctype html><html lang="ko"><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"><title>삶의 온기 로그인</title><body style="font:18px system-ui;padding:2rem;line-height:1.6"><h1>${message}</h1><p>이 창을 닫고 삶의 온기 앱으로 돌아가 주세요.</p></body></html>`;
+  res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', ...headers });
+  return res.end(html);
+}
 export const authToken = req => {
   const bearer = String(req.headers.authorization || '');
   return bearer.startsWith('Bearer ') ? bearer.slice(7).trim() : readCookie(req, 'dalbit_auth');
@@ -97,13 +102,14 @@ export function createAuthRoutes(repository, { exchangeIdentity = exchange, revo
       if (!/^[a-f0-9]{64}$/.test(body?.challenge || '')) return sendJson(res, { error: '로그인 요청을 확인해 주세요.' }, 400);
       cleanNative(); if (nativeLogins.size >= 5000) return sendJson(res, { error: '잠시 후 다시 시도해 주세요.' }, 503);
       const session = getSession(req), ticket = randomBytes(32).toString('hex');
-      nativeLogins.set(ticket, { challenge: body.challenge, session: sessionId(session.token), expires: Date.now() + 10 * 60_000, phase: 'created' });
+      nativeLogins.set(ticket, { challenge: body.challenge, session: sessionId(session.token), expires: Date.now() + 10 * 60_000, phase: 'created', returnToApp: body.returnToApp === true });
       return sendJson(res, { url: `${baseUrl(req)}/api/auth/native/start?ticket=${ticket}` }, 200,
         session.fresh ? { 'Set-Cookie': sessionCookie(req, session) } : {});
     }
     if (url.pathname === '/api/auth/native/start' && req.method === 'GET') {
       cleanNative(); const ticket = url.searchParams.get('ticket'), pending = nativeLogins.get(ticket);
-      if (!pending || pending.phase !== 'created') return sendJson(res, { error: '로그인이 만료됐어요. 앱에서 다시 시도해 주세요.' }, 400);
+      if (ticket && readCookie(req, 'ongi_native_done') === ticket) return nativeLoginPage(res, '로그인 완료');
+      if (!pending || pending.phase !== 'created') return nativeLoginPage(res, '로그인 요청이 만료됐어요', 400);
       const state = randomBytes(24).toString('hex'), nonce = randomBytes(24).toString('hex');
       pending.phase = 'started'; pending.state = state;
       const params = new URLSearchParams({ client_id: process.env.GOOGLE_CLIENT_ID, redirect_uri: `${baseUrl(req)}/api/auth/callback/google`, response_type: 'code', scope: 'openid email profile', state, nonce, prompt: 'select_account' });
@@ -232,18 +238,21 @@ export function createAuthRoutes(repository, { exchangeIdentity = exchange, revo
       if (!['google', 'apple'].includes(provider) || !available(provider)) return sendJson(res, { error: '로그인 제공자가 설정되지 않았습니다.' }, 503);
       let params = url.searchParams;
       if (req.method === 'POST') params = new URLSearchParams(await readBody(req, 20_000));
-      if (params.get('state') !== readCookie(req, 'dalbit_oauth_state')) return sendJson(res, { error: '로그인 요청을 확인할 수 없습니다.' }, 400);
+      if (params.get('state') !== readCookie(req, 'dalbit_oauth_state')) {
+        if (provider === 'google' && /^[a-f0-9]{64}$/.test(readCookie(req, 'ongi_native_done'))) return nativeLoginPage(res, '로그인 완료');
+        return sendJson(res, { error: '로그인 요청을 확인할 수 없습니다.' }, 400);
+      }
       const nativeTicket = provider === 'google' ? readCookie(req, 'ongi_native_ticket') : '';
       if (nativeTicket) {
         cleanNative(); const pending = nativeLogins.get(nativeTicket);
-        if (!pending || pending.phase !== 'started' || pending.state !== params.get('state')) return sendJson(res, { error: '로그인이 만료됐어요. 앱에서 다시 시도해 주세요.' }, 400);
+        if (!pending || pending.phase !== 'started' || pending.state !== params.get('state')) return nativeLoginPage(res, '로그인 요청이 만료됐어요', 400);
         try {
           pending.identity = await exchangeIdentity('google', params.get('code'), `${baseUrl(req)}/api/auth/callback/google`, readCookie(req, 'dalbit_oauth_nonce'), false);
           pending.phase = 'complete';
-          const html = '<!doctype html><html lang="ko"><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"><title>로그인 완료</title><body style="font:18px system-ui;padding:2rem;line-height:1.6"><h1>로그인 완료</h1><p>이 창을 닫고 삶의 온기 앱으로 돌아가 주세요.</p></body></html>';
-          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'Set-Cookie': [cookie('ongi_native_ticket', '', req, 0), cookie('dalbit_oauth_state', '', req, 0), cookie('dalbit_oauth_nonce', '', req, 0)] });
-          return res.end(html);
-        } catch { nativeLogins.delete(nativeTicket); return sendJson(res, { error: 'Google 로그인을 완료하지 못했어요. 앱에서 다시 시도해 주세요.' }, 403); }
+          const headers = { 'Set-Cookie': [cookie('ongi_native_done', nativeTicket, req, 600), cookie('ongi_native_ticket', '', req, 0), cookie('dalbit_oauth_state', '', req, 0), cookie('dalbit_oauth_nonce', '', req, 0)] };
+          if (pending.returnToApp) { res.writeHead(302, { ...headers, Location: 'ongiauth://oauth/complete', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' }); return res.end(); }
+          return nativeLoginPage(res, '로그인 완료', 200, headers);
+        } catch { nativeLogins.delete(nativeTicket); return nativeLoginPage(res, 'Google 로그인을 완료하지 못했어요', 403); }
       }
       const deleting = provider === 'apple' && !!readCookie(req, 'dalbit_delete_state') && params.get('state') === readCookie(req, 'dalbit_delete_state');
       const clearDeletion = [cookie('dalbit_delete_auth', '', req, 0, 'None'), cookie('dalbit_delete_state', '', req, 0, 'None')];

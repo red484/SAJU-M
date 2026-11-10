@@ -1,4 +1,5 @@
 import { apiRequest, appsInToss, setTossAuthToken, setTossSessionToken } from './client.js';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 
 export const authProviders = () => apiRequest('/api/auth/providers');
 export const currentUser = () => apiRequest('/api/auth/me');
@@ -13,20 +14,28 @@ export async function loginGoogleInBrowser() {
   const verifier = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
   const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
   const challenge = [...new Uint8Array(hash)].map(value => value.toString(16).padStart(2, '0')).join('');
-  const created = await apiRequest('/api/auth/native/create', { method: 'POST', body: JSON.stringify({ challenge }) });
+  const automatic = Capacitor.getPlatform() === 'android' && Capacitor.isPluginAvailable('OngiAuth');
+  const created = await apiRequest('/api/auth/native/create', { method: 'POST', body: JSON.stringify({ challenge, returnToApp: automatic }) });
   if (!created.response.ok) throw new Error(created.body.error || '로그인을 시작하지 못했어요.');
   const url = new URL(created.body.url);
   if (url.origin !== location.origin || url.pathname !== '/api/auth/native/start') throw new Error('로그인 주소를 확인하지 못했어요.');
   const ticket = url.searchParams.get('ticket');
   if (!/^[a-f0-9]{64}$/.test(ticket || '')) throw new Error('로그인 요청을 확인하지 못했어요.');
-  const { Browser } = await import('@capacitor/browser');
-  await Browser.open({ url: url.href });
+  let Browser, cancelled = false;
+  if (automatic) {
+    const result = await registerPlugin('OngiAuth').open({ url: url.href });
+    cancelled = !result.completed;
+  } else {
+    ({ Browser } = await import('@capacitor/browser'));
+    await Browser.open({ url: url.href });
+  }
   const deadline = Date.now() + 10 * 60_000;
   while (Date.now() < deadline) {
     await new Promise(resolve => setTimeout(resolve, 1500));
     const result = await apiRequest('/api/auth/native/complete', { method: 'POST', body: JSON.stringify({ ticket, verifier }) });
     if (!result.response.ok) throw new Error(result.body.error || '로그인을 완료하지 못했어요.');
-    if (result.body.ok) { await Browser.close().catch(() => {}); return; }
+    if (result.body.ok) { if (Browser) await Browser.close().catch(() => {}); return; }
+    if (cancelled) throw new Error('로그인이 취소됐어요. 다시 시도해 주세요.');
   }
   throw new Error('로그인 시간이 지났어요. 다시 시도해 주세요.');
 }
