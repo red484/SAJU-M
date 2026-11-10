@@ -29,9 +29,9 @@ export function createStorePurchaseClient({ purchases, productType, platform, re
   return {
     async products() {
       const { response, body } = await request('/api/store-billing/plans');
-      if (!response.ok || !body.enabled) throw new Error('구독 판매를 준비하고 있어요.');
+      if (!response.ok) throw new Error('구독 정보를 불러오지 못했어요.');
       const { products } = await purchases.getProducts({ productIdentifiers: IDS, productType });
-      return new Map(products.map(product => [product.identifier, product]));
+      return { enabled: !!body.enabled, products: new Map(products.map(product => [product.identifier, product])) };
     },
     async purchase(productId, userId) {
       const transaction = await purchases.purchaseProduct({ productIdentifier: productId, productType, planIdentifier: STORE_BASE_PLAN, appAccountToken: userId, quantity: 1, autoAcknowledgePurchases: false });
@@ -65,6 +65,11 @@ const getClient = () => clientPromise ||= import('@capgo/native-purchases')
 const friendly = error => /cancel/i.test(`${error?.code || ''} ${error?.message || ''}`) ? '결제를 취소했어요.' : (error?.message || '결제를 완료하지 못했어요. 이미 결제했다면 구매 복원을 눌러 주세요.');
 const planLine = plan => plan.unlimited ? `AI 대화 무제한 · 공정 사용 기준 하루 ${plan.dailyLimit}회` : `AI 대화 매월 ${plan.answers}회`;
 const storeName = () => Capacitor.getPlatform() === 'ios' ? 'App Store' : 'Google Play';
+function withProductTimeout(promise) {
+  let timer;
+  return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('스토어 상품을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.')), 15_000); })])
+    .finally(() => clearTimeout(timer));
+}
 
 export function installStoreBilling({ page, user, openModal, notice, onChanged, resume, quota: allowance, showExample, followUp, navigate }) {
   if (!storeBillingAvailable()) return;
@@ -98,21 +103,21 @@ export function installStoreBilling({ page, user, openModal, notice, onChanged, 
     document.getElementById('store-close').onclick = () => { if (!busy) document.querySelector('#modal').close(); };
     document.getElementById('store-restore').onclick = () => restore();
     document.getElementById('store-manage').onclick = async () => { try { await (await getClient()).manage(); } catch { notice(`${storeName()} 구독 설정에서 관리해 주세요.`); } };
-    if (!user) { status.textContent = '로그인 후 구독할 수 있어요.'; const login = document.createElement('button'); login.className = 'primary'; login.textContent = '로그인하기'; login.onclick = () => { document.querySelector('#modal').close(); navigate?.('welcome'); }; status.after(login); return; }
+    if (!user) { const login = document.createElement('button'); login.className = 'primary'; login.textContent = '로그인하기'; login.onclick = () => { document.querySelector('#modal').close(); navigate?.('welcome'); }; status.after(login); }
     try {
-      const client = await getClient(), products = await client.products();
+      const { client, enabled, products } = await withProductTimeout((async () => { const client = await getClient(); return { client, ...await client.products() }; })());
       if (!status.isConnected) return;
       // Google bills a second plan on top of the first; it has to be cancelled before switching.
       const blocked = Capacitor.getPlatform() === 'android' && !!allowance?.plan;
-      status.textContent = blocked ? '다른 상품으로 바꾸려면 구독 관리에서 현재 구독을 해지해 주세요.' : '최종 결제 금액은 결제창에서 확인해 주세요.';
+      status.textContent = !products.size ? '스토어에서 상품을 찾을 수 없어요. 잠시 후 다시 시도해 주세요.' : !user ? '로그인 후 구독할 수 있어요.' : !enabled ? '구독 판매를 준비하고 있어요.' : blocked ? '다른 상품으로 바꾸려면 구독 관리에서 현재 구독을 해지해 주세요.' : '최종 결제 금액은 결제창에서 확인해 주세요.';
       for (const article of document.querySelectorAll('[data-plan]')) {
         const id = article.dataset.plan, product = products.get(id), pay = article.querySelector('[data-buy]'), price = article.querySelector('[data-price]');
         const plan = STORE_PLAN_LIST.find(item => item.id === id);
-        if (!product) { price.textContent = '구매할 수 없음'; continue; }
+        if (!product?.priceString) { price.textContent = '가격을 불러올 수 없음'; continue; }
         price.textContent = `${product.priceString} / 월`;
         const current = allowance?.plan === plan.plan;
         pay.textContent = current ? '구독 중' : '구독하기';
-        pay.disabled = current || blocked;
+        pay.disabled = !user || !enabled || current || blocked;
         pay.onclick = async () => {
           if (busy) return;
           busy = true; pay.disabled = true;
@@ -130,6 +135,7 @@ export function installStoreBilling({ page, user, openModal, notice, onChanged, 
     } catch (error) {
       trackProductEvent('purchase_product_error');
       status.textContent = error?.message || '상품을 불러오지 못했어요.';
+      for (const price of document.querySelectorAll('[data-plan] [data-price]')) price.textContent = '가격을 불러올 수 없음';
     }
   }
   const quota = document.querySelector('.coach-quota');

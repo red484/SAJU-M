@@ -8,6 +8,18 @@ import { join } from 'node:path';
 import { appleSubscription, googleSubscription, verifyAppleJws } from '../src/server/store-verification.mjs';
 import { CoachPaidAllowance } from '../src/server/store-billing.mjs';
 import { createStoreBillingRoute } from '../src/server/routes/store-billing.mjs';
+import { createStorePurchaseClient } from '../src/client/store-billing.js';
+
+test('store prices can be fetched while purchasing is disabled', async () => {
+  const client = createStorePurchaseClient({
+    purchases: { getProducts: async () => ({ products: [{ identifier: 'ongi_plus_monthly', priceString: '₩4,900' }] }) },
+    productType: 'subs', platform: 'ios',
+    request: async () => ({ response: { ok: true }, body: { enabled: false } })
+  });
+  const result = await client.products();
+  assert.equal(result.enabled, false);
+  assert.equal(result.products.get('ongi_plus_monthly').priceString, '₩4,900');
+});
 
 test('test purchase visibility is limited to the configured signed-in iOS account', async () => {
   const previousEnabled = process.env.STORE_IAP_ENABLED;
