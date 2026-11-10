@@ -7,6 +7,30 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { appleSubscription, googleSubscription, verifyAppleJws } from '../src/server/store-verification.mjs';
 import { CoachPaidAllowance } from '../src/server/store-billing.mjs';
+import { createStoreBillingRoute } from '../src/server/routes/store-billing.mjs';
+
+test('test purchase visibility is limited to the configured signed-in iOS account', async () => {
+  const previousEnabled = process.env.STORE_IAP_ENABLED;
+  const previousTesters = process.env.STORE_IAP_TEST_USER_IDS;
+  process.env.STORE_IAP_ENABLED = 'false';
+  process.env.STORE_IAP_TEST_USER_IDS = 'test-user';
+  const route = createStoreBillingRoute({ userFromToken: async token => token ? { id: token } : null }, {});
+  const call = async (token, ua) => {
+    const req = { method: 'GET', headers: { authorization: `Bearer ${token}`, 'user-agent': ua } };
+    let body;
+    await route(req, { writeHead() {}, end(text) { body = JSON.parse(text); } }, new URL('https://example.com/api/store-billing/plans'));
+    return body.enabled;
+  };
+  try {
+    assert.equal(await call('test-user', 'iPhone OngiFullService/1'), true);
+    assert.equal(await call('other-user', 'iPhone OngiFullService/1'), false);
+    assert.equal(await call('test-user', 'Android'), false);
+    assert.equal(await call('', 'iPhone OngiFullService/1'), false);
+  } finally {
+    if (previousEnabled === undefined) delete process.env.STORE_IAP_ENABLED; else process.env.STORE_IAP_ENABLED = previousEnabled;
+    if (previousTesters === undefined) delete process.env.STORE_IAP_TEST_USER_IDS; else process.env.STORE_IAP_TEST_USER_IDS = previousTesters;
+  }
+});
 
 // A throwaway chain shaped like Apple's: root, intermediate and leaf with the documented marker OIDs.
 function chain(root = 'test-root', markers = true) {

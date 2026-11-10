@@ -6,8 +6,17 @@ import { STORE_PLAN_LIST } from '../../shared/store-products.mjs';
 export function createStoreBillingRoute(auth, billing) {
   const allowed = createMemoryRateLimiter({ windowMs: 60_000, max: 20 });
   return async (req, res, url) => {
-    if (url.pathname === '/api/store-billing/plans' && req.method === 'GET')
-      return sendJson(res, { plans: STORE_PLAN_LIST, enabled: !!billing && process.env.STORE_IAP_ENABLED === 'true' });
+    if (url.pathname === '/api/store-billing/plans' && req.method === 'GET') {
+      let enabled = !!billing && process.env.STORE_IAP_ENABLED === 'true';
+      const testers = (process.env.STORE_IAP_TEST_USER_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
+      if (!enabled && billing && testers.length && /OngiFullService\/1/.test(req.headers['user-agent'] || '')) {
+        try {
+          const user = await auth?.userFromToken(authToken(req));
+          enabled = !!user && testers.includes(String(user.id));
+        } catch { enabled = false; }
+      }
+      return sendJson(res, { plans: STORE_PLAN_LIST, enabled });
+    }
     if (req.method !== 'POST') return sendJson(res, { error: '허용되지 않은 요청입니다.' }, 405);
     if (!billing) return sendJson(res, { error: '결제 연결을 준비하고 있어요.' }, 503);
     try {
