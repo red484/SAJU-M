@@ -325,6 +325,8 @@ html.native-app.is-offline body:before {content:'오프라인 · 연결을 확�
 @media(max-width:850px) {
   html.native-app body header {height:calc(64px + env(safe-area-inset-top))}
   html.native-app body[data-page=chat] .workspace.dual {height:calc(100dvh - 64px - env(safe-area-inset-top))}
+  html.native-app body .welcome,html.native-app body .welcome-with-auth {padding-top:calc(26px + env(safe-area-inset-top))}
+  html.native-app body .welcome-brand {top:calc(22px + env(safe-area-inset-top))}
 }
 body .card.monthly-review {padding:0;background:#f0f3ed;border:0;margin:12px 0 22px}
 body .monthly-review>summary {padding:16px 20px;color:var(--teal);font-size:14px;min-height:48px}
